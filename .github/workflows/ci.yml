@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release
+
+      - name: Build sample (analyzer smoke test)
+        run: dotnet build samples/TemporalSharp.SampleApp/TemporalSharp.SampleApp.csproj -c Release
+
+      - name: Pack
+        run: |
+          dotnet pack src/TemporalSharp.Analyzers/TemporalSharp.Analyzers.csproj --no-build -c Release -o artifacts
+          dotnet pack src/TemporalSharp.Cli/TemporalSharp.Cli.csproj --no-build -c Release -o artifacts
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error
