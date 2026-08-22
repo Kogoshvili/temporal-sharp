@@ -17,8 +17,10 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP0121 | Error | Randomness/identity: `Random.Shared` / `new Random()` / `Guid.NewGuid()` | `Workflow.Random` / `Workflow.NewGuid()` |
 | TMP0131 | Error | I/O & env: `Environment.GetEnvironmentVariable` / `File.*` / `Directory.*` / `Console.*` / `HttpClient` / sockets / `Process.Start` | pass via activity |
 | TMP0141 | Error | Concurrency: `Task.Run` / `TaskFactory.StartNew` / `Thread.Start` / `new Thread(...)` / `ThreadPool.QueueUserWorkItem` / `Parallel.*` / `BackgroundWorker` | `Workflow.ExecuteActivityAsync` / `Workflow.DelayAsync` |
-| TMP0142 | Error | Sync/blocking primitives: `Channel<T>` (`ReadAsync`/`WriteAsync`) / `BlockingCollection<T>` / `SemaphoreSlim` / `ManualResetEventSlim` / `Monitor` / `lock` / `Mutex` / `AutoResetEvent` / `ReaderWriterLockSlim` / `SpinWait` / `CountdownEvent` / `Barrier` | await async equivalents / activity |
+| TMP0142 | Error | Sync/blocking primitives: `Channel<T>` (`ReadAsync`/`WriteAsync`) / `BlockingCollection<T>` / `SemaphoreSlim` / `Semaphore` / `WaitHandle.WaitOne`/`WaitAny`/`WaitAll` / `ManualResetEventSlim` / `ManualResetEvent` / `EventWaitHandle` / `Monitor` / `lock` / `Mutex` / `AutoResetEvent` / `ReaderWriterLockSlim` / `ReaderWriterLock` / `SpinWait` / `CountdownEvent` / `Barrier` | await async equivalents / activity |
 | TMP0143 | Warning | Raw task scheduling: `Task.WhenAll` / `Task.WhenAny` / `Task.ContinueWith` / `TaskFactory.ContinueWhenAll` / `ContinueWhenAny` / `CancellationTokenSource.CancelAsync()` | `Workflow.WhenAllAsync` / `Workflow.WhenAnyAsync` / `.Cancel()` |
+| TMP0144 | Error | Raw task coordination: `new TaskCompletionSource<T>()` (task not owned by the deterministic scheduler) | `Workflow.WaitConditionAsync` on a field |
+| TMP0145 | Error | Reflection / dynamic invocation: `Activator.CreateInstance` / `Assembly.Load*` / `Assembly.GetTypes` / `Type.GetType` / `MethodInfo.Invoke` / `Delegate.DynamicInvoke` | move into an activity |
 | TMP0151 | Error | Unordered enumeration: `foreach` / `ToList()` / `ToArray()` / `First()` / `Last()` / `.Keys`/`.Values` / slicing over `Dictionary<,>` / `HashSet<T>` / `Hashtable` / `ConcurrentDictionary<,>` / `ISet<T>` (honor `OrderBy`/`Sorted*` as deterministic) | sort / `SortedDictionary` / `OrderBy` |
 
 ## Shared-state mutation
@@ -30,6 +32,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP1103 | Error | `static` property setters from workflow code |
 | TMP1104 | Error | Mutation of static collections (`Add`/`Remove`/`Clear`/`TryAdd`…) |
 | TMP1105 | Error | Mutation of shared static reference state via a mutating method call (`Set`/`Create`/`Update`/`Write`/`Dispose`…) |
+| TMP1106 | Error | Ambient `AsyncLocal<T>` / `ThreadLocal<T>` declarations and `.Value` access from workflow code |
 
 ## SDK feature-misuse
 

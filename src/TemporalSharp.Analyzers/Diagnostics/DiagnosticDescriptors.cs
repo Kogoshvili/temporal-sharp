@@ -106,6 +106,22 @@ internal static class DiagnosticDescriptors
         "'{0}' runs on the non-deterministic task scheduler; use Workflow.WhenAllAsync / Workflow.WhenAnyAsync instead",
         "Raw Task combinators (WhenAll/WhenAny/ContinueWith) schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAllAsync / Workflow.WhenAnyAsync, and use .Cancel() instead of CancellationTokenSource.CancelAsync().");
 
+    internal static readonly DiagnosticDescriptor ManualTaskCoordination = Create(
+        "TMP0144",
+        DeterminismCategory,
+        "Workflow code uses raw task coordination",
+        "'{0}' is not owned by the deterministic workflow scheduler; use Workflow.WaitConditionAsync on a field instead",
+        "TaskCompletionSource produces a Task whose completion and continuation timing are controlled by the default scheduler rather than the replay-deterministic workflow scheduler. Store a field and await it with Workflow.WaitConditionAsync.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor ReflectionInvocation = Create(
+        "TMP0145",
+        DeterminismCategory,
+        "Workflow code uses reflection or dynamic invocation",
+        "'{0}' is non-deterministic in workflow code; move it into an activity instead",
+        "Reflection and dynamic invocation run arbitrary, non-journaled code on the workflow path, so side effects re-run on replay. Delegate this work to an activity.",
+        severity: DiagnosticSeverity.Error);
+
     internal static readonly DiagnosticDescriptor UnorderedEnumeration = Create(
         "TMP0151",
         DeterminismCategory,
@@ -213,6 +229,14 @@ internal static class DiagnosticDescriptors
         "Workflow code mutates static state via a method call",
         "Static member '{0}' is mutated via a method call from workflow code; shared mutable state breaks replay determinism and races across executions",
         "Calling a mutating method on a shared static reference changes state visible to every workflow execution. Keep workflow state instance-local.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor AmbientState = Create(
+        "TMP1106",
+        WorkflowStateCategory,
+        "Workflow code uses ambient AsyncLocal/ThreadLocal state",
+        "'{0}' stores ambient state that is not deterministic during workflow replay; pass state explicitly instead",
+        "AsyncLocal/ThreadLocal state lives in ExecutionContext/thread storage and flows across awaits in scheduler-dependent ways, so it is not deterministic replay state. Thread state explicitly through method parameters and fields.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor LossyNumber = Create(

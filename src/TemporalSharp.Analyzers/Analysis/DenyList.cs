@@ -23,14 +23,18 @@ internal static class DenyList
             ["System.Random..ctor"] = DiagnosticDescriptors.NonDeterministicRandomness,
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
-    // Constructors of concurrency primitives. Unlike the parameterless-only
-    // Constructors list, these are matched regardless of argument count (e.g.
-    // new Thread(...) takes a delegate, new BackgroundWorker() takes none).
-    private static readonly ImmutableDictionary<string, DiagnosticDescriptor> ConcurrencyConstructors =
+    // Constructors matched regardless of argument count (e.g. new Thread(...)
+    // takes a delegate, new BackgroundWorker() takes none). Unlike the
+    // parameterless-only Constructors list above.
+    private static readonly ImmutableDictionary<string, DiagnosticDescriptor> AnyArgConstructors =
         new Dictionary<string, DiagnosticDescriptor>(StringComparer.Ordinal)
         {
             ["System.Threading.Thread..ctor"] = DiagnosticDescriptors.ConcurrentExecution,
             ["System.ComponentModel.BackgroundWorker..ctor"] = DiagnosticDescriptors.ConcurrentExecution,
+            ["System.Threading.Tasks.TaskCompletionSource<TResult>..ctor"] = DiagnosticDescriptors.ManualTaskCoordination,
+            ["System.Threading.Tasks.TaskCompletionSource..ctor"] = DiagnosticDescriptors.ManualTaskCoordination,
+            ["System.Threading.AsyncLocal<T>..ctor"] = DiagnosticDescriptors.AmbientState,
+            ["System.Threading.ThreadLocal<T>..ctor"] = DiagnosticDescriptors.AmbientState,
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
     public static bool TryGetMember(string key, out DiagnosticDescriptor? descriptor)
@@ -39,8 +43,8 @@ internal static class DenyList
     public static bool TryGetConstructor(string key, out DiagnosticDescriptor? descriptor)
         => Constructors.TryGetValue(key, out descriptor);
 
-    public static bool TryGetConcurrencyConstructor(string key, out DiagnosticDescriptor? descriptor)
-        => ConcurrencyConstructors.TryGetValue(key, out descriptor);
+    public static bool TryGetAnyArgConstructor(string key, out DiagnosticDescriptor? descriptor)
+        => AnyArgConstructors.TryGetValue(key, out descriptor);
 
     private static ImmutableDictionary<string, DiagnosticDescriptor> BuildMembers()
     {
@@ -201,6 +205,36 @@ internal static class DenyList
         })
         {
             entries.Add((name, DiagnosticDescriptors.TaskScheduling));
+        }
+
+        // TMP0145 — reflection / dynamic invocation
+        foreach (var name in new[]
+        {
+            "System.Activator.CreateInstance",
+            "System.Reflection.Assembly.Load",
+            "System.Reflection.Assembly.LoadFrom",
+            "System.Reflection.Assembly.LoadFile",
+            "System.Reflection.Assembly.LoadWithPartialName",
+            "System.Reflection.Assembly.GetTypes",
+            "System.Reflection.Assembly.GetExportedTypes",
+            "System.Type.GetType",
+            "System.Reflection.MethodInfo.Invoke",
+            "System.Reflection.MethodBase.Invoke",
+            "System.Reflection.ConstructorInfo.Invoke",
+            "System.Delegate.DynamicInvoke",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.ReflectionInvocation));
+        }
+
+        // TMP1106 — ambient AsyncLocal/ThreadLocal state (.Value access)
+        foreach (var name in new[]
+        {
+            "System.Threading.AsyncLocal<T>.Value",
+            "System.Threading.ThreadLocal<T>.Value",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.AmbientState));
         }
 
         return entries.ToImmutableDictionary(e => e.Key, e => e.Descriptor, StringComparer.Ordinal);

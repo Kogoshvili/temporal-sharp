@@ -392,6 +392,116 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task TaskCompletionSource_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0144:new System.Threading.Tasks.TaskCompletionSource<int>()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskCompletionSource_InActivity_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    Activities.DoWork();
+                }
+            }
+
+            public static class Activities
+            {
+                [Temporalio.Activities.Activity]
+                public static void DoWork()
+                {
+                    var tcs = new System.Threading.Tasks.TaskCompletionSource<int>();
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ActivatorCreateInstance_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0145:System.Activator.CreateInstance(typeof(int))|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task MethodInfoInvoke_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var mi = typeof(object).GetMethod("ToString");
+                    {|TMP0145:mi.Invoke(null, null)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task AsyncLocalCreation_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP1106:new System.Threading.AsyncLocal<int>()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task AsyncLocalValueAccess_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private readonly System.Threading.AsyncLocal<int> _state = new System.Threading.AsyncLocal<int>();
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var v = {|TMP1106:_state.Value|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ThreadLocalCreation_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP1106:new System.Threading.ThreadLocal<int>()|};
+                }
+            }
+            """);
+
+    [Fact]
     public Task ForeachDictionary_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

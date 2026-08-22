@@ -25,6 +25,9 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.ConcurrentExecution,
             DiagnosticDescriptors.BlockingPrimitive,
             DiagnosticDescriptors.TaskScheduling,
+            DiagnosticDescriptors.ManualTaskCoordination,
+            DiagnosticDescriptors.ReflectionInvocation,
+            DiagnosticDescriptors.AmbientState,
             DiagnosticDescriptors.UnorderedEnumeration);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => Supported;
@@ -105,7 +108,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
         // Concurrency constructors (e.g. new Thread(...), new BackgroundWorker())
         // are flagged regardless of argument count.
-        if (DenyList.TryGetConcurrencyConstructor(key, out var concurrencyDescriptor))
+        if (DenyList.TryGetAnyArgConstructor(key, out var concurrencyDescriptor))
         {
             ReportIfReachable(context, state, node, symbol, concurrencyDescriptor);
             return;
