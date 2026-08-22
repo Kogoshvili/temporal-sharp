@@ -204,6 +204,105 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task TaskWhenAll_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var t = System.Threading.Tasks.Task.CompletedTask;
+                    {|TMP0143:System.Threading.Tasks.Task.WhenAll(t)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskWhenAny_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var t = System.Threading.Tasks.Task.CompletedTask;
+                    {|TMP0143:System.Threading.Tasks.Task.WhenAny(t)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskContinueWith_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var t = System.Threading.Tasks.Task.CompletedTask;
+                    {|TMP0143:t.ContinueWith(x => { })|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskOfTContinueWith_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var t = System.Threading.Tasks.Task.FromResult("x");
+                    {|TMP0143:t.ContinueWith(x => x.Result)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task CancellationTokenSourceCancelAsync_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var cts = new System.Threading.CancellationTokenSource();
+                    {|TMP0143:cts.CancelAsync()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskWhenAll_InActivity_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    Activities.DoWork();
+                }
+            }
+
+            public static class Activities
+            {
+                [Temporalio.Activities.Activity]
+                public static void DoWork()
+                {
+                    var t = System.Threading.Tasks.Task.CompletedTask;
+                    System.Threading.Tasks.Task.WhenAll(t);
+                }
+            }
+            """);
+
+    [Fact]
     public Task SemaphoreSlimWait_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

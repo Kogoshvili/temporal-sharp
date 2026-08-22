@@ -11,6 +11,7 @@ TMP0121 | TemporalSharp.Determinism | Error | Non-deterministic randomness in wo
 TMP0131 | TemporalSharp.Determinism | Error | I/O or environment access in workflow code
 TMP0141 | TemporalSharp.Determinism | Error | Concurrent work started in workflow code
 TMP0142 | TemporalSharp.Determinism | Error | Blocking synchronization primitive in workflow code
+TMP0143 | TemporalSharp.Determinism | Warning | Raw task scheduling in workflow code
 TMP0151 | TemporalSharp.Determinism | Error | Non-deterministic collection enumeration in workflow code
 TMP0102 | TemporalSharp.Determinism | Error | Stopwatch elapsed wall-clock time in workflow code
 TMP1101 | TemporalSharp.WorkflowState | Error | Static field mutation in workflow code

@@ -24,6 +24,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.IoOrEnvironmentAccess,
             DiagnosticDescriptors.ConcurrentExecution,
             DiagnosticDescriptors.BlockingPrimitive,
+            DiagnosticDescriptors.TaskScheduling,
             DiagnosticDescriptors.UnorderedEnumeration);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => Supported;

@@ -99,6 +99,13 @@ internal static class DiagnosticDescriptors
         "Blocking on locks, channels, or other synchronization primitives can deadlock the single-threaded workflow runtime and break determinism.",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor TaskScheduling = Create(
+        "TMP0143",
+        DeterminismCategory,
+        "Workflow code uses raw task scheduling",
+        "'{0}' runs on the non-deterministic task scheduler; use Workflow.WhenAllAsync / Workflow.WhenAnyAsync instead",
+        "Raw Task combinators (WhenAll/WhenAny/ContinueWith) schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAllAsync / Workflow.WhenAnyAsync, and use .Cancel() instead of CancellationTokenSource.CancelAsync().");
+
     internal static readonly DiagnosticDescriptor UnorderedEnumeration = Create(
         "TMP0151",
         DeterminismCategory,

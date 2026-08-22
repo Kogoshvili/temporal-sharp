@@ -177,6 +177,21 @@ internal static class DenyList
             entries.Add((name, DiagnosticDescriptors.BlockingPrimitive));
         }
 
+        // TMP0143 — raw task scheduling
+        foreach (var name in new[]
+        {
+            "System.Threading.Tasks.Task.WhenAll",
+            "System.Threading.Tasks.Task.WhenAny",
+            "System.Threading.Tasks.Task.ContinueWith",
+            "System.Threading.Tasks.Task<TResult>.ContinueWith",
+            "System.Threading.Tasks.TaskFactory.ContinueWhenAll",
+            "System.Threading.Tasks.TaskFactory.ContinueWhenAny",
+            "System.Threading.CancellationTokenSource.CancelAsync",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.TaskScheduling));
+        }
+
         return entries.ToImmutableDictionary(e => e.Key, e => e.Descriptor, StringComparer.Ordinal);
     }
 }
