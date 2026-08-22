@@ -1,0 +1,32 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test / coverage
+TestResults/
+*.trx
+coverage.*
+.coverage
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# MSBuild
+*.binlog
+*.slnf
+*.userprefs
+
+# OS
+.DS_Store
+Thumbs.db
