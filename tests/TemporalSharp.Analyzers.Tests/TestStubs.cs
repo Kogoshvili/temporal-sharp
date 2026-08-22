@@ -70,6 +70,17 @@ internal static class TestStubs
                     ActivityOptions options)
                     => System.Threading.Tasks.Task.CompletedTask;
 
+                public static System.Threading.Tasks.Task WaitConditionAsync(
+                    System.Func<bool> conditionCheck,
+                    System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public static System.Threading.Tasks.Task<bool> WaitConditionAsync(
+                    System.Func<bool> conditionCheck,
+                    System.TimeSpan timeout,
+                    System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.FromResult(true);
+
                 public static System.Threading.Tasks.Task ExecuteChildWorkflowAsync(
                     string workflow,
                     System.Collections.Generic.IReadOnlyCollection<object?>? args,

@@ -24,6 +24,8 @@ TMP1105 | TemporalSharp.WorkflowState | Error | Static state mutated via method 
 TMP1106 | TemporalSharp.WorkflowState | Error | Ambient AsyncLocal/ThreadLocal state in workflow code
 TMP2101 | TemporalSharp.SdkMisuse | Error | Activity options missing required timeout
 TMP2102 | TemporalSharp.SdkMisuse | Disabled | ScheduleToCloseTimeout set without StartToCloseTimeout
+TMP2103 | TemporalSharp.SdkMisuse | Disabled | WaitConditionAsync called without a timeout
+TMP2104 | TemporalSharp.SdkMisuse | Warning | WaitConditionAsync timeout result ignored
 TMP2111 | TemporalSharp.SdkMisuse | Disabled | Workflow target named by string
 TMP2121 | TemporalSharp.SdkMisuse | Error | Continue-as-new exception not thrown
 TMP2131 | TemporalSharp.SdkMisuse | Warning | Non-replay-aware logging in workflow code

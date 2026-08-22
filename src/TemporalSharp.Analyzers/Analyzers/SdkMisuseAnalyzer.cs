@@ -49,6 +49,8 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.ContinueAsNewNotThrown,
             DiagnosticDescriptors.NonReplayAwareLogger,
             DiagnosticDescriptors.MissingStartToCloseTimeout,
+            DiagnosticDescriptors.WaitConditionWithoutTimeout,
+            DiagnosticDescriptors.WaitConditionTimeoutIgnored,
             DiagnosticDescriptors.NonSerializableType,
             DiagnosticDescriptors.SensitiveArgument,
             DiagnosticDescriptors.LossyNumber);
@@ -247,6 +249,38 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         {
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ContinueAsNewNotThrown, invocation.GetLocation()));
         }
+
+        if (method.Name == "WaitConditionAsync")
+        {
+            AnalyzeWaitCondition(context, invocation, method);
+        }
+    }
+
+    private static void AnalyzeWaitCondition(
+        SyntaxNodeAnalysisContext context,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method)
+    {
+        if (method.ReturnType is not INamedTypeSymbol returnType ||
+            TypeNames.FullName(returnType) != "System.Threading.Tasks.Task")
+        {
+            return;
+        }
+
+        if (returnType.TypeArguments.Length == 0)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.WaitConditionWithoutTimeout,
+                invocation.GetLocation()));
+            return;
+        }
+
+        if (IsAwaitedResultDiscarded(invocation))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.WaitConditionTimeoutIgnored,
+                invocation.GetLocation()));
+        }
     }
 
     private static void AnalyzeLogging(
@@ -269,7 +303,12 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.NonReplayAwareLogger, invocation.GetLocation(), display));
     }
 
-    private static bool IsDiscarded(InvocationExpressionSyntax invocation) =>
-        invocation.Parent is ExpressionStatementSyntax ||
-        invocation.Parent is AssignmentExpressionSyntax { Left: IdentifierNameSyntax { Identifier.ValueText: "_" } };
+    private static bool IsDiscarded(ExpressionSyntax expression) =>
+        expression.Parent is ExpressionStatementSyntax ||
+        expression.Parent is AssignmentExpressionSyntax { Left: IdentifierNameSyntax { Identifier.ValueText: "_" } };
+
+    private static bool IsAwaitedResultDiscarded(InvocationExpressionSyntax invocation) =>
+        invocation.Parent is AwaitExpressionSyntax awaitExpression
+            ? IsDiscarded(awaitExpression)
+            : IsDiscarded(invocation);
 }

@@ -40,6 +40,8 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 |---|---|---|
 | TMP2101 | Error | `ActivityOptions`/`LocalActivityOptions` initializer missing `StartToCloseTimeout` **and** `ScheduleToCloseTimeout` (both `TimeSpan?`) |
 | TMP2102 | off | `ScheduleToCloseTimeout` set but no `StartToCloseTimeout` |
+| TMP2103 | off | `Workflow.WaitConditionAsync` called without a timeout (can wait forever) |
+| TMP2104 | Warning | `Workflow.WaitConditionAsync` timeout result discarded (timeout has no effect) |
 | TMP2111 | off | String-name overloads (`ExecuteActivityAsync(string, IReadOnlyCollection<object?>, …)`, same for child/local) instead of a typed lambda |
 | TMP2121 | Error | `CreateContinueAsNewException(...)` result created but never thrown |
 | TMP2131 | Warning | `Console.*` / `System.Diagnostics.Debug` / `Trace` / non-SDK `ILogger` / Serilog / NLog instead of `Workflow.Logger` |

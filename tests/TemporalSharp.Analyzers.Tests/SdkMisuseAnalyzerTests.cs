@@ -237,4 +237,58 @@ public class SdkMisuseAnalyzerTests
             """));
         return test.RunAsync();
     }
+
+    [Fact]
+    public Task WaitConditionAsyncWithoutTimeout_Reports_WhenOptedIn()
+    {
+        var test = new CSharpAnalyzerTest<SdkMisuseAnalyzer, DefaultVerifier>
+        {
+            TestCode = Stubs + """
+                [Temporalio.Workflows.Workflow]
+                public class W
+                {
+                    [Temporalio.Workflows.WorkflowRun]
+                    public async System.Threading.Tasks.Task Run()
+                    {
+                        await {|TMP2103:Temporalio.Workflows.Workflow.WaitConditionAsync(() => true)|};
+                    }
+                }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", """
+            root = true
+            dotnet_diagnostic.TMP2103.severity = warning
+            """));
+        return test.RunAsync();
+    }
+
+    [Fact]
+    public Task WaitConditionAsyncTimeoutIgnored_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await {|TMP2104:Temporalio.Workflows.Workflow.WaitConditionAsync(() => true, System.TimeSpan.FromSeconds(5))|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task WaitConditionAsyncTimeoutConsumed_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var ok = await Temporalio.Workflows.Workflow.WaitConditionAsync(() => true, System.TimeSpan.FromSeconds(5));
+                    if (!ok) { return; }
+                }
+            }
+            """);
 }

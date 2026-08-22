@@ -154,6 +154,21 @@ internal static class DiagnosticDescriptors
         "When both are relevant, StartToCloseTimeout should be set so the activity cannot run for longer than expected.",
         isEnabledByDefault: false);
 
+    internal static readonly DiagnosticDescriptor WaitConditionWithoutTimeout = Create(
+        "TMP2103",
+        SdkMisuseCategory,
+        "WaitConditionAsync called without a timeout",
+        "Workflow.WaitConditionAsync has no timeout; the workflow can wait forever and leak open executions",
+        "Waiting on a condition without a timeout can leave the workflow blocked forever if the signal never arrives. Use the timeout overload and handle the returned bool.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor WaitConditionTimeoutIgnored = Create(
+        "TMP2104",
+        SdkMisuseCategory,
+        "WaitConditionAsync timeout result ignored",
+        "Workflow.WaitConditionAsync timeout result is ignored; the timeout provides no protection",
+        "When the bool returned by the timeout overload is discarded, the timeout has no effect and the workflow proceeds as if the condition were met. Check the result and handle the timeout path.");
+
     internal static readonly DiagnosticDescriptor NonSerializableType = Create(
         "TMP2141",
         SdkMisuseCategory,
