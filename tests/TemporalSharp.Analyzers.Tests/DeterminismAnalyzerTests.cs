@@ -6,18 +6,7 @@ namespace TemporalSharp.Analyzers.Tests;
 
 public class DeterminismAnalyzerTests
 {
-    private const string Stubs = """
-        namespace Temporalio.Workflows
-        {
-            public sealed class WorkflowAttribute : System.Attribute { }
-            public sealed class WorkflowRunAttribute : System.Attribute { }
-        }
-
-        namespace Temporalio.Activities
-        {
-            public sealed class ActivityAttribute : System.Attribute { }
-        }
-        """;
+    private const string Stubs = TestStubs.Attributes;
 
     private static Task Verify(string source)
     {
@@ -114,7 +103,7 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
-    public Task ConsoleWriteLine_InWorkflow_Reports()
+    public Task EnvironmentAccess_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class MyWorkflow
@@ -122,7 +111,7 @@ public class DeterminismAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public void Run()
                 {
-                    {|TMP0131:System.Console.WriteLine("x")|};
+                    var v = {|TMP0131:System.Environment.GetEnvironmentVariable("X")|};
                 }
             }
             """);

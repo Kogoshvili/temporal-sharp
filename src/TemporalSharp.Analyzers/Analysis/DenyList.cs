@@ -78,8 +78,6 @@ internal static class DenyList
         {
             "System.Environment.GetEnvironmentVariable",
             "System.Environment.GetEnvironmentVariables",
-            "System.Console.WriteLine",
-            "System.Console.Write",
             "System.IO.File.ReadAllText",
             "System.IO.File.ReadAllLines",
             "System.IO.File.ReadAllBytes",
