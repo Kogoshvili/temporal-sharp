@@ -50,7 +50,8 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.NonReplayAwareLogger,
             DiagnosticDescriptors.MissingStartToCloseTimeout,
             DiagnosticDescriptors.NonSerializableType,
-            DiagnosticDescriptors.SensitiveArgument);
+            DiagnosticDescriptors.SensitiveArgument,
+            DiagnosticDescriptors.LossyNumber);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -59,7 +60,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
 
         context.RegisterCompilationStartAction(startContext =>
         {
-            var state = CompilationAnalysisState.Get(startContext.Compilation);
+            var state = CompilationAnalysisState.Get(startContext.Compilation, startContext.Options);
             var config = TemporalSharpConfig.From(startContext.Options.AnalyzerConfigOptionsProvider);
 
             startContext.RegisterSyntaxNodeAction(
@@ -144,6 +145,16 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
                 continue;
             }
 
+            if (IsLossyNumber(parameter.Type))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.LossyNumber,
+                    parameter.Locations.Length > 0 ? parameter.Locations[0] : method.Locations[0],
+                    parameter.Name,
+                    parameter.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+                continue;
+            }
+
             if (MatchesSensitivePattern(parameter.Name, method.DeclaringSyntaxReferences, config))
             {
                 context.ReportDiagnostic(Diagnostic.Create(
@@ -173,6 +184,11 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         TypeNames.FullName(type) is "System.Threading.Channels.Channel" or
             "System.Threading.Channels.ChannelReader" or
             "System.Threading.Channels.ChannelWriter";
+
+    private static bool IsLossyNumber(ITypeSymbol type) =>
+        type.TypeKind == TypeKind.Dynamic ||
+        type.SpecialType == SpecialType.System_Object ||
+        TypeNames.FullName(type) == "System.Text.Json.JsonElement";
 
     private static void ReportNonSerializable(SymbolAnalysisContext context, ITypeSymbol type, Location location)
     {

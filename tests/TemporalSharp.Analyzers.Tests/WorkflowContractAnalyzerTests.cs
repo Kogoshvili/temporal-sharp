@@ -74,4 +74,69 @@ public class WorkflowContractAnalyzerTests
                 public System.Threading.Tasks.Task Run() => System.Threading.Tasks.Task.CompletedTask;
             }
             """);
+
+    [Fact]
+    public Task NonPublicActivity_Reports()
+        => Verify(Stubs + """
+            public static class Act
+            {
+                [Temporalio.Activities.Activity]
+                internal static System.Threading.Tasks.Task {|TMP3202:Do|}() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task NonTaskActivity_Reports()
+        => Verify(Stubs + """
+            public static class Act
+            {
+                [Temporalio.Activities.Activity]
+                public static void {|TMP3202:Do|}() { }
+            }
+            """);
+
+    [Fact]
+    public Task ActivityOnClass_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Activities.Activity]
+            public class {|TMP3202:Act|} { }
+            """);
+
+    [Fact]
+    public Task MissingActivityOnTypedLambda_Reports()
+        => Verify(TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var opts = new Temporalio.Workflows.ActivityOptions();
+                    {|TMP3202:Temporalio.Workflows.Workflow.ExecuteActivityAsync(() => DoThing(), opts)|};
+                }
+
+                public static System.Threading.Tasks.Task DoThing() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task TypedLambdaWithActivity_DoesNotReport()
+        => Verify(TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var opts = new Temporalio.Workflows.ActivityOptions();
+                    await Temporalio.Workflows.Workflow.ExecuteActivityAsync(() => Act.Do(), opts);
+                }
+            }
+
+            public static class Act
+            {
+                [Temporalio.Activities.Activity]
+                public static System.Threading.Tasks.Task Do() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
 }

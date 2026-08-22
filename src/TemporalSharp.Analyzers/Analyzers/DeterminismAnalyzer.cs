@@ -20,6 +20,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.WallClockTime,
             DiagnosticDescriptors.BlockOrSleep,
             DiagnosticDescriptors.NonDeterministicRandomness,
+            DiagnosticDescriptors.StopwatchUsage,
             DiagnosticDescriptors.IoOrEnvironmentAccess,
             DiagnosticDescriptors.ConcurrentExecution,
             DiagnosticDescriptors.BlockingPrimitive,
@@ -34,7 +35,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
         context.RegisterCompilationStartAction(startContext =>
         {
-            var state = CompilationAnalysisState.Get(startContext.Compilation);
+            var state = CompilationAnalysisState.Get(startContext.Compilation, startContext.Options);
 
             startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzeInvocation(nodeContext, state),

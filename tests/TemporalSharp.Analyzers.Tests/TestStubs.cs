@@ -45,8 +45,18 @@ internal static class TestStubs
                 public ContinueAsNewException() { }
             }
 
+            public sealed class SearchAttributeKey
+            {
+                public static SearchAttributeKey ForKeyword(string name) => new SearchAttributeKey();
+            }
+
             public static class Workflow
             {
+                public static bool Patched(string patchId) => false;
+
+                public static void DeprecatePatch(string patchId) { }
+
+                public static void UpsertTypedSearchAttributes(params SearchAttributeKey[] updates) { }
                 public static System.Threading.Tasks.Task ExecuteActivityAsync(
                     string activity,
                     System.Collections.Generic.IReadOnlyCollection<object?>? args,

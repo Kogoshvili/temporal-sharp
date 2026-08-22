@@ -290,4 +290,84 @@ public class DeterminismAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task StopwatchStartNew_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var sw = {|TMP0102:System.Diagnostics.Stopwatch.StartNew()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task StopwatchElapsed_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var sw = new System.Diagnostics.Stopwatch();
+                    var elapsed = {|TMP0102:sw.Elapsed|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task VirtualDispatchToOverride_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    Animal a = new Dog();
+                    a.Make();
+                }
+            }
+
+            public abstract class Animal
+            {
+                public abstract void Make();
+            }
+
+            public class Dog : Animal
+            {
+                public override void Make()
+                {
+                    var g = {|TMP0121:System.Guid.NewGuid()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DelegateTargetCall_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    System.Action action = Helper.DoWork;
+                    action();
+                }
+            }
+
+            public static class Helper
+            {
+                public static void DoWork()
+                {
+                    var g = {|TMP0121:System.Guid.NewGuid()|};
+                }
+            }
+            """);
 }

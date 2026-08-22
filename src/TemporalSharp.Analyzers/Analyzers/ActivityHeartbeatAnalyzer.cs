@@ -121,7 +121,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var activityMethod = ResolveTypedLambdaTarget(context, invocation);
+        var activityMethod = LambdaTargetResolver.ResolveTypedLambdaTarget(context, invocation);
         if (activityMethod is not null && WorkflowDetection.IsActivityMethod(activityMethod))
         {
             state.HeartbeatTimeoutCandidates.Add((activityMethod, creation.GetLocation()));
@@ -188,38 +188,6 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
             if (current is StatementSyntax or MemberDeclarationSyntax)
             {
                 return null;
-            }
-        }
-
-        return null;
-    }
-
-    private static IMethodSymbol? ResolveTypedLambdaTarget(
-        SyntaxNodeAnalysisContext context,
-        InvocationExpressionSyntax invocation)
-    {
-        foreach (var argument in invocation.ArgumentList.Arguments)
-        {
-            var expression = argument.Expression;
-            while (expression is CastExpressionSyntax cast)
-            {
-                expression = cast.Expression;
-            }
-
-            if (expression is not LambdaExpressionSyntax lambda)
-            {
-                continue;
-            }
-
-            var body = lambda.Body;
-            while (body is ParenthesizedExpressionSyntax parens)
-            {
-                body = parens.Expression;
-            }
-
-            if (body is InvocationExpressionSyntax bodyInvocation)
-            {
-                return context.SemanticModel.GetSymbolInfo(bodyInvocation).Symbol as IMethodSymbol;
             }
         }
 

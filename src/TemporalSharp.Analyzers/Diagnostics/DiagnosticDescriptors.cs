@@ -154,6 +154,50 @@ internal static class DiagnosticDescriptors
         "Invalid [WorkflowRun] method: {0}",
         "A workflow entry method must be public, return Task, be declared in a [Workflow] class, and be the only [WorkflowRun] method.");
 
+    internal static readonly DiagnosticDescriptor StopwatchUsage = Create(
+        "TMP0102",
+        DeterminismCategory,
+        "Workflow code measures elapsed wall-clock time",
+        "'{0}' measures wall-clock time in workflow code; use Workflow.UtcNow instead",
+        "A Stopwatch reads elapsed wall-clock time, which differs on replay. Use Workflow.UtcNow to read deterministic time.");
+
+    internal static readonly DiagnosticDescriptor StaticCollectionMutation = Create(
+        "TMP1104",
+        WorkflowStateCategory,
+        "Workflow code mutates a static collection",
+        "Static collection '{0}' is mutated from workflow code; shared mutable state breaks replay determinism and races across executions",
+        "Workflow instances may be replayed or run concurrently; mutating a static collection produces different results across executions.");
+
+    internal static readonly DiagnosticDescriptor LossyNumber = Create(
+        "TMP2171",
+        SdkMisuseCategory,
+        "Lossy-number parameter in workflow/activity signature",
+        "Parameter '{0}' has type '{1}'; the JSON DataConverter may lose precision, use a concrete type instead",
+        "object/dynamic values decode to JsonElement, and large integers may lose precision. Declare a concrete parameter type.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor InvalidActivity = Create(
+        "TMP3202",
+        SdkMisuseCategory,
+        "Invalid activity method",
+        "Invalid [Activity]: {0}",
+        "An activity method must be public, return Task or Task<T>, and be marked [Activity] when targeted by ExecuteActivityAsync.");
+
+    internal static readonly DiagnosticDescriptor VersioningMisuse = Create(
+        "TMP3301",
+        SdkMisuseCategory,
+        "Workflow versioning (patch) misuse",
+        "Versioning misuse: {0}",
+        "Workflow.Patched and Workflow.DeprecatePatch ids must be constant strings and a patch must not be both patched and deprecated.");
+
+    internal static readonly DiagnosticDescriptor SearchAttributeNotUpserted = Create(
+        "TMP2161",
+        SdkMisuseCategory,
+        "Search attribute is never upserted",
+        "Workflow input field '{0}' maps to search attribute '{1}' but is never upserted via Workflow.UpsertTypedSearchAttributes",
+        "A search attribute set at workflow start is only indexed then. Upsert it with Workflow.UpsertTypedSearchAttributes when its value changes.",
+        isEnabledByDefault: false);
+
     private static DiagnosticDescriptor Create(
         string id,
         string category,

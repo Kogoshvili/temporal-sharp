@@ -16,8 +16,9 @@ Two delivery vehicles, one rule engine:
 ## Status
 
 Early development. See [`RULES.md`](RULES.md) for the full rule catalog and
-[`plan.md`](plan.md) for the implementation plan. v1 and v2 rules are
-implemented; v3 rules are pending.
+[`plan.md`](plan.md) for the roadmap. All 26 rules (v1, v2, v3) are implemented.
+The CLI builds a solution-level call graph so a workflow that calls a helper in
+another project is still checked for non-determinism.
 
 ## CLI
 
@@ -29,12 +30,24 @@ temporal-sharp analyze <path.sln|path.csproj> [options]
 ```
 
 Suppress a finding with a `// workflowcheck:ignore` comment on the line or the
-line immediately above the violation. Opt-in rules (e.g. `TMP2102`, `TMP2151`)
-are enabled via `.editorconfig`:
+line immediately above the violation. Opt-in rules (`TMP2102`, `TMP2151`,
+`TMP2161`, `TMP2171`) are enabled via `.editorconfig`:
 
 ```ini
 dotnet_diagnostic.TMP2102.severity = warning
 dotnet_diagnostic.TMP2151.severity = warning
+dotnet_diagnostic.TMP2161.severity = warning
+dotnet_diagnostic.TMP2171.severity = warning
+```
+
+Two rules take custom config keys:
+
+- `temporalsharp.sensitive_pattern` (regex for `TMP2151` sensitive args).
+- `temporalsharp.search_attributes` (alias=attribute map for `TMP2161`), e.g.:
+
+```ini
+[*.cs]
+temporalsharp.search_attributes = user_id=user_id, client_id=user_id
 ```
 
 ## License

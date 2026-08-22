@@ -203,4 +203,27 @@ public class SdkMisuseAnalyzerTests
             """));
         return test.RunAsync();
     }
+
+    [Fact]
+    public Task ObjectParameter_Reports_WhenOptedIn()
+    {
+        var test = new CSharpAnalyzerTest<SdkMisuseAnalyzer, DefaultVerifier>
+        {
+            TestCode = Stubs + """
+                [Temporalio.Workflows.Workflow]
+                public class W
+                {
+                    [Temporalio.Workflows.WorkflowRun]
+                    public System.Threading.Tasks.Task Run(object {|TMP2171:value|})
+                        => System.Threading.Tasks.Task.CompletedTask;
+                }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", """
+            root = true
+            dotnet_diagnostic.TMP2171.severity = warning
+            """));
+        return test.RunAsync();
+    }
 }

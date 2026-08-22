@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using TemporalSharp.Analyzers.Analysis;
 using TemporalSharp.Analyzers.Diagnostics;
@@ -7,15 +9,19 @@ using TemporalSharp.Analyzers.Diagnostics;
 namespace TemporalSharp.Analyzers.Analyzers;
 
 /// <summary>
-/// Validates the Temporal SDK workflow-entry-method contract (TMP3201): a
-/// [WorkflowRun] method must be public, return Task, be declared in a [Workflow]
-/// class, and be the only [WorkflowRun] method in that class.
+/// Validates the Temporal SDK contract for workflow entry methods (TMP3201) and
+/// activity methods (TMP3202): a [WorkflowRun] method must be public, return
+/// Task, be declared in a [Workflow] class, and be the only [WorkflowRun] method
+/// in that class; an [Activity] method must be public and return Task/Task&lt;T&gt;,
+/// and a typed-lambda activity target must be marked [Activity].
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
 {
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(DiagnosticDescriptors.InvalidWorkflowRun);
+        ImmutableArray.Create(
+            DiagnosticDescriptors.InvalidWorkflowRun,
+            DiagnosticDescriptors.InvalidActivity);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -58,6 +64,18 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
                 }
             }, SymbolKind.Method);
 
+            startContext.RegisterSymbolAction(
+                AnalyzeActivityMethod,
+                SymbolKind.Method);
+
+            startContext.RegisterSymbolAction(
+                AnalyzeActivityOnNonMethod,
+                SymbolKind.Field, SymbolKind.Property, SymbolKind.NamedType);
+
+            startContext.RegisterSyntaxNodeAction(
+                AnalyzeMissingActivity,
+                SyntaxKind.InvocationExpression);
+
             startContext.RegisterCompilationEndAction(endContext =>
             {
                 foreach (var group in runMethods.GroupBy(m => m.ContainingType, SymbolEqualityComparer.Default))
@@ -75,15 +93,75 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
         });
     }
 
+    private static void AnalyzeActivityMethod(SymbolAnalysisContext context)
+    {
+        var method = (IMethodSymbol)context.Symbol;
+        if (!WorkflowDetection.IsActivityMethod(method))
+        {
+            return;
+        }
+
+        var location = FirstLocation(method);
+
+        if (method.DeclaredAccessibility != Accessibility.Public)
+        {
+            Report(context, location, "the activity method must be public", DiagnosticDescriptors.InvalidActivity);
+        }
+
+        if (!IsTaskReturning(method))
+        {
+            Report(context, location, "the activity method must return Task or Task<T>", DiagnosticDescriptors.InvalidActivity);
+        }
+    }
+
+    private static void AnalyzeActivityOnNonMethod(SymbolAnalysisContext context)
+    {
+        if (!WorkflowDetection.HasActivityAttribute(context.Symbol))
+        {
+            return;
+        }
+
+        Report(context, FirstLocation(context.Symbol), "the [Activity] attribute may only be applied to a method", DiagnosticDescriptors.InvalidActivity);
+    }
+
+    private static void AnalyzeMissingActivity(SyntaxNodeAnalysisContext context)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method)
+        {
+            return;
+        }
+
+        if (method.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) != SdkNames.WorkflowType ||
+            method.Name is not ("ExecuteActivityAsync" or "ExecuteLocalActivityAsync"))
+        {
+            return;
+        }
+
+        var target = LambdaTargetResolver.ResolveTypedLambdaTarget(context, invocation);
+        if (target is null || WorkflowDetection.IsActivityMethod(target))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.InvalidActivity,
+            invocation.GetLocation(),
+            $"target '{target.Name}' must be marked [Activity]"));
+    }
+
     private static bool IsTaskReturning(IMethodSymbol method) =>
         TypeNames.FullName(method.ReturnType) == "System.Threading.Tasks.Task";
 
     private static void Report(SymbolAnalysisContext context, Location location, string reason) =>
-        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.InvalidWorkflowRun, location, reason));
+        Report(context, location, reason, DiagnosticDescriptors.InvalidWorkflowRun);
 
     private static void Report(CompilationAnalysisContext context, Location location, string reason) =>
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.InvalidWorkflowRun, location, reason));
 
-    private static Location FirstLocation(IMethodSymbol method) =>
-        method.Locations.Length > 0 ? method.Locations[0] : Location.None;
+    private static void Report(SymbolAnalysisContext context, Location location, string reason, DiagnosticDescriptor descriptor) =>
+        context.ReportDiagnostic(Diagnostic.Create(descriptor, location, reason));
+
+    private static Location FirstLocation(ISymbol symbol) =>
+        symbol.Locations.Length > 0 ? symbol.Locations[0] : Location.None;
 }

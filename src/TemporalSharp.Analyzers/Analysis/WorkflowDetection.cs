@@ -21,6 +21,9 @@ internal static class WorkflowDetection
     public static bool IsActivityMethod(IMethodSymbol method)
         => HasAttribute(method, ActivityAttributeName);
 
+    public static bool HasActivityAttribute(ISymbol symbol)
+        => HasAttribute(symbol, ActivityAttributeName);
+
     private static bool HasAttribute(ISymbol symbol, string attributeFullName)
     {
         foreach (var attribute in symbol.GetAttributes())

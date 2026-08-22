@@ -129,6 +129,13 @@ public class CliTests
     }
 
     [Fact]
+    public void OptionsParse_AnalyzeSubcommand()
+    {
+        var options = Options.Parse(new[] { "analyze", "x.csproj" });
+        Assert.Equal("x.csproj", options.Path);
+    }
+
+    [Fact]
     public async Task SeverityOverride_EscalatesForFailOn()
     {
         var diagnostics = await Analyze(WorkflowSource);

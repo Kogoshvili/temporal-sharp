@@ -86,6 +86,23 @@ internal static class DenyList
             entries.Add((name, DiagnosticDescriptors.NonDeterministicRandomness));
         }
 
+        // TMP0102 — Stopwatch (elapsed wall-clock time)
+        foreach (var name in new[]
+        {
+            "System.Diagnostics.Stopwatch.StartNew",
+            "System.Diagnostics.Stopwatch.Start",
+            "System.Diagnostics.Stopwatch.Stop",
+            "System.Diagnostics.Stopwatch.Restart",
+            "System.Diagnostics.Stopwatch.GetTimestamp",
+            "System.Diagnostics.Stopwatch.Frequency",
+            "System.Diagnostics.Stopwatch.Elapsed",
+            "System.Diagnostics.Stopwatch.ElapsedMilliseconds",
+            "System.Diagnostics.Stopwatch.ElapsedTicks",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.StopwatchUsage));
+        }
+
         // TMP0131 — I/O and environment access
         foreach (var name in new[]
         {

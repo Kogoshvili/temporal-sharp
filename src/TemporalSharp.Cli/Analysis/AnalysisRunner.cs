@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
+using TemporalSharp.Analyzers.Analysis;
 using TemporalSharp.Analyzers.Analyzers;
 
 namespace TemporalSharp.Cli.Analysis;
@@ -13,10 +14,17 @@ internal static class AnalysisRunner
         new SdkMisuseAnalyzer(),
         new ActivityHeartbeatAnalyzer(),
         new WorkflowContractAnalyzer(),
+        new VersioningAnalyzer(),
+        new SearchAttributeAnalyzer(),
         new WorkflowCheckIgnoreSuppressor());
 
     public static async Task<ImmutableArray<Diagnostic>> AnalyzeSolutionAsync(Solution solution, CancellationToken cancellationToken)
     {
+        var reachable = await SolutionCallGraph.ComputeReachableAsync(solution, cancellationToken).ConfigureAwait(false);
+        var reachabilityFile = new InMemoryAdditionalText(
+            CompilationAnalysisState.SolutionReachabilityFileName,
+            string.Join("\n", reachable));
+
         var results = ImmutableArray.CreateBuilder<Diagnostic>();
 
         foreach (var projectId in solution.ProjectIds)
@@ -33,7 +41,12 @@ internal static class AnalysisRunner
                 continue;
             }
 
-            results.AddRange(await AnalyzeCompilationAsync(compilation, project.AnalyzerOptions, cancellationToken).ConfigureAwait(false));
+            var options = project.AnalyzerOptions;
+            var augmentedOptions = new AnalyzerOptions(
+                options.AdditionalFiles.Add(reachabilityFile),
+                options.AnalyzerConfigOptionsProvider);
+
+            results.AddRange(await AnalyzeCompilationAsync(compilation, augmentedOptions, cancellationToken).ConfigureAwait(false));
         }
 
         return results.ToImmutable();

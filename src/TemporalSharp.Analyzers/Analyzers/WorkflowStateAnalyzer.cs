@@ -39,11 +39,21 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
         SyntaxKind.PreDecrementExpression,
     };
 
+    private static readonly ImmutableHashSet<string> MutatingMethods = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "Add", "AddRange", "Insert", "InsertRange",
+        "Remove", "RemoveAt", "RemoveAll", "RemoveRange",
+        "Clear", "TryAdd", "TryRemove", "TryUpdate", "AddOrUpdate", "GetOrAdd",
+        "Push", "Pop", "Enqueue", "Dequeue",
+        "AddFirst", "AddLast", "RemoveFirst", "RemoveLast",
+        "Take", "TryTake");
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.StaticStateMutation,
             DiagnosticDescriptors.ThreadStaticMutation,
-            DiagnosticDescriptors.StaticPropertySetter);
+            DiagnosticDescriptors.StaticPropertySetter,
+            DiagnosticDescriptors.StaticCollectionMutation);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -52,7 +62,7 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
 
         context.RegisterCompilationStartAction(startContext =>
         {
-            var state = CompilationAnalysisState.Get(startContext.Compilation);
+            var state = CompilationAnalysisState.Get(startContext.Compilation, startContext.Options);
 
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeAssignment(c, state),
@@ -61,6 +71,10 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeIncrementDecrement(c, state),
                 IncrementDecrementKinds);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeCollectionMutation(c, state),
+                SyntaxKind.InvocationExpression);
         });
     }
 
@@ -86,6 +100,50 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
 
         ReportIfStaticMutable(context, state, context.Node, operand);
     }
+
+    private static void AnalyzeCollectionMutation(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+        {
+            return;
+        }
+
+        if (!MutatingMethods.Contains(memberAccess.Name.Identifier.ValueText))
+        {
+            return;
+        }
+
+        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
+            method.IsStatic || method.IsExtensionMethod)
+        {
+            return;
+        }
+
+        var receiver = context.SemanticModel.GetSymbolInfo(memberAccess.Expression).Symbol;
+        if (receiver is not IFieldSymbol { IsStatic: true } and not IPropertySymbol { IsStatic: true })
+        {
+            return;
+        }
+
+        var receiverType = (receiver as IFieldSymbol)?.Type ?? ((IPropertySymbol)receiver).Type;
+        if (receiverType is null || !IsCollection(receiverType))
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
+        {
+            return;
+        }
+
+        var display = receiver.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.StaticCollectionMutation, invocation.GetLocation(), display));
+    }
+
+    private static bool IsCollection(ITypeSymbol type) =>
+        TypeNames.IsOrImplements(type, "System.Collections.ICollection") ||
+        TypeNames.IsOrImplements(type, "System.Collections.Generic.ICollection");
 
     private static void ReportIfStaticMutable(
         SyntaxNodeAnalysisContext context,

@@ -110,4 +110,66 @@ public class WorkflowStateAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task StaticCollectionAdd_InWorkflow_Reports()
+        => Verify(TestStubs.Attributes + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private static readonly System.Collections.Generic.List<int> items = new();
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP1104:items.Add(1)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task StaticCollectionClear_InWorkflow_Reports()
+        => Verify(TestStubs.Attributes + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private static readonly System.Collections.Generic.Dictionary<int, int> map = new();
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP1104:map.Clear()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task InstanceCollectionAdd_InWorkflow_DoesNotReport()
+        => Verify(TestStubs.Attributes + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private readonly System.Collections.Generic.List<int> items = new();
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    items.Add(1);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task StaticCollectionAdd_OutsideWorkflow_DoesNotReport()
+        => Verify(TestStubs.Attributes + """
+            public class PlainClass
+            {
+                private static readonly System.Collections.Generic.List<int> items = new();
+
+                public void DoSomething()
+                {
+                    items.Add(1);
+                }
+            }
+            """);
 }

@@ -32,6 +32,9 @@ internal sealed class Options
         {
             switch (args[i])
             {
+                case "analyze":
+                    break;
+
                 case "--format":
                     format = ParseFormat(RequireValue(args, ref i, "--format"));
                     break;
