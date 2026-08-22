@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D08D863A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TemporalSharp.Analyzers.Tests", "tests\TemporalSharp.Analyzers.Tests\TemporalSharp.Analyzers.Tests.csproj", "{BD158526-2B10-42AF-8DE1-444197385AF7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TemporalSharp.Cli.Tests", "tests\TemporalSharp.Cli.Tests\TemporalSharp.Cli.Tests.csproj", "{87862985-5347-4877-AC20-626CC36FBE97}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -34,10 +36,15 @@ Global
 		{BD158526-2B10-42AF-8DE1-444197385AF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BD158526-2B10-42AF-8DE1-444197385AF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BD158526-2B10-42AF-8DE1-444197385AF7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87862985-5347-4877-AC20-626CC36FBE97}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87862985-5347-4877-AC20-626CC36FBE97}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87862985-5347-4877-AC20-626CC36FBE97}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87862985-5347-4877-AC20-626CC36FBE97}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{C67E9F04-D9B1-4769-9097-482AE147CFC4} = {06F4A075-8F89-4117-8DAA-8E6E328A683D}
 		{297CA128-AF4A-41CC-AE08-83DC97925191} = {06F4A075-8F89-4117-8DAA-8E6E328A683D}
 		{BD158526-2B10-42AF-8DE1-444197385AF7} = {D08D863A-2835-4C63-AFC0-D85D190FA775}
+		{87862985-5347-4877-AC20-626CC36FBE97} = {D08D863A-2835-4C63-AFC0-D85D190FA775}
 	EndGlobalSection
 EndGlobal

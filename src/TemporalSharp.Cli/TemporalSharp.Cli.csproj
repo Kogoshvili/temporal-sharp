@@ -22,4 +22,8 @@
     <ProjectReference Include="..\TemporalSharp.Analyzers\TemporalSharp.Analyzers.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="TemporalSharp.Cli.Tests" />
+  </ItemGroup>
+
 </Project>
