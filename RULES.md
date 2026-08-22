@@ -58,6 +58,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP3104 | Warning | **Heartbeat**: activity calls `Heartbeat()` but has no loop and at most one await (heartbeat unnecessary) |
 | TMP3201 | Error | SDK-contract sanity: `[WorkflowRun]` not `public` / not `Task`-returning / multiple `[WorkflowRun]` / `[WorkflowRun]` without `[Workflow]` |
 | TMP3202 | Error | SDK-contract sanity: `[Activity]` on a non-method / missing `[Activity]` where expected |
+| TMP3203 | Error | SDK-contract sanity: `[Activity]` method writes to an instance field/property (activities must be stateless) |
 | TMP3301 | Error | Versioning: patch id both `Patched` and `DeprecatePatch`'d in the same workflow (leftover) |
 | TMP3302 | Warning | Versioning: `Patched` / `DeprecatePatch` id is not a constant string |
 

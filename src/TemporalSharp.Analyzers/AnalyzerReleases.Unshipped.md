@@ -37,5 +37,6 @@ TMP3103 | TemporalSharp.SdkMisuse | Warning | Heartbeat called without Heartbeat
 TMP3104 | TemporalSharp.SdkMisuse | Warning | Heartbeat called unnecessarily
 TMP3201 | TemporalSharp.SdkMisuse | Error | Invalid workflow entry method
 TMP3202 | TemporalSharp.SdkMisuse | Error | Invalid activity declaration
+TMP3203 | TemporalSharp.SdkMisuse | Error | Activity method mutates instance state
 TMP3301 | TemporalSharp.SdkMisuse | Error | Patch both applied and deprecated
 TMP3302 | TemporalSharp.SdkMisuse | Warning | Non-constant patch id

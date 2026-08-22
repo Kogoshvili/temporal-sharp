@@ -14,6 +14,7 @@ internal static class AnalysisRunner
         new SdkMisuseAnalyzer(),
         new ActivityHeartbeatAnalyzer(),
         new WorkflowContractAnalyzer(),
+        new ActivityStateAnalyzer(),
         new VersioningAnalyzer(),
         new SearchAttributeAnalyzer());
 

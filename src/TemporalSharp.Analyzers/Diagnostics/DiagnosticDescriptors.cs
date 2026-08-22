@@ -255,6 +255,14 @@ internal static class DiagnosticDescriptors
         "The [Activity] attribute may only be applied to methods, and a method passed by typed lambda to ExecuteActivityAsync must be marked [Activity].",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor ActivityInstanceState = Create(
+        "TMP3203",
+        SdkMisuseCategory,
+        "Activity method mutates instance state",
+        "Activity method '{0}' writes to instance member '{1}'; activities must be stateless",
+        "Activities must be stateless. Mutable instance fields and properties race across concurrent executions when the worker shares a single activity instance (or never accumulate when the worker re-instantiates per call).",
+        severity: DiagnosticSeverity.Error);
+
     internal static readonly DiagnosticDescriptor PatchLeftover = Create(
         "TMP3301",
         SdkMisuseCategory,
