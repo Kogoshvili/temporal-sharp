@@ -11,6 +11,8 @@ Two delivery vehicles, one rule engine:
 - **`temporal-sharp`** — a standalone CLI (`dotnet tool`) for CI pipelines, so
   findings stay visible in PRs even when a project already ignores warnings.
 
+See [`RULES.md`](RULES.md) for the full rule catalog.
+
 ## Install
 
 ```sh
