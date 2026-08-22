@@ -59,8 +59,9 @@ internal static class AnalysisRunner
     {
         var withAnalyzers = compilation.WithAnalyzers(Analyzers, options);
 
-        // GetAllDiagnosticsAsync applies the //temporalsharp:ignore suppressor;
-        // keep only TemporalSharp rules and drop compiler diagnostics.
+        // GetAllDiagnosticsAsync applies the //temporalsharp:ignore suppressor
+        // and excludes opt-in (disabled-by-default) rules; keep only TemporalSharp
+        // rules and drop compiler diagnostics.
         var all = await withAnalyzers.GetAllDiagnosticsAsync(cancellationToken).ConfigureAwait(false);
         return all.Where(d => d.Id.StartsWith("TMP", StringComparison.Ordinal)).ToImmutableArray();
     }

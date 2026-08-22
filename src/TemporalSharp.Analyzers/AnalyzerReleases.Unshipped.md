@@ -19,7 +19,7 @@ TMP1103 | TemporalSharp.WorkflowState | Warning | Static property setter in work
 TMP1104 | TemporalSharp.WorkflowState | Warning | Static collection mutation in workflow code
 TMP2101 | TemporalSharp.SdkMisuse | Warning | Activity options missing required timeout
 TMP2102 | TemporalSharp.SdkMisuse | Disabled | ScheduleToCloseTimeout set without StartToCloseTimeout
-TMP2111 | TemporalSharp.SdkMisuse | Warning | Workflow target named by string
+TMP2111 | TemporalSharp.SdkMisuse | Disabled | Workflow target named by string
 TMP2121 | TemporalSharp.SdkMisuse | Warning | Continue-as-new exception not thrown
 TMP2131 | TemporalSharp.SdkMisuse | Warning | Non-replay-aware logging in workflow code
 TMP2141 | TemporalSharp.SdkMisuse | Warning | Non-serializable type in workflow/activity signature
@@ -29,5 +29,5 @@ TMP2171 | TemporalSharp.SdkMisuse | Disabled | Lossy-number parameter in workflo
 TMP3101 | TemporalSharp.SdkMisuse | Warning | Long-running activity does not heartbeat
 TMP3102 | TemporalSharp.SdkMisuse | Warning | HeartbeatTimeout set but activity never heartbeats
 TMP3201 | TemporalSharp.SdkMisuse | Warning | Invalid workflow entry method
-TMP3202 | TemporalSharp.SdkMisuse | Warning | Invalid activity method
+TMP3202 | TemporalSharp.SdkMisuse | Warning | Invalid activity declaration
 TMP3301 | TemporalSharp.SdkMisuse | Warning | Workflow versioning (patch) misuse

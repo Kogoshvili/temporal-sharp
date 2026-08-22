@@ -162,4 +162,19 @@ public class CliTests
         var diagnostics = await Analyze(source);
         Assert.DoesNotContain(diagnostics, d => d.Id == "TMP0101");
     }
+
+    [Fact]
+    public async Task OptInRule_NotReported_ByDefault()
+    {
+        var source = Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run(object value) => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """;
+        var diagnostics = await Analyze(source);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "TMP2171");
+    }
 }

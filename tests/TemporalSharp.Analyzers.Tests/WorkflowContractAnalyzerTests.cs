@@ -76,22 +76,22 @@ public class WorkflowContractAnalyzerTests
             """);
 
     [Fact]
-    public Task NonPublicActivity_Reports()
+    public Task NonPublicActivity_DoesNotReport()
         => Verify(Stubs + """
             public static class Act
             {
                 [Temporalio.Activities.Activity]
-                internal static System.Threading.Tasks.Task {|TMP3202:Do|}() => System.Threading.Tasks.Task.CompletedTask;
+                internal static System.Threading.Tasks.Task Do() => System.Threading.Tasks.Task.CompletedTask;
             }
             """);
 
     [Fact]
-    public Task NonTaskActivity_Reports()
+    public Task SynchronousActivity_DoesNotReport()
         => Verify(Stubs + """
             public static class Act
             {
                 [Temporalio.Activities.Activity]
-                public static void {|TMP3202:Do|}() { }
+                public static int AddOne(int num) => num + 1;
             }
             """);
 

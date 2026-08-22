@@ -59,7 +59,8 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Workflow target named by string",
         "Target '{0}' is named by string; pass a typed lambda instead so arguments can be checked statically",
-        "String-named targets cannot be resolved statically and bypass compile-time type checking.");
+        "String-named targets cannot be resolved statically and bypass compile-time type checking. This overload is legitimate for dynamic workflows, so the rule is opt-in.",
+        isEnabledByDefault: false);
 
     internal static readonly DiagnosticDescriptor ContinueAsNewNotThrown = Create(
         "TMP2121",
@@ -179,9 +180,9 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor InvalidActivity = Create(
         "TMP3202",
         SdkMisuseCategory,
-        "Invalid activity method",
+        "Invalid activity declaration",
         "Invalid [Activity]: {0}",
-        "An activity method must be public, return Task or Task<T>, and be marked [Activity] when targeted by ExecuteActivityAsync.");
+        "The [Activity] attribute may only be applied to methods, and a method passed by typed lambda to ExecuteActivityAsync must be marked [Activity].");
 
     internal static readonly DiagnosticDescriptor VersioningMisuse = Create(
         "TMP3301",

@@ -10,10 +10,10 @@ namespace TemporalSharp.Analyzers.Analyzers;
 
 /// <summary>
 /// Validates the Temporal SDK contract for workflow entry methods (TMP3201) and
-/// activity methods (TMP3202): a [WorkflowRun] method must be public, return
+/// activity declarations (TMP3202): a [WorkflowRun] method must be public, return
 /// Task, be declared in a [Workflow] class, and be the only [WorkflowRun] method
-/// in that class; an [Activity] method must be public and return Task/Task&lt;T&gt;,
-/// and a typed-lambda activity target must be marked [Activity].
+/// in that class; the [Activity] attribute may only be applied to methods, and a
+/// typed-lambda activity target must be marked [Activity].
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
@@ -65,10 +65,6 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
             }, SymbolKind.Method);
 
             startContext.RegisterSymbolAction(
-                AnalyzeActivityMethod,
-                SymbolKind.Method);
-
-            startContext.RegisterSymbolAction(
                 AnalyzeActivityOnNonMethod,
                 SymbolKind.Field, SymbolKind.Property, SymbolKind.NamedType);
 
@@ -91,27 +87,6 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
                 }
             });
         });
-    }
-
-    private static void AnalyzeActivityMethod(SymbolAnalysisContext context)
-    {
-        var method = (IMethodSymbol)context.Symbol;
-        if (!WorkflowDetection.IsActivityMethod(method))
-        {
-            return;
-        }
-
-        var location = FirstLocation(method);
-
-        if (method.DeclaredAccessibility != Accessibility.Public)
-        {
-            Report(context, location, "the activity method must be public", DiagnosticDescriptors.InvalidActivity);
-        }
-
-        if (!IsTaskReturning(method))
-        {
-            Report(context, location, "the activity method must return Task or Task<T>", DiagnosticDescriptors.InvalidActivity);
-        }
     }
 
     private static void AnalyzeActivityOnNonMethod(SymbolAnalysisContext context)

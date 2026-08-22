@@ -34,7 +34,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 |---|---|
 | TMP2101 | `ActivityOptions`/`LocalActivityOptions` initializer missing `StartToCloseTimeout` **and** `ScheduleToCloseTimeout` (both `TimeSpan?`) |
 | TMP2102 | `ScheduleToCloseTimeout` set but no `StartToCloseTimeout` `(opt-in)` |
-| TMP2111 | String-name overloads (`ExecuteActivityAsync(string, IReadOnlyCollection<object?>, …)`, same for child/local) instead of a typed lambda |
+| TMP2111 | String-name overloads (`ExecuteActivityAsync(string, IReadOnlyCollection<object?>, …)`, same for child/local) instead of a typed lambda `(opt-in)` |
 | TMP2121 | `CreateContinueAsNewException(...)` result created but never thrown |
 | TMP2131 | `Console.*` / `System.Diagnostics.Debug` / `Trace` / non-SDK `ILogger` / Serilog / NLog instead of `Workflow.Logger` |
 | TMP2141 | `Delegate` / `Action` / `Func<>` / `Channel<T>` / `Stream` / `IAsyncEnumerable<T>` as activity/workflow params or returns |

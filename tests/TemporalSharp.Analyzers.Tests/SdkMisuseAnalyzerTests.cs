@@ -58,17 +58,28 @@ public class SdkMisuseAnalyzerTests
             """);
 
     [Fact]
-    public Task StringTarget_Reports()
-        => Verify(Stubs + """
-            public class C
-            {
-                public void M()
+    public Task StringTarget_Reports_WhenOptedIn()
+    {
+        var test = new CSharpAnalyzerTest<SdkMisuseAnalyzer, DefaultVerifier>
+        {
+            TestCode = Stubs + """
+                public class C
                 {
-                    var opts = new Temporalio.Workflows.ActivityOptions();
-                    var t = {|TMP2111:Temporalio.Workflows.Workflow.ExecuteActivityAsync("Greet", null, opts)|};
+                    public void M()
+                    {
+                        var opts = new Temporalio.Workflows.ActivityOptions();
+                        var t = {|TMP2111:Temporalio.Workflows.Workflow.ExecuteActivityAsync("Greet", null, opts)|};
+                    }
                 }
-            }
-            """);
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", """
+            root = true
+            dotnet_diagnostic.TMP2111.severity = warning
+            """));
+        return test.RunAsync();
+    }
 
     [Fact]
     public Task TypedLambdaTarget_DoesNotReport()
