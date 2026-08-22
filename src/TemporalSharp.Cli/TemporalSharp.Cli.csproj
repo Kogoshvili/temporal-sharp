@@ -10,6 +10,7 @@
     <Description>Standalone CLI for the TemporalSharp analyzer. Not affiliated with or endorsed by Temporal Technologies.</Description>
     <PackageTags>temporal;roslyn;analyzer;workflows;cli</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +21,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TemporalSharp.Analyzers\TemporalSharp.Analyzers.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
