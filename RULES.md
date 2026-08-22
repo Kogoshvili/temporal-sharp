@@ -1,6 +1,6 @@
 # TemporalSharp Rule Catalog
 
-All 31 rules implemented by TemporalSharp, grouped by category. The `Default`
+Rules implemented by TemporalSharp, grouped by category. The `Default`
 column is the default severity; `off` means the rule is opt-in — disabled by
 default and enabled via `.editorconfig` severity.
 
