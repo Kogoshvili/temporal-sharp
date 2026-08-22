@@ -18,5 +18,10 @@ public class BadWorkflow
         Console.WriteLine("started");                         // TMP2131 non-replay-aware logging
         var opts = new ActivityOptions { TaskQueue = "q" };    // TMP2101 missing timeout
         await Workflow.ExecuteActivityAsync("Greet", null, opts); // TMP2111 string target
+
+        _ = Task.Run(() => { });                              // TMP0141 concurrency
+        lock (this) { }                                       // TMP0142 blocking primitive
+        var map = new System.Collections.Generic.Dictionary<int, int>();
+        foreach (var kv in map) { }                           // TMP0151 unordered enumeration
     }
 }

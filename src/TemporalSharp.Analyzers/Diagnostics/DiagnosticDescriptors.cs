@@ -75,12 +75,92 @@ internal static class DiagnosticDescriptors
         "'{0}' logs during replay and double-logs; use Workflow.Logger instead",
         "Standard loggers write on every replay. Use Workflow.Logger, which suppresses output during replay.");
 
+    internal static readonly DiagnosticDescriptor ConcurrentExecution = Create(
+        "TMP0141",
+        DeterminismCategory,
+        "Workflow code starts concurrent work",
+        "'{0}' starts concurrent work in workflow code; use Workflow.ExecuteActivityAsync or Workflow.DelayAsync instead",
+        "Starting threads or tasks in workflow code breaks replay determinism. Delegate concurrent work to activities.");
+
+    internal static readonly DiagnosticDescriptor BlockingPrimitive = Create(
+        "TMP0142",
+        DeterminismCategory,
+        "Workflow code uses a blocking synchronization primitive",
+        "'{0}' blocks workflow code; use an async alternative instead",
+        "Blocking on locks, channels, or other synchronization primitives can deadlock the single-threaded workflow runtime and break determinism.");
+
+    internal static readonly DiagnosticDescriptor UnorderedEnumeration = Create(
+        "TMP0151",
+        DeterminismCategory,
+        "Workflow code iterates a collection in non-deterministic order",
+        "'{0}' may enumerate in non-deterministic order; sort the collection before iterating",
+        "Dictionary and HashSet iteration order is not deterministic across runs and replays. Sort the collection first.");
+
+    internal static readonly DiagnosticDescriptor ThreadStaticMutation = Create(
+        "TMP1102",
+        WorkflowStateCategory,
+        "Workflow code mutates [ThreadStatic] state",
+        "Static member '{0}' is [ThreadStatic] and is mutated from workflow code",
+        "[ThreadStatic] state is per-thread and not deterministic during workflow replay.");
+
+    internal static readonly DiagnosticDescriptor StaticPropertySetter = Create(
+        "TMP1103",
+        WorkflowStateCategory,
+        "Workflow code sets a static property",
+        "Static property '{0}' is set from workflow code",
+        "Mutating static state from workflow code breaks replay determinism and races across executions.");
+
+    internal static readonly DiagnosticDescriptor MissingStartToCloseTimeout = Create(
+        "TMP2102",
+        SdkMisuseCategory,
+        "ScheduleToCloseTimeout set without StartToCloseTimeout",
+        "ScheduleToCloseTimeout is set but StartToCloseTimeout is not",
+        "When both are relevant, StartToCloseTimeout should be set so the activity cannot run for longer than expected.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor NonSerializableType = Create(
+        "TMP2141",
+        SdkMisuseCategory,
+        "Non-serializable type in workflow/activity signature",
+        "Type '{0}' is not serializable across the workflow/activity boundary",
+        "Workflow and activity arguments and return values are serialized; delegates, streams, channels, and async enumerables cannot round-trip.");
+
+    internal static readonly DiagnosticDescriptor SensitiveArgument = Create(
+        "TMP2151",
+        SdkMisuseCategory,
+        "Workflow/activity parameter or property may contain sensitive data",
+        "'{0}' matches the sensitive-data pattern",
+        "Workflow inputs are recorded in event history; avoid passing sensitive values directly.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor ActivityNeverHeartbeats = Create(
+        "TMP3101",
+        SdkMisuseCategory,
+        "Long-running activity does not heartbeat",
+        "Activity '{0}' contains a loop or multiple awaits but never calls ActivityExecutionContext.Heartbeat()",
+        "Long-running activities should heartbeat so Temporal can detect failures and deliver cancellations.");
+
+    internal static readonly DiagnosticDescriptor HeartbeatTimeoutWithoutHeartbeat = Create(
+        "TMP3102",
+        SdkMisuseCategory,
+        "HeartbeatTimeout set but activity never heartbeats",
+        "Activity '{0}' is invoked with HeartbeatTimeout set but never calls ActivityExecutionContext.Heartbeat()",
+        "HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed.");
+
+    internal static readonly DiagnosticDescriptor InvalidWorkflowRun = Create(
+        "TMP3201",
+        SdkMisuseCategory,
+        "Invalid workflow entry method",
+        "Invalid [WorkflowRun] method: {0}",
+        "A workflow entry method must be public, return Task, be declared in a [Workflow] class, and be the only [WorkflowRun] method.");
+
     private static DiagnosticDescriptor Create(
         string id,
         string category,
         string title,
         string messageFormat,
-        string description)
+        string description,
+        bool isEnabledByDefault = true)
     {
         return new DiagnosticDescriptor(
             id: id,
@@ -88,7 +168,7 @@ internal static class DiagnosticDescriptors
             messageFormat: messageFormat,
             category: category,
             defaultSeverity: DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
+            isEnabledByDefault: isEnabledByDefault,
             description: description,
             helpLinkUri: "https://github.com/Kogoshvili/temporal-sharp/blob/main/RULES.md");
     }

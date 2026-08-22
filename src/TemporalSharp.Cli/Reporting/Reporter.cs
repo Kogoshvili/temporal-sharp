@@ -20,9 +20,12 @@ internal static class Reporter
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public static void WriteConsole(TextWriter writer, IReadOnlyList<Diagnostic> diagnostics)
+    public static void WriteConsole(
+        TextWriter writer,
+        IReadOnlyList<Diagnostic> diagnostics,
+        IReadOnlyDictionary<string, DiagnosticSeverity>? severityOverrides = null)
     {
-        foreach (var dto in Sort(ToDtos(diagnostics)))
+        foreach (var dto in Sort(ToDtos(diagnostics, severityOverrides)))
         {
             var location = dto.File is null
                 ? "<no location>"
@@ -31,12 +34,16 @@ internal static class Reporter
         }
     }
 
-    public static string ToJson(IReadOnlyList<Diagnostic> diagnostics)
-        => JsonSerializer.Serialize(Sort(ToDtos(diagnostics)), JsonOptions);
+    public static string ToJson(
+        IReadOnlyList<Diagnostic> diagnostics,
+        IReadOnlyDictionary<string, DiagnosticSeverity>? severityOverrides = null)
+        => JsonSerializer.Serialize(Sort(ToDtos(diagnostics, severityOverrides)), JsonOptions);
 
-    public static string ToSarif(IReadOnlyList<Diagnostic> diagnostics)
+    public static string ToSarif(
+        IReadOnlyList<Diagnostic> diagnostics,
+        IReadOnlyDictionary<string, DiagnosticSeverity>? severityOverrides = null)
     {
-        var dtos = Sort(ToDtos(diagnostics));
+        var dtos = Sort(ToDtos(diagnostics, severityOverrides));
 
         var rules = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
         var results = new JsonArray();
@@ -102,16 +109,24 @@ internal static class Reporter
         return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
     }
 
-    private static IReadOnlyList<DiagnosticDto> ToDtos(IReadOnlyList<Diagnostic> diagnostics)
+    private static IReadOnlyList<DiagnosticDto> ToDtos(
+        IReadOnlyList<Diagnostic> diagnostics,
+        IReadOnlyDictionary<string, DiagnosticSeverity>? severityOverrides)
     {
         var dtos = new List<DiagnosticDto>(diagnostics.Count);
         foreach (var diagnostic in diagnostics)
         {
+            var severity = diagnostic.Severity;
+            if (severityOverrides is not null && severityOverrides.TryGetValue(diagnostic.Id, out var overridden))
+            {
+                severity = overridden;
+            }
+
             var lineSpan = diagnostic.Location.GetLineSpan();
             var path = lineSpan.Path;
             dtos.Add(new DiagnosticDto(
                 diagnostic.Id,
-                diagnostic.Severity.ToString().ToLowerInvariant(),
+                severity.ToString().ToLowerInvariant(),
                 diagnostic.GetMessage(),
                 string.IsNullOrEmpty(path) ? null : path,
                 lineSpan.IsValid ? lineSpan.StartLinePosition.Line + 1 : null,

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -46,7 +47,10 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.ActivityMissingTimeout,
             DiagnosticDescriptors.StringTarget,
             DiagnosticDescriptors.ContinueAsNewNotThrown,
-            DiagnosticDescriptors.NonReplayAwareLogger);
+            DiagnosticDescriptors.NonReplayAwareLogger,
+            DiagnosticDescriptors.MissingStartToCloseTimeout,
+            DiagnosticDescriptors.NonSerializableType,
+            DiagnosticDescriptors.SensitiveArgument);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -56,6 +60,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         context.RegisterCompilationStartAction(startContext =>
         {
             var state = CompilationAnalysisState.Get(startContext.Compilation);
+            var config = TemporalSharpConfig.From(startContext.Options.AnalyzerConfigOptionsProvider);
 
             startContext.RegisterSyntaxNodeAction(
                 AnalyzeObjectCreation,
@@ -64,6 +69,10 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeInvocation(c, state),
                 SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSymbolAction(
+                c => AnalyzeMethodSignature(c, config),
+                SymbolKind.Method);
         });
     }
 
@@ -88,16 +97,102 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        var hasStartToClose = false;
+        var hasScheduleToClose = false;
         foreach (var expression in initializer.Expressions)
         {
-            if (expression is AssignmentExpressionSyntax { Left: IdentifierNameSyntax identifier } &&
-                identifier.Identifier.ValueText is "StartToCloseTimeout" or "ScheduleToCloseTimeout")
+            if (expression is AssignmentExpressionSyntax { Left: IdentifierNameSyntax identifier })
             {
-                return;
+                hasStartToClose |= identifier.Identifier.ValueText == "StartToCloseTimeout";
+                hasScheduleToClose |= identifier.Identifier.ValueText == "ScheduleToCloseTimeout";
             }
         }
 
-        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ActivityMissingTimeout, creation.GetLocation()));
+        // TMP2101 — no required timeout at all.
+        if (!hasStartToClose && !hasScheduleToClose)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ActivityMissingTimeout, creation.GetLocation()));
+        }
+
+        // TMP2102 (opt-in) — ScheduleToCloseTimeout without StartToCloseTimeout.
+        if (hasScheduleToClose && !hasStartToClose)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.MissingStartToCloseTimeout, creation.GetLocation()));
+        }
+    }
+
+    private static void AnalyzeMethodSignature(SymbolAnalysisContext context, TemporalSharpConfig config)
+    {
+        var method = (IMethodSymbol)context.Symbol;
+        if (!WorkflowDetection.IsActivityMethod(method) && !WorkflowDetection.IsWorkflowRunMethod(method))
+        {
+            return;
+        }
+
+        var payloadType = PayloadType(method);
+
+        if (payloadType is not null && IsNonSerializable(payloadType))
+        {
+            ReportNonSerializable(context, payloadType, method.Locations[0]);
+        }
+
+        foreach (var parameter in method.Parameters)
+        {
+            if (IsNonSerializable(parameter.Type))
+            {
+                ReportNonSerializable(context, parameter.Type, parameter.Locations.Length > 0 ? parameter.Locations[0] : method.Locations[0]);
+                continue;
+            }
+
+            if (MatchesSensitivePattern(parameter.Name, method.DeclaringSyntaxReferences, config))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.SensitiveArgument,
+                    parameter.Locations.Length > 0 ? parameter.Locations[0] : method.Locations[0],
+                    parameter.Name));
+            }
+        }
+    }
+
+    private static ITypeSymbol? PayloadType(IMethodSymbol method)
+    {
+        if (method.ReturnType is INamedTypeSymbol named &&
+            TypeNames.FullName(named) == "System.Threading.Tasks.Task" &&
+            named.TypeArguments.Length == 1)
+        {
+            return named.TypeArguments[0];
+        }
+
+        return null;
+    }
+
+    private static bool IsNonSerializable(ITypeSymbol type) =>
+        type.TypeKind == TypeKind.Delegate ||
+        TypeNames.IsOrDerivesFrom(type, "System.IO.Stream") ||
+        TypeNames.IsOrImplements(type, "System.Collections.Generic.IAsyncEnumerable") ||
+        TypeNames.FullName(type) is "System.Threading.Channels.Channel" or
+            "System.Threading.Channels.ChannelReader" or
+            "System.Threading.Channels.ChannelWriter";
+
+    private static void ReportNonSerializable(SymbolAnalysisContext context, ITypeSymbol type, Location location)
+    {
+        var display = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.NonSerializableType, location, display));
+    }
+
+    private static bool MatchesSensitivePattern(
+        string name,
+        ImmutableArray<SyntaxReference> declaringSyntaxReferences,
+        TemporalSharpConfig config)
+    {
+        SyntaxTree? tree = null;
+        if (declaringSyntaxReferences.Length > 0)
+        {
+            tree = declaringSyntaxReferences[0].SyntaxTree;
+        }
+
+        var pattern = config.SensitivePattern(tree);
+        return Regex.IsMatch(name, pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
     }
 
     private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)

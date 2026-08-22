@@ -24,11 +24,24 @@ internal static class DenyList
             ["System.Random..ctor"] = DiagnosticDescriptors.NonDeterministicRandomness,
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
+    // Constructors of concurrency primitives. Unlike the parameterless-only
+    // Constructors list, these are matched regardless of argument count (e.g.
+    // new Thread(...) takes a delegate, new BackgroundWorker() takes none).
+    private static readonly ImmutableDictionary<string, DiagnosticDescriptor> ConcurrencyConstructors =
+        new Dictionary<string, DiagnosticDescriptor>(StringComparer.Ordinal)
+        {
+            ["System.Threading.Thread..ctor"] = DiagnosticDescriptors.ConcurrentExecution,
+            ["System.ComponentModel.BackgroundWorker..ctor"] = DiagnosticDescriptors.ConcurrentExecution,
+        }.ToImmutableDictionary(StringComparer.Ordinal);
+
     public static bool TryGetMember(string key, out DiagnosticDescriptor? descriptor)
         => Members.TryGetValue(key, out descriptor);
 
     public static bool TryGetConstructor(string key, out DiagnosticDescriptor? descriptor)
         => Constructors.TryGetValue(key, out descriptor);
+
+    public static bool TryGetConcurrencyConstructor(string key, out DiagnosticDescriptor? descriptor)
+        => ConcurrencyConstructors.TryGetValue(key, out descriptor);
 
     private static ImmutableDictionary<string, DiagnosticDescriptor> BuildMembers()
     {
@@ -90,9 +103,62 @@ internal static class DenyList
             "System.Net.Http.HttpClient.GetStringAsync",
             "System.Net.Http.HttpClient.PostAsync",
             "System.Net.Http.HttpClient.SendAsync",
+            "System.Diagnostics.Process.Start",
+            "System.Net.Sockets.Socket.Connect",
+            "System.Net.Sockets.Socket.Send",
+            "System.Net.Sockets.Socket.Receive",
+            "System.Net.Sockets.NetworkStream.Read",
+            "System.Net.Sockets.NetworkStream.Write",
         })
         {
             entries.Add((name, DiagnosticDescriptors.IoOrEnvironmentAccess));
+        }
+
+        // TMP0141 — concurrency
+        foreach (var name in new[]
+        {
+            "System.Threading.Tasks.Task.Run",
+            "System.Threading.Tasks.TaskFactory.StartNew",
+            "System.Threading.ThreadPool.QueueUserWorkItem",
+            "System.Threading.Tasks.Parallel.For",
+            "System.Threading.Tasks.Parallel.ForEach",
+            "System.Threading.Tasks.Parallel.Invoke",
+            "System.ComponentModel.BackgroundWorker.RunWorkerAsync",
+            "System.Threading.Thread.Start",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.ConcurrentExecution));
+        }
+
+        // TMP0142 — blocking synchronization primitives
+        foreach (var name in new[]
+        {
+            "System.Threading.SemaphoreSlim.Wait",
+            "System.Threading.SemaphoreSlim.WaitAsync",
+            "System.Threading.ManualResetEventSlim.Wait",
+            "System.Threading.Monitor.Enter",
+            "System.Threading.Monitor.TryEnter",
+            "System.Threading.Monitor.Exit",
+            "System.Threading.Monitor.Wait",
+            "System.Threading.Monitor.Pulse",
+            "System.Threading.Monitor.PulseAll",
+            "System.Threading.Mutex.WaitOne",
+            "System.Threading.AutoResetEvent.WaitOne",
+            "System.Threading.ReaderWriterLockSlim.EnterReadLock",
+            "System.Threading.ReaderWriterLockSlim.EnterWriteLock",
+            "System.Threading.ReaderWriterLockSlim.EnterUpgradeableReadLock",
+            "System.Threading.SpinWait.SpinOnce",
+            "System.Threading.CountdownEvent.Wait",
+            "System.Threading.Barrier.SignalAndWait",
+            "System.Threading.Channels.ChannelReader<T>.ReadAsync",
+            "System.Threading.Channels.ChannelReader<T>.WaitToReadAsync",
+            "System.Threading.Channels.ChannelWriter<T>.WriteAsync",
+            "System.Threading.Channels.ChannelWriter<T>.WaitToWriteAsync",
+            "System.Collections.Concurrent.BlockingCollection<T>.Add",
+            "System.Collections.Concurrent.BlockingCollection<T>.Take",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.BlockingPrimitive));
         }
 
         return entries.ToImmutableDictionary(e => e.Key, e => e.Descriptor, StringComparer.Ordinal);

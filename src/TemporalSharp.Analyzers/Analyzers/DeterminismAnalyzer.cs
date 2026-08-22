@@ -20,7 +20,10 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.WallClockTime,
             DiagnosticDescriptors.BlockOrSleep,
             DiagnosticDescriptors.NonDeterministicRandomness,
-            DiagnosticDescriptors.IoOrEnvironmentAccess);
+            DiagnosticDescriptors.IoOrEnvironmentAccess,
+            DiagnosticDescriptors.ConcurrentExecution,
+            DiagnosticDescriptors.BlockingPrimitive,
+            DiagnosticDescriptors.UnorderedEnumeration);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => Supported;
 
@@ -44,6 +47,14 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzeMemberAccess(nodeContext, state),
                 SyntaxKind.SimpleMemberAccessExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeForEach(nodeContext, state),
+                SyntaxKind.ForEachStatement);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeLock(nodeContext, state),
+                SyntaxKind.LockStatement);
         });
     }
 
@@ -71,6 +82,16 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        var key = SymbolKeys.Member(symbol);
+
+        // Concurrency constructors (e.g. new Thread(...), new BackgroundWorker())
+        // are flagged regardless of argument count.
+        if (DenyList.TryGetConcurrencyConstructor(key, out var concurrencyDescriptor))
+        {
+            ReportIfReachable(context, state, node, symbol, concurrencyDescriptor);
+            return;
+        }
+
         // Only parameterless constructors of non-deterministic types are flagged
         // (e.g. new Random()); a seeded constructor is deterministic.
         if (node.ArgumentList is null || node.ArgumentList.Arguments.Count != 0)
@@ -78,7 +99,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!DenyList.TryGetConstructor(SymbolKeys.Member(symbol), out var descriptor))
+        if (!DenyList.TryGetConstructor(key, out var descriptor))
         {
             return;
         }
@@ -104,6 +125,45 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
         }
 
         ReportIfReachable(context, state, node, symbol, descriptor);
+    }
+
+    private static void AnalyzeForEach(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = (ForEachStatementSyntax)context.Node;
+        var collectionType = context.SemanticModel.GetTypeInfo(node.Expression).Type;
+        if (collectionType is null)
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (UnorderedCollections.IsSorted(collectionType) || UnorderedCollections.IsOrderBy(node.Expression))
+        {
+            return;
+        }
+
+        if (!UnorderedCollections.IsUnordered(collectionType))
+        {
+            return;
+        }
+
+        var display = collectionType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UnorderedEnumeration, node.ForEachKeyword.GetLocation(), display));
+    }
+
+    private static void AnalyzeLock(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = (LockStatementSyntax)context.Node;
+        if (!state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.BlockingPrimitive, node.LockKeyword.GetLocation(), "lock"));
     }
 
     private static void ReportIfReachable(

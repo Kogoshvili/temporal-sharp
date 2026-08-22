@@ -43,7 +43,7 @@ public class WorkflowStateAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public void Run()
                 {
-                    {|TMP1101:Limit = 3|};
+                    {|TMP1103:Limit = 3|};
                 }
             }
             """);
@@ -90,6 +90,23 @@ public class WorkflowStateAnalyzerTests
                 public void DoSomething()
                 {
                     counter = 5;
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ThreadStaticFieldAssignment_InWorkflow_Reports()
+        => Verify(TestStubs.Attributes + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [System.ThreadStatic]
+                private static int counter;
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP1102:counter = 5|};
                 }
             }
             """);

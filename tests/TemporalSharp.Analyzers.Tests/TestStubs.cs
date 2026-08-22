@@ -26,6 +26,7 @@ internal static class TestStubs
             {
                 public System.TimeSpan? StartToCloseTimeout { get; set; }
                 public System.TimeSpan? ScheduleToCloseTimeout { get; set; }
+                public System.TimeSpan? HeartbeatTimeout { get; set; }
                 public string? TaskQueue { get; set; }
             }
 
@@ -33,6 +34,7 @@ internal static class TestStubs
             {
                 public System.TimeSpan? StartToCloseTimeout { get; set; }
                 public System.TimeSpan? ScheduleToCloseTimeout { get; set; }
+                public System.TimeSpan? HeartbeatTimeout { get; set; }
                 public string? TaskQueue { get; set; }
             }
 
@@ -72,6 +74,15 @@ internal static class TestStubs
                     System.Linq.Expressions.Expression<System.Func<object?>> workflowRunCall,
                     ContinueAsNewOptions options)
                     => new ContinueAsNewException();
+            }
+        }
+
+        namespace Temporalio.Activities
+        {
+            public sealed class ActivityExecutionContext
+            {
+                public static ActivityExecutionContext Current => new ActivityExecutionContext();
+                public void Heartbeat(params object?[] details) { }
             }
         }
         """;

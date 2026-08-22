@@ -22,9 +22,10 @@ public class CliTests
         public class MyWorkflow
         {
             [Temporalio.Workflows.WorkflowRun]
-            public void Run()
+            public System.Threading.Tasks.Task Run()
             {
                 var now = System.DateTime.Now;
+                return System.Threading.Tasks.Task.CompletedTask;
             }
         }
         """;
@@ -34,9 +35,10 @@ public class CliTests
         public class MyWorkflow
         {
             [Temporalio.Workflows.WorkflowRun]
-            public void Run()
+            public System.Threading.Tasks.Task Run()
             {
                 var x = 1;
+                return System.Threading.Tasks.Task.CompletedTask;
             }
         }
         """;
@@ -117,5 +119,40 @@ public class CliTests
     public void OptionsParse_RequiresPath()
     {
         Assert.Throws<ArgumentException>(() => Options.Parse(new[] { "--format", "json" }));
+    }
+
+    [Fact]
+    public void OptionsParse_SeverityOverride()
+    {
+        var options = Options.Parse(new[] { "x.csproj", "--severity", "TMP0101=error" });
+        Assert.Equal(DiagnosticSeverity.Error, options.SeverityOverrides["TMP0101"]);
+    }
+
+    [Fact]
+    public async Task SeverityOverride_EscalatesForFailOn()
+    {
+        var diagnostics = await Analyze(WorkflowSource);
+        var overrides = new Dictionary<string, DiagnosticSeverity> { ["TMP0101"] = DiagnosticSeverity.Error };
+        Assert.Equal(1, Program.ComputeExitCode(diagnostics, DiagnosticSeverity.Error, overrides));
+        Assert.Equal(0, Program.ComputeExitCode(diagnostics, DiagnosticSeverity.Error));
+    }
+
+    [Fact]
+    public async Task WorkflowCheckIgnoreComment_SuppressesDiagnostic()
+    {
+        var source = Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run()
+                {
+                    var now = System.DateTime.Now; // workflowcheck:ignore
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+            }
+            """;
+        var diagnostics = await Analyze(source);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "TMP0101");
     }
 }

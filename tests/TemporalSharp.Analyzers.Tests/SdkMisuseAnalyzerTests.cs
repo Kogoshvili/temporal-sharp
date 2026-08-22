@@ -134,4 +134,73 @@ public class SdkMisuseAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task NonSerializableStreamParam_Reports()
+        => Verify(Stubs + """
+            public static class Act
+            {
+                [Temporalio.Activities.Activity]
+                public static System.Threading.Tasks.Task<int> Do(System.IO.Stream {|TMP2141:s|})
+                    => System.Threading.Tasks.Task.FromResult(0);
+            }
+            """);
+
+    [Fact]
+    public Task NonSerializableDelegateParam_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run(System.Func<int> {|TMP2141:f|})
+                    => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task ScheduleToCloseWithoutStart_Reports_WhenOptedIn()
+    {
+        var test = new CSharpAnalyzerTest<SdkMisuseAnalyzer, DefaultVerifier>
+        {
+            TestCode = Stubs + """
+                public class C
+                {
+                    public void M()
+                    {
+                        var opts = {|TMP2102:new Temporalio.Workflows.ActivityOptions { ScheduleToCloseTimeout = System.TimeSpan.FromSeconds(1) }|};
+                    }
+                }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", """
+            root = true
+            dotnet_diagnostic.TMP2102.severity = warning
+            """));
+        return test.RunAsync();
+    }
+
+    [Fact]
+    public Task SensitiveParameter_Reports_WhenOptedIn()
+    {
+        var test = new CSharpAnalyzerTest<SdkMisuseAnalyzer, DefaultVerifier>
+        {
+            TestCode = Stubs + """
+                [Temporalio.Workflows.Workflow]
+                public class W
+                {
+                    [Temporalio.Workflows.WorkflowRun]
+                    public System.Threading.Tasks.Task Run(string {|TMP2151:password|})
+                        => System.Threading.Tasks.Task.CompletedTask;
+                }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", """
+            root = true
+            dotnet_diagnostic.TMP2151.severity = warning
+            """));
+        return test.RunAsync();
+    }
 }

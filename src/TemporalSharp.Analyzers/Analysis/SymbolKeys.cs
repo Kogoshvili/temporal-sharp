@@ -10,7 +10,11 @@ internal static class SymbolKeys
 {
     public static string Member(ISymbol symbol)
     {
-        var typeName = symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ?? string.Empty;
+        var typeName = symbol.ContainingType?.OriginalDefinition
+            .ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ?? string.Empty;
         return typeName + "." + symbol.Name;
     }
+
+    public static string Type(ITypeSymbol type)
+        => type.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
 }

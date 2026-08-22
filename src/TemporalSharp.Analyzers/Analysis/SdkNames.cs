@@ -9,4 +9,5 @@ internal static class SdkNames
     public const string WorkflowType = "Temporalio.Workflows.Workflow";
     public const string ActivityOptionsType = "Temporalio.Workflows.ActivityOptions";
     public const string LocalActivityOptionsType = "Temporalio.Workflows.LocalActivityOptions";
+    public const string ActivityExecutionContextType = "Temporalio.Activities.ActivityExecutionContext";
 }

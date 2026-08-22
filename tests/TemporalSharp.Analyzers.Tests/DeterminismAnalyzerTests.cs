@@ -174,4 +174,120 @@ public class DeterminismAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task TaskRun_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0141:System.Threading.Tasks.Task.Run(() => { })|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task NewThread_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0141:new System.Threading.Thread(() => { })|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task SemaphoreSlimWait_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var sem = new System.Threading.SemaphoreSlim(1);
+                    {|TMP0142:sem.Wait()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task LockStatement_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0142:lock|} (this) { }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ForeachDictionary_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.Collections.Generic.Dictionary<int, int>();
+                    {|TMP0151:foreach|} (var kv in d) { }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ForeachOrderedList_InWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var list = new System.Collections.Generic.List<int>();
+                    foreach (var x in list) { }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ForeachOrderByDictionary_InWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.Collections.Generic.Dictionary<int, int>();
+                    foreach (var kv in System.Linq.Enumerable.OrderBy(d, x => x.Key)) { }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ProcessStart_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0131:System.Diagnostics.Process.Start("cmd")|};
+                }
+            }
+            """);
 }

@@ -28,19 +28,19 @@ internal static class Program
             switch (options.Format)
             {
                 case OutputFormat.Json:
-                    Console.Out.WriteLine(Reporter.ToJson(diagnostics));
+                    Console.Out.WriteLine(Reporter.ToJson(diagnostics, options.SeverityOverrides));
                     break;
 
                 case OutputFormat.Sarif:
-                    Console.Out.WriteLine(Reporter.ToSarif(diagnostics));
+                    Console.Out.WriteLine(Reporter.ToSarif(diagnostics, options.SeverityOverrides));
                     break;
 
                 default:
-                    Reporter.WriteConsole(Console.Out, diagnostics);
+                    Reporter.WriteConsole(Console.Out, diagnostics, options.SeverityOverrides);
                     break;
             }
 
-            return ComputeExitCode(diagnostics, options.FailOn);
+            return ComputeExitCode(diagnostics, options.FailOn, options.SeverityOverrides);
         }
         catch (Exception ex)
         {
@@ -49,7 +49,10 @@ internal static class Program
         }
     }
 
-    internal static int ComputeExitCode(IReadOnlyList<Diagnostic> diagnostics, DiagnosticSeverity? failOn)
+    internal static int ComputeExitCode(
+        IReadOnlyList<Diagnostic> diagnostics,
+        DiagnosticSeverity? failOn,
+        IReadOnlyDictionary<string, DiagnosticSeverity>? severityOverrides = null)
     {
         if (failOn is null)
         {
@@ -58,7 +61,13 @@ internal static class Program
 
         foreach (var diagnostic in diagnostics)
         {
-            if (diagnostic.Severity >= failOn.Value)
+            var severity = diagnostic.Severity;
+            if (severityOverrides is not null && severityOverrides.TryGetValue(diagnostic.Id, out var overridden))
+            {
+                severity = overridden;
+            }
+
+            if (severity >= failOn.Value)
             {
                 return 1;
             }

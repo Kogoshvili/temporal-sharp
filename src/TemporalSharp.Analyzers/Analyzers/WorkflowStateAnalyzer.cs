@@ -40,7 +40,10 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
     };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(DiagnosticDescriptors.StaticStateMutation);
+        ImmutableArray.Create(
+            DiagnosticDescriptors.StaticStateMutation,
+            DiagnosticDescriptors.ThreadStaticMutation,
+            DiagnosticDescriptors.StaticPropertySetter);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -91,7 +94,8 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
         ExpressionSyntax target)
     {
         var symbol = context.SemanticModel.GetSymbolInfo(target).Symbol;
-        if (symbol is null || !IsStaticMutable(symbol))
+        var descriptor = GetStaticMutationDescriptor(symbol);
+        if (descriptor is null)
         {
             return;
         }
@@ -101,14 +105,32 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var display = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.StaticStateMutation, node.GetLocation(), display));
+        var display = symbol!.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        context.ReportDiagnostic(Diagnostic.Create(descriptor, node.GetLocation(), display));
     }
 
-    private static bool IsStaticMutable(ISymbol? symbol) => symbol switch
+    private static DiagnosticDescriptor? GetStaticMutationDescriptor(ISymbol? symbol) => symbol switch
     {
-        IFieldSymbol { IsStatic: true } => true,
-        IPropertySymbol { IsStatic: true } property => property.SetMethod is not null,
-        _ => false,
+        IFieldSymbol { IsStatic: true } field =>
+            IsThreadStatic(field)
+                ? DiagnosticDescriptors.ThreadStaticMutation
+                : DiagnosticDescriptors.StaticStateMutation,
+        IPropertySymbol { IsStatic: true } property when property.SetMethod is not null =>
+            DiagnosticDescriptors.StaticPropertySetter,
+        _ => null,
     };
+
+    private static bool IsThreadStatic(IFieldSymbol field)
+    {
+        foreach (var attribute in field.GetAttributes())
+        {
+            if (attribute.AttributeClass?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
+                "System.ThreadStaticAttribute")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
