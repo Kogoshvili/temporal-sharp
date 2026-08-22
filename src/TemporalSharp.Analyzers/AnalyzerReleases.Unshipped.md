@@ -18,6 +18,7 @@ TMP1101 | TemporalSharp.WorkflowState | Error | Static field mutation in workflo
 TMP1102 | TemporalSharp.WorkflowState | Error | [ThreadStatic] state mutation in workflow code
 TMP1103 | TemporalSharp.WorkflowState | Error | Static property setter in workflow code
 TMP1104 | TemporalSharp.WorkflowState | Error | Static collection mutation in workflow code
+TMP1105 | TemporalSharp.WorkflowState | Error | Static state mutated via method call in workflow code
 TMP2101 | TemporalSharp.SdkMisuse | Error | Activity options missing required timeout
 TMP2102 | TemporalSharp.SdkMisuse | Disabled | ScheduleToCloseTimeout set without StartToCloseTimeout
 TMP2111 | TemporalSharp.SdkMisuse | Disabled | Workflow target named by string

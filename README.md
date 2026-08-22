@@ -13,7 +13,7 @@ Two delivery vehicles, one rule engine:
 
 ## Status
 
-Early development. See [`RULES.md`](RULES.md) for the full rule catalog. All 30
+Early development. See [`RULES.md`](RULES.md) for the full rule catalog. All 31
 rules are implemented. The CLI builds a solution-level call graph so a workflow
 that calls a helper in another project is still checked for non-determinism.
 

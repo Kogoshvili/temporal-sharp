@@ -207,6 +207,14 @@ internal static class DiagnosticDescriptors
         "Workflow instances may be replayed or run concurrently; mutating a static collection produces different results across executions.",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor StaticMethodMutation = Create(
+        "TMP1105",
+        WorkflowStateCategory,
+        "Workflow code mutates static state via a method call",
+        "Static member '{0}' is mutated via a method call from workflow code; shared mutable state breaks replay determinism and races across executions",
+        "Calling a mutating method on a shared static reference changes state visible to every workflow execution. Keep workflow state instance-local.",
+        severity: DiagnosticSeverity.Error);
+
     internal static readonly DiagnosticDescriptor LossyNumber = Create(
         "TMP2171",
         SdkMisuseCategory,

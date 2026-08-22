@@ -186,4 +186,48 @@ public class WorkflowStateAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task StaticObjectMethodCall_InWorkflow_Reports()
+        => Verify(TestStubs.Attributes + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private static readonly Store cache = new();
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP1105:cache.Set("key", 1)|};
+                }
+            }
+
+            public class Store
+            {
+                public void Set(string key, int value) { }
+                public int Get(string key) => 0;
+            }
+            """);
+
+    [Fact]
+    public Task StaticObjectReadMethodCall_InWorkflow_DoesNotReport()
+        => Verify(TestStubs.Attributes + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private static readonly Store cache = new();
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var v = cache.Get("key");
+                }
+            }
+
+            public class Store
+            {
+                public void Set(string key, int value) { }
+                public int Get(string key) => 0;
+            }
+            """);
 }

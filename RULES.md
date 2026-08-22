@@ -1,6 +1,6 @@
 # TemporalSharp Rule Catalog
 
-All 30 rules implemented by TemporalSharp, grouped by category. The `Default`
+All 31 rules implemented by TemporalSharp, grouped by category. The `Default`
 column is the default severity; `off` means the rule is opt-in — disabled by
 default and enabled via `.editorconfig` severity.
 
@@ -29,6 +29,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP1102 | Error | `static` field writes when field is `[ThreadStatic]` |
 | TMP1103 | Error | `static` property setters from workflow code |
 | TMP1104 | Error | Mutation of static collections (`Add`/`Remove`/`Clear`/`TryAdd`…) |
+| TMP1105 | Error | Mutation of shared static reference state via a mutating method call (`Set`/`Create`/`Update`/`Write`/`Dispose`…) |
 
 ## SDK feature-misuse
 
