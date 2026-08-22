@@ -17,42 +17,48 @@ internal static class DiagnosticDescriptors
         DeterminismCategory,
         "Workflow code depends on wall-clock time",
         "'{0}' is non-deterministic in workflow code; use Workflow.UtcNow instead",
-        "Workflow code is replayed by re-execution; reading wall-clock time during replay produces different results. Use Workflow.UtcNow.");
+        "Workflow code is replayed by re-execution; reading wall-clock time during replay produces different results. Use Workflow.UtcNow.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor BlockOrSleep = Create(
         "TMP0111",
         DeterminismCategory,
         "Workflow code blocks on wall-clock time",
         "'{0}' is non-deterministic in workflow code; use Workflow.DelayAsync instead",
-        "Sleeping or blocking on wall-clock time breaks replay determinism. Use Workflow.DelayAsync.");
+        "Sleeping or blocking on wall-clock time breaks replay determinism. Use Workflow.DelayAsync.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor NonDeterministicRandomness = Create(
         "TMP0121",
         DeterminismCategory,
         "Workflow code uses non-deterministic randomness",
         "'{0}' is non-deterministic in workflow code; use Workflow.Random or Workflow.NewGuid instead",
-        "Random values generated in workflow code differ on replay. Use Workflow.Random or Workflow.NewGuid.");
+        "Random values generated in workflow code differ on replay. Use Workflow.Random or Workflow.NewGuid.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor IoOrEnvironmentAccess = Create(
         "TMP0131",
         DeterminismCategory,
         "Workflow code performs I/O or reads the environment",
         "'{0}' is non-deterministic in workflow code; move it into an activity instead",
-        "I/O and environment access break replay determinism. Perform I/O in an activity.");
+        "I/O and environment access break replay determinism. Perform I/O in an activity.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor StaticStateMutation = Create(
         "TMP1101",
         WorkflowStateCategory,
         "Workflow code mutates static state",
         "Static member '{0}' is mutated from workflow code; shared mutable state breaks replay determinism and races across executions",
-        "Workflow instances may be replayed or run concurrently; mutating static state produces different results across executions.");
+        "Workflow instances may be replayed or run concurrently; mutating static state produces different results across executions.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor ActivityMissingTimeout = Create(
         "TMP2101",
         SdkMisuseCategory,
         "Activity options missing required timeout",
         "Activity options set no required timeout; set StartToCloseTimeout or ScheduleToCloseTimeout, or the activity is rejected at run time",
-        "Temporal requires StartToCloseTimeout or ScheduleToCloseTimeout on ActivityOptions and LocalActivityOptions.");
+        "Temporal requires StartToCloseTimeout or ScheduleToCloseTimeout on ActivityOptions and LocalActivityOptions.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor StringTarget = Create(
         "TMP2111",
@@ -67,7 +73,8 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Continue-as-new exception is not thrown",
         "The ContinueAsNewException is created but not thrown; the workflow silently ends instead of continuing as new",
-        "CreateContinueAsNewException returns an exception that must be thrown to trigger continue-as-new.");
+        "CreateContinueAsNewException returns an exception that must be thrown to trigger continue-as-new.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor NonReplayAwareLogger = Create(
         "TMP2131",
@@ -81,35 +88,40 @@ internal static class DiagnosticDescriptors
         DeterminismCategory,
         "Workflow code starts concurrent work",
         "'{0}' starts concurrent work in workflow code; use Workflow.ExecuteActivityAsync or Workflow.DelayAsync instead",
-        "Starting threads or tasks in workflow code breaks replay determinism. Delegate concurrent work to activities.");
+        "Starting threads or tasks in workflow code breaks replay determinism. Delegate concurrent work to activities.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor BlockingPrimitive = Create(
         "TMP0142",
         DeterminismCategory,
         "Workflow code uses a blocking synchronization primitive",
         "'{0}' blocks workflow code; use an async alternative instead",
-        "Blocking on locks, channels, or other synchronization primitives can deadlock the single-threaded workflow runtime and break determinism.");
+        "Blocking on locks, channels, or other synchronization primitives can deadlock the single-threaded workflow runtime and break determinism.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor UnorderedEnumeration = Create(
         "TMP0151",
         DeterminismCategory,
         "Workflow code iterates a collection in non-deterministic order",
         "'{0}' may enumerate in non-deterministic order; sort the collection before iterating",
-        "Dictionary and HashSet iteration order is not deterministic across runs and replays. Sort the collection first.");
+        "Dictionary and HashSet iteration order is not deterministic across runs and replays. Sort the collection first.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor ThreadStaticMutation = Create(
         "TMP1102",
         WorkflowStateCategory,
         "Workflow code mutates [ThreadStatic] state",
         "Static member '{0}' is [ThreadStatic] and is mutated from workflow code",
-        "[ThreadStatic] state is per-thread and not deterministic during workflow replay.");
+        "[ThreadStatic] state is per-thread and not deterministic during workflow replay.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor StaticPropertySetter = Create(
         "TMP1103",
         WorkflowStateCategory,
         "Workflow code sets a static property",
         "Static property '{0}' is set from workflow code",
-        "Mutating static state from workflow code breaks replay determinism and races across executions.");
+        "Mutating static state from workflow code breaks replay determinism and races across executions.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor MissingStartToCloseTimeout = Create(
         "TMP2102",
@@ -124,7 +136,8 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Non-serializable type in workflow/activity signature",
         "Type '{0}' is not serializable across the workflow/activity boundary",
-        "Workflow and activity arguments and return values are serialized; delegates, streams, channels, and async enumerables cannot round-trip.");
+        "Workflow and activity arguments and return values are serialized; delegates, streams, channels, and async enumerables cannot round-trip.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor SensitiveArgument = Create(
         "TMP2151",
@@ -168,21 +181,24 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Invalid workflow entry method",
         "Invalid [WorkflowRun] method: {0}",
-        "A workflow entry method must be public, return Task, be declared in a [Workflow] class, and be the only [WorkflowRun] method.");
+        "A workflow entry method must be public, return Task, be declared in a [Workflow] class, and be the only [WorkflowRun] method.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor StopwatchUsage = Create(
         "TMP0102",
         DeterminismCategory,
         "Workflow code measures elapsed wall-clock time",
         "'{0}' measures wall-clock time in workflow code; use Workflow.UtcNow instead",
-        "A Stopwatch reads elapsed wall-clock time, which differs on replay. Use Workflow.UtcNow to read deterministic time.");
+        "A Stopwatch reads elapsed wall-clock time, which differs on replay. Use Workflow.UtcNow to read deterministic time.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor StaticCollectionMutation = Create(
         "TMP1104",
         WorkflowStateCategory,
         "Workflow code mutates a static collection",
         "Static collection '{0}' is mutated from workflow code; shared mutable state breaks replay determinism and races across executions",
-        "Workflow instances may be replayed or run concurrently; mutating a static collection produces different results across executions.");
+        "Workflow instances may be replayed or run concurrently; mutating a static collection produces different results across executions.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor LossyNumber = Create(
         "TMP2171",
@@ -197,14 +213,23 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Invalid activity declaration",
         "Invalid [Activity]: {0}",
-        "The [Activity] attribute may only be applied to methods, and a method passed by typed lambda to ExecuteActivityAsync must be marked [Activity].");
+        "The [Activity] attribute may only be applied to methods, and a method passed by typed lambda to ExecuteActivityAsync must be marked [Activity].",
+        severity: DiagnosticSeverity.Error);
 
-    internal static readonly DiagnosticDescriptor VersioningMisuse = Create(
+    internal static readonly DiagnosticDescriptor PatchLeftover = Create(
         "TMP3301",
         SdkMisuseCategory,
-        "Workflow versioning (patch) misuse",
-        "Versioning misuse: {0}",
-        "Workflow.Patched and Workflow.DeprecatePatch ids must be constant strings and a patch must not be both patched and deprecated.");
+        "Patch both applied and deprecated",
+        "patch '{0}' is both Patched and DeprecatePatch'd in the same workflow",
+        "A patch id that is both Patched and DeprecatePatch'd in the same workflow method is a leftover from a refactor and should be removed.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor NonConstantPatchId = Create(
+        "TMP3302",
+        SdkMisuseCategory,
+        "Non-constant patch id",
+        "{0} id must be a constant string",
+        "Workflow.Patched and Workflow.DeprecatePatch ids must be constant strings so version markers are stable across replays.");
 
     internal static readonly DiagnosticDescriptor SearchAttributeNotUpserted = Create(
         "TMP2161",

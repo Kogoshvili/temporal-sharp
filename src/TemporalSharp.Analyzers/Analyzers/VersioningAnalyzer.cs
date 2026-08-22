@@ -10,15 +10,17 @@ using TemporalSharp.Analyzers.Diagnostics;
 namespace TemporalSharp.Analyzers.Analyzers;
 
 /// <summary>
-/// Flags workflow versioning (patching) misuse (TMP3301): a patch id that is not
-/// a constant string, and a patch id that is both Patched and DeprecatePatch'd in
-/// the same workflow method.
+/// Flags workflow versioning (patching) misuse: a patch id that is both
+/// Patched and DeprecatePatch'd in the same workflow method (TMP3301), and a
+/// patch id that is not a constant string (TMP3302).
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class VersioningAnalyzer : DiagnosticAnalyzer
 {
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(DiagnosticDescriptors.VersioningMisuse);
+        ImmutableArray.Create(
+            DiagnosticDescriptors.PatchLeftover,
+            DiagnosticDescriptors.NonConstantPatchId);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -76,9 +78,9 @@ public sealed class VersioningAnalyzer : DiagnosticAnalyzer
         if (id is null)
         {
             context.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.VersioningMisuse,
+                DiagnosticDescriptors.NonConstantPatchId,
                 invocation.GetLocation(),
-                $"{method.Name} id must be a constant string"));
+                method.Name));
             return;
         }
 
@@ -149,9 +151,9 @@ public sealed class VersioningAnalyzer : DiagnosticAnalyzer
                 }
 
                 context.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.VersioningMisuse,
+                    DiagnosticDescriptors.PatchLeftover,
                     idEntry.Value,
-                    $"patch '{idEntry.Key}' is both Patched and DeprecatePatch'd in the same workflow"));
+                    idEntry.Key));
             }
         }
     }

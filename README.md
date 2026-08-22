@@ -13,7 +13,7 @@ Two delivery vehicles, one rule engine:
 
 ## Status
 
-Early development. See [`RULES.md`](RULES.md) for the full rule catalog. All 26
+Early development. See [`RULES.md`](RULES.md) for the full rule catalog. All 29
 rules are implemented. The CLI builds a solution-level call graph so a workflow
 that calls a helper in another project is still checked for non-determinism.
 
@@ -35,9 +35,19 @@ temporal-sharp analyze <path.sln|path.csproj> [options]
 
 ## Configuration
 
-Suppress a finding with a `// temporalsharp:ignore` comment on the line or the
-line immediately above the violation. Opt-in rules (`TMP2102`, `TMP2111`,
-`TMP2151`, `TMP2161`, `TMP2171`) are enabled via `.editorconfig`:
+Suppress a single finding inline with `#pragma warning disable` / `restore`, or
+disable a rule project-wide via `.editorconfig`
+(`dotnet_diagnostic.TMPxxxx.severity = none`). Both mechanisms work in the
+analyzer package and the CLI.
+
+```csharp
+#pragma warning disable TMP0101
+var now = DateTime.Now;
+#pragma warning restore TMP0101
+```
+
+Opt-in rules (`TMP2102`, `TMP2111`, `TMP2151`, `TMP2161`, `TMP2171`) are enabled
+via `.editorconfig`:
 
 ```ini
 dotnet_diagnostic.TMP2102.severity = warning

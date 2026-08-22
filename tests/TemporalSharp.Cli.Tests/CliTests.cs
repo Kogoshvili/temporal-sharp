@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
 using TemporalSharp.Cli.Analysis;
 using TemporalSharp.Cli.Reporting;
@@ -43,7 +44,10 @@ public class CliTests
         }
         """;
 
-    private static async Task<ImmutableArray<Diagnostic>> Analyze(string source)
+    private static async Task<ImmutableArray<Diagnostic>> Analyze(
+        string source,
+        AnalyzerOptions? options = null,
+        IReadOnlyDictionary<string, DiagnosticSeverity>? severityOverrides = null)
     {
         var references = await ReferenceAssemblies.Net.Net80.ResolveAsync(LanguageNames.CSharp, CancellationToken.None);
         var compilation = CSharpCompilation.Create(
@@ -52,8 +56,11 @@ public class CliTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        return await AnalysisRunner.AnalyzeCompilationAsync(compilation, null, CancellationToken.None);
+        return await AnalysisRunner.AnalyzeCompilationAsync(compilation, options, CancellationToken.None, severityOverrides);
     }
+
+    private static AnalyzerOptions EditorConfig(string key, string value) =>
+        new(ImmutableArray<AdditionalText>.Empty, new DictionaryConfigProvider(new Dictionary<string, string>(StringComparer.Ordinal) { [key] = value }));
 
     [Fact]
     public async Task DeterminismViolation_IsDetected()
@@ -75,7 +82,7 @@ public class CliTests
         var diagnostics = await Analyze(WorkflowSource);
         var json = Reporter.ToJson(diagnostics);
         Assert.Contains("\"id\": \"TMP0101\"", json);
-        Assert.Contains("\"severity\": \"warning\"", json);
+        Assert.Contains("\"severity\": \"error\"", json);
     }
 
     [Fact]
@@ -85,7 +92,7 @@ public class CliTests
         var sarif = Reporter.ToSarif(diagnostics);
         Assert.Contains("\"version\": \"2.1.0\"", sarif);
         Assert.Contains("\"ruleId\": \"TMP0101\"", sarif);
-        Assert.Contains("\"level\": \"warning\"", sarif);
+        Assert.Contains("\"level\": \"error\"", sarif);
     }
 
     [Fact]
@@ -136,16 +143,17 @@ public class CliTests
     }
 
     [Fact]
-    public async Task SeverityOverride_EscalatesForFailOn()
+    public async Task SeverityOverride_AffectsFailOn()
     {
-        var diagnostics = await Analyze(WorkflowSource);
-        var overrides = new Dictionary<string, DiagnosticSeverity> { ["TMP0101"] = DiagnosticSeverity.Error };
-        Assert.Equal(1, Program.ComputeExitCode(diagnostics, DiagnosticSeverity.Error, overrides));
-        Assert.Equal(0, Program.ComputeExitCode(diagnostics, DiagnosticSeverity.Error));
+        var diagnostics = await Analyze(WorkflowSource); // TMP0101 is error by default
+        Assert.Equal(1, Program.ComputeExitCode(diagnostics, DiagnosticSeverity.Error));
+
+        var downgraded = new Dictionary<string, DiagnosticSeverity> { ["TMP0101"] = DiagnosticSeverity.Warning };
+        Assert.Equal(0, Program.ComputeExitCode(diagnostics, DiagnosticSeverity.Error, downgraded));
     }
 
     [Fact]
-    public async Task WorkflowCheckIgnoreComment_SuppressesDiagnostic()
+    public async Task PragmaWarningDisable_SuppressesDiagnostic()
     {
         var source = Stubs + """
             [Temporalio.Workflows.Workflow]
@@ -154,13 +162,37 @@ public class CliTests
                 [Temporalio.Workflows.WorkflowRun]
                 public System.Threading.Tasks.Task Run()
                 {
-                    var now = System.DateTime.Now; // temporalsharp:ignore
+            #pragma warning disable TMP0101
+                    var now = System.DateTime.Now;
+            #pragma warning restore TMP0101
                     return System.Threading.Tasks.Task.CompletedTask;
                 }
             }
             """;
         var diagnostics = await Analyze(source);
         Assert.DoesNotContain(diagnostics, d => d.Id == "TMP0101");
+    }
+
+    [Fact]
+    public async Task EditorConfigSeverityNone_SuppressesDiagnostic()
+    {
+        var diagnostics = await Analyze(WorkflowSource, EditorConfig("dotnet_diagnostic.TMP0101.severity", "none"));
+        Assert.DoesNotContain(diagnostics, d => d.Id == "TMP0101");
+    }
+
+    [Fact]
+    public async Task EditorConfigSeverity_EnablesOptInRule()
+    {
+        var source = Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run(object value) => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """;
+        var diagnostics = await Analyze(source, EditorConfig("dotnet_diagnostic.TMP2171.severity", "warning"));
+        Assert.Contains(diagnostics, d => d.Id == "TMP2171");
     }
 
     [Fact]
@@ -176,5 +208,28 @@ public class CliTests
             """;
         var diagnostics = await Analyze(source);
         Assert.DoesNotContain(diagnostics, d => d.Id == "TMP2171");
+    }
+
+    private sealed class DictionaryConfigProvider : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptionsProvider
+    {
+        private readonly Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions _options;
+
+        public DictionaryConfigProvider(IReadOnlyDictionary<string, string> values)
+            => _options = new DictionaryConfigOptions(values);
+
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GlobalOptions => _options;
+
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(SyntaxTree tree) => _options;
+
+        public override Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions GetOptions(AdditionalText textFile) => _options;
+    }
+
+    private sealed class DictionaryConfigOptions : Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptions
+    {
+        private readonly IReadOnlyDictionary<string, string> _values;
+
+        public DictionaryConfigOptions(IReadOnlyDictionary<string, string> values) => _values = values;
+
+        public override bool TryGetValue(string key, out string value) => _values.TryGetValue(key, out value!);
     }
 }

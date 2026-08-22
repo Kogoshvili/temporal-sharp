@@ -28,7 +28,7 @@ public class VersioningAnalyzerTests
                 public void Run()
                 {
                     var id = "my-patch";
-                    {|TMP3301:Temporalio.Workflows.Workflow.Patched(id)|};
+                    {|TMP3302:Temporalio.Workflows.Workflow.Patched(id)|};
                 }
             }
             """);

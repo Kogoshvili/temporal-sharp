@@ -23,7 +23,7 @@ internal static class Program
         try
         {
             var solution = await ProjectLoader.LoadAsync(options.Path, CancellationToken.None).ConfigureAwait(false);
-            var diagnostics = await AnalysisRunner.AnalyzeSolutionAsync(solution, CancellationToken.None).ConfigureAwait(false);
+            var diagnostics = await AnalysisRunner.AnalyzeSolutionAsync(solution, CancellationToken.None, options.SeverityOverrides).ConfigureAwait(false);
 
             switch (options.Format)
             {
