@@ -29,7 +29,7 @@ temporal-sharp analyze <path.sln|path.csproj> [options]
   --severity <TMPxxxx=severity>          Override a rule's severity (repeatable).
 ```
 
-Suppress a finding with a `// workflowcheck:ignore` comment on the line or the
+Suppress a finding with a `// temporalsharp:ignore` comment on the line or the
 line immediately above the violation. Opt-in rules (`TMP2102`, `TMP2151`,
 `TMP2161`, `TMP2171`) are enabled via `.editorconfig`:
 

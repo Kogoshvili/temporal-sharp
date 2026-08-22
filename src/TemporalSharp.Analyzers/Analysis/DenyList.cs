@@ -6,10 +6,9 @@ namespace TemporalSharp.Analyzers.Analysis;
 
 /// <summary>
 /// Curated lists of members that are non-deterministic (or otherwise unsafe) in
-/// workflow code. Keys use <see cref="SymbolKeys.Member"/>. This is the .NET
-/// equivalent of workflowcheck's IdentRefs: because C# reference assemblies have
-/// no method bodies, we cannot walk the BCL transitively and must enumerate
-/// entry points instead.
+/// workflow code. Keys use <see cref="SymbolKeys.Member"/>. Because C# reference
+/// assemblies have no method bodies, we cannot walk the BCL transitively and
+/// must enumerate entry points instead.
 /// </summary>
 internal static class DenyList
 {

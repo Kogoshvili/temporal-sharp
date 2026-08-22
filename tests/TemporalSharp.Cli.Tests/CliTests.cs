@@ -154,7 +154,7 @@ public class CliTests
                 [Temporalio.Workflows.WorkflowRun]
                 public System.Threading.Tasks.Task Run()
                 {
-                    var now = System.DateTime.Now; // workflowcheck:ignore
+                    var now = System.DateTime.Now; // temporalsharp:ignore
                     return System.Threading.Tasks.Task.CompletedTask;
                 }
             }

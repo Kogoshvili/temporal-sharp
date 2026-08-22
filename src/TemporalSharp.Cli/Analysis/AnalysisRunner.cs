@@ -16,7 +16,7 @@ internal static class AnalysisRunner
         new WorkflowContractAnalyzer(),
         new VersioningAnalyzer(),
         new SearchAttributeAnalyzer(),
-        new WorkflowCheckIgnoreSuppressor());
+        new TemporalSharpIgnoreSuppressor());
 
     public static async Task<ImmutableArray<Diagnostic>> AnalyzeSolutionAsync(Solution solution, CancellationToken cancellationToken)
     {
@@ -59,7 +59,7 @@ internal static class AnalysisRunner
     {
         var withAnalyzers = compilation.WithAnalyzers(Analyzers, options);
 
-        // GetAllDiagnosticsAsync applies the //workflowcheck:ignore suppressor;
+        // GetAllDiagnosticsAsync applies the //temporalsharp:ignore suppressor;
         // keep only TemporalSharp rules and drop compiler diagnostics.
         var all = await withAnalyzers.GetAllDiagnosticsAsync(cancellationToken).ConfigureAwait(false);
         return all.Where(d => d.Id.StartsWith("TMP", StringComparison.Ordinal)).ToImmutableArray();

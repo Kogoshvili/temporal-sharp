@@ -6,20 +6,19 @@ namespace TemporalSharp.Analyzers.Analyzers;
 
 /// <summary>
 /// Suppresses TemporalSharp diagnostics on lines (or the line immediately
-/// following) a <c>//workflowcheck:ignore</c> comment, mirroring the Go
-/// workflowcheck convention.
+/// following) a <c>//temporalsharp:ignore</c> comment.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
-public sealed class WorkflowCheckIgnoreSuppressor : DiagnosticSuppressor
+public sealed class TemporalSharpIgnoreSuppressor : DiagnosticSuppressor
 {
-    private const string IgnoreMarker = "workflowcheck:ignore";
+    private const string IgnoreMarker = "temporalsharp:ignore";
 
     private static readonly string[] RuleIds =
     {
-        "TMP0101", "TMP0111", "TMP0121", "TMP0131", "TMP0141", "TMP0142", "TMP0151",
-        "TMP1101", "TMP1102", "TMP1103",
-        "TMP2101", "TMP2102", "TMP2111", "TMP2121", "TMP2131", "TMP2141", "TMP2151",
-        "TMP3101", "TMP3102", "TMP3201",
+        "TMP0101", "TMP0102", "TMP0111", "TMP0121", "TMP0131", "TMP0141", "TMP0142", "TMP0151",
+        "TMP1101", "TMP1102", "TMP1103", "TMP1104",
+        "TMP2101", "TMP2102", "TMP2111", "TMP2121", "TMP2131", "TMP2141", "TMP2151", "TMP2161", "TMP2171",
+        "TMP3101", "TMP3102", "TMP3201", "TMP3202", "TMP3301",
     };
 
     public override ImmutableArray<SuppressionDescriptor> SupportedSuppressions { get; } = BuildSuppressions();
@@ -98,7 +97,7 @@ public sealed class WorkflowCheckIgnoreSuppressor : DiagnosticSuppressor
             builder.Add(new SuppressionDescriptor(
                 "TSIG" + ruleId,
                 ruleId,
-                "Suppressed by a //workflowcheck:ignore comment."));
+                "Suppressed by a //temporalsharp:ignore comment."));
         }
 
         return builder.MoveToImmutable();
