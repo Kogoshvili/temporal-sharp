@@ -318,6 +318,66 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task SemaphoreWaitOne_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var sem = new System.Threading.Semaphore(1, 1);
+                    {|TMP0142:sem.WaitOne()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ManualResetEventWaitOne_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var evt = new System.Threading.ManualResetEvent(false);
+                    {|TMP0142:evt.WaitOne()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task WaitHandleWaitAny_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var evt = new System.Threading.ManualResetEvent(false);
+                    {|TMP0142:System.Threading.WaitHandle.WaitAny(new System.Threading.WaitHandle[] { evt })|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ReaderWriterLockAcquireWriterLock_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var rwl = new System.Threading.ReaderWriterLock();
+                    {|TMP0142:rwl.AcquireWriterLock(-1)|};
+                }
+            }
+            """);
+
+    [Fact]
     public Task LockStatement_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

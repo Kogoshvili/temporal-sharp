@@ -160,6 +160,17 @@ internal static class DenyList
             "System.Threading.Monitor.PulseAll",
             "System.Threading.Mutex.WaitOne",
             "System.Threading.AutoResetEvent.WaitOne",
+            // WaitHandle.WaitOne/WaitAny/WaitAll are the base declarations; on modern
+            // .NET the subclasses (Semaphore, Mutex, EventWaitHandle,
+            // ManualResetEvent, AutoResetEvent) don't override WaitOne, so they all
+            // resolve to the base member.
+            "System.Threading.WaitHandle.WaitOne",
+            "System.Threading.WaitHandle.WaitAny",
+            "System.Threading.WaitHandle.WaitAll",
+            "System.Threading.Semaphore.WaitOne",
+            "System.Threading.EventWaitHandle.WaitOne",
+            "System.Threading.ReaderWriterLock.AcquireReaderLock",
+            "System.Threading.ReaderWriterLock.AcquireWriterLock",
             "System.Threading.ReaderWriterLockSlim.EnterReadLock",
             "System.Threading.ReaderWriterLockSlim.EnterWriteLock",
             "System.Threading.ReaderWriterLockSlim.EnterUpgradeableReadLock",
