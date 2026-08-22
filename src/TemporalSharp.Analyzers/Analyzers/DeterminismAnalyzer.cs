@@ -29,6 +29,19 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => Supported;
 
+    private static readonly ImmutableHashSet<string> OrderExposingLinqMethods = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "ToList", "ToArray",
+        "First", "FirstOrDefault", "Last", "LastOrDefault",
+        "Single", "SingleOrDefault",
+        "ElementAt", "ElementAtOrDefault",
+        "Take", "TakeWhile", "Skip", "SkipWhile");
+
+    private static readonly ImmutableHashSet<string> TransparentLinqMethods = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "Where", "Select", "SelectMany", "OfType", "Cast", "AsEnumerable",
+        "Distinct", "DefaultIfEmpty", "Append", "Prepend", "Concat");
+
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
@@ -40,6 +53,10 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
             startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzeInvocation(nodeContext, state),
+                SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeUnorderedMaterialization(nodeContext, state),
                 SyntaxKind.InvocationExpression);
 
             startContext.RegisterSyntaxNodeAction(
@@ -132,29 +149,108 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeForEach(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
         var node = (ForEachStatementSyntax)context.Node;
-        var collectionType = context.SemanticModel.GetTypeInfo(node.Expression).Type;
-        if (collectionType is null)
-        {
-            return;
-        }
-
         if (!state.IsWorkflowReachable(node, context.SemanticModel))
         {
             return;
         }
 
-        if (UnorderedCollections.IsSorted(collectionType) || UnorderedCollections.IsOrderBy(node.Expression))
+        if (!TryGetUnorderedSource(node.Expression, context.SemanticModel, out var collectionType))
         {
             return;
         }
 
-        if (!UnorderedCollections.IsUnordered(collectionType))
-        {
-            return;
-        }
-
-        var display = collectionType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        var display = collectionType!.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UnorderedEnumeration, node.ForEachKeyword.GetLocation(), display));
+    }
+
+    private static void AnalyzeUnorderedMaterialization(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = (InvocationExpressionSyntax)context.Node;
+        if (!state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (context.SemanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol method ||
+            !IsLinqMethod(method) ||
+            !OrderExposingLinqMethods.Contains(method.Name))
+        {
+            return;
+        }
+
+        var source = SourceExpression(node, method);
+        if (source is null || !TryGetUnorderedSource(source, context.SemanticModel, out var type))
+        {
+            return;
+        }
+
+        var display = type!.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UnorderedEnumeration, node.GetLocation(), display));
+    }
+
+    private static bool IsLinqMethod(IMethodSymbol method) =>
+        method.ContainingType is { } containingType &&
+        (TypeNames.FullName(containingType) == "System.Linq.Enumerable" ||
+         TypeNames.FullName(containingType) == "System.Linq.Queryable");
+
+    private static ExpressionSyntax? SourceExpression(InvocationExpressionSyntax invocation, IMethodSymbol method)
+    {
+        if (method.MethodKind == MethodKind.ReducedExtension)
+        {
+            return invocation.Expression is MemberAccessExpressionSyntax memberAccess
+                ? memberAccess.Expression
+                : null;
+        }
+
+        return invocation.ArgumentList?.Arguments.FirstOrDefault()?.Expression;
+    }
+
+    /// <summary>
+    /// Determines whether <paramref name="expression"/> enumerates an unordered
+    /// collection. Walks through order-preserving LINQ operators and the
+    /// Dictionary.Keys/Values views; OrderBy/OrderByDescending and sorted
+    /// collection types terminate the walk as deterministic.
+    /// </summary>
+    private static bool TryGetUnorderedSource(ExpressionSyntax expression, SemanticModel model, out ITypeSymbol? type)
+    {
+        if (UnorderedCollections.IsOrderBy(expression))
+        {
+            type = null;
+            return false;
+        }
+
+        if (expression is InvocationExpressionSyntax invocation &&
+            model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+            IsLinqMethod(method) &&
+            TransparentLinqMethods.Contains(method.Name))
+        {
+            var inner = SourceExpression(invocation, method);
+            if (inner is not null)
+            {
+                return TryGetUnorderedSource(inner, model, out type);
+            }
+        }
+
+        if (expression is MemberAccessExpressionSyntax member &&
+            member.Name.Identifier.ValueText is "Keys" or "Values")
+        {
+            var receiverType = model.GetTypeInfo(member.Expression).Type;
+            if (receiverType is not null && UnorderedCollections.IsUnordered(receiverType))
+            {
+                type = model.GetTypeInfo(expression).Type;
+                return type is not null;
+            }
+        }
+
+        var collectionType = model.GetTypeInfo(expression).Type;
+        if (collectionType is not null && UnorderedCollections.IsUnordered(collectionType))
+        {
+            type = collectionType;
+            return true;
+        }
+
+        type = null;
+        return false;
     }
 
     private static void AnalyzeLock(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)

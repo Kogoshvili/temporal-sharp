@@ -28,10 +28,10 @@ internal static class UnorderedCollections
         "System.Collections.Generic.SortedSet",
         "System.Collections.Generic.SortedList");
 
-    public static bool IsUnordered(ITypeSymbol type) =>
+    public static bool IsUnordered(ITypeSymbol? type) =>
         type is not null && Unordered.Contains(TypeNames.FullName(type));
 
-    public static bool IsSorted(ITypeSymbol type) =>
+    public static bool IsSorted(ITypeSymbol? type) =>
         type is not null && Sorted.Contains(TypeNames.FullName(type));
 
     /// <summary>

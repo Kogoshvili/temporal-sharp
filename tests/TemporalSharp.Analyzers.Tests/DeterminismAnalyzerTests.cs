@@ -377,6 +377,111 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task ForeachDictionaryKeys_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.Collections.Generic.Dictionary<int, int>();
+                    {|TMP0151:foreach|} (var k in d.Keys) { }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DictionaryToList_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.Collections.Generic.Dictionary<int, int>();
+                    var l = {|TMP0151:System.Linq.Enumerable.ToList(d)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DictionaryFirst_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.Collections.Generic.Dictionary<int, int>();
+                    var kv = {|TMP0151:System.Linq.Enumerable.First(d)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DictionaryKeysToList_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.Collections.Generic.Dictionary<int, int>();
+                    var keys = {|TMP0151:System.Linq.Enumerable.ToList(d.Keys)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DictionarySelectToList_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.Collections.Generic.Dictionary<int, int>();
+                    var keys = {|TMP0151:System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(d, kv => kv.Key))|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DictionaryOrderByToList_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.Collections.Generic.Dictionary<int, int>();
+                    var l = System.Linq.Enumerable.ToList(System.Linq.Enumerable.OrderBy(d, kv => kv.Key));
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ListFirst_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var list = new System.Collections.Generic.List<int>();
+                    var x = System.Linq.Enumerable.First(list);
+                }
+            }
+            """);
+
+    [Fact]
     public Task ProcessStart_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

@@ -19,7 +19,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP0141 | Error | Concurrency: `Task.Run` / `TaskFactory.StartNew` / `Thread.Start` / `new Thread(...)` / `ThreadPool.QueueUserWorkItem` / `Parallel.*` / `BackgroundWorker` | `Workflow.ExecuteActivityAsync` / `Workflow.DelayAsync` |
 | TMP0142 | Error | Sync/blocking primitives: `Channel<T>` (`ReadAsync`/`WriteAsync`) / `BlockingCollection<T>` / `SemaphoreSlim` / `ManualResetEventSlim` / `Monitor` / `lock` / `Mutex` / `AutoResetEvent` / `ReaderWriterLockSlim` / `SpinWait` / `CountdownEvent` / `Barrier` | await async equivalents / activity |
 | TMP0143 | Warning | Raw task scheduling: `Task.WhenAll` / `Task.WhenAny` / `Task.ContinueWith` / `TaskFactory.ContinueWhenAll` / `ContinueWhenAny` / `CancellationTokenSource.CancelAsync()` | `Workflow.WhenAllAsync` / `Workflow.WhenAnyAsync` / `.Cancel()` |
-| TMP0151 | Error | Unordered enumeration: `foreach` over `Dictionary<,>` / `HashSet<T>` / `Hashtable` / `ConcurrentDictionary<,>` / `ISet<T>` (honor `OrderBy`/`Sorted*` as deterministic) | sort / `SortedDictionary` / `OrderBy` |
+| TMP0151 | Error | Unordered enumeration: `foreach` / `ToList()` / `ToArray()` / `First()` / `Last()` / `.Keys`/`.Values` / slicing over `Dictionary<,>` / `HashSet<T>` / `Hashtable` / `ConcurrentDictionary<,>` / `ISet<T>` (honor `OrderBy`/`Sorted*` as deterministic) | sort / `SortedDictionary` / `OrderBy` |
 
 ## Shared-state mutation
 
