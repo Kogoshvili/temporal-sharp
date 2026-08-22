@@ -11,8 +11,8 @@ namespace TemporalSharp.Analyzers.Analyzers;
 /// <summary>
 /// Validates the Temporal SDK contract for workflow entry methods (TMP3201) and
 /// activity declarations (TMP3202): a [WorkflowRun] method must be public, return
-/// Task, be declared in a [Workflow] class, and be the only [WorkflowRun] method
-/// in that class; the [Activity] attribute may only be applied to methods, and a
+/// Task, be declared in a [Workflow] type, and be the only [WorkflowRun] method
+/// in that type; the [Activity] attribute may only be applied to methods, and a
 /// typed-lambda activity target must be marked [Activity].
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -50,7 +50,7 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
 
                 if (!WorkflowDetection.IsWorkflowType(method.ContainingType))
                 {
-                    Report(symbolContext, location, "[WorkflowRun] must be declared in a [Workflow] class");
+                    Report(symbolContext, location, "[WorkflowRun] must be declared in a [Workflow] type");
                 }
 
                 if (method.DeclaredAccessibility != Accessibility.Public)

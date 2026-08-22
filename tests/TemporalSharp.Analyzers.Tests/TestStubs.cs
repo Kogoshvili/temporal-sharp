@@ -57,6 +57,8 @@ internal static class TestStubs
                 public static void DeprecatePatch(string patchId) { }
 
                 public static void UpsertTypedSearchAttributes(params SearchAttributeKey[] updates) { }
+
+                public static System.Collections.Generic.IDictionary<string, object> Signals { get; } = new System.Collections.Generic.Dictionary<string, object>();
                 public static System.Threading.Tasks.Task ExecuteActivityAsync(
                     string activity,
                     System.Collections.Generic.IReadOnlyCollection<object?>? args,

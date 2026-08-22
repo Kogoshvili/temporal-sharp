@@ -76,6 +76,17 @@ public class WorkflowContractAnalyzerTests
             """);
 
     [Fact]
+    public Task RunMethodOnWorkflowInterface_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public interface IW
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                System.Threading.Tasks.Task Run();
+            }
+            """);
+
+    [Fact]
     public Task NonPublicActivity_DoesNotReport()
         => Verify(Stubs + """
             public static class Act

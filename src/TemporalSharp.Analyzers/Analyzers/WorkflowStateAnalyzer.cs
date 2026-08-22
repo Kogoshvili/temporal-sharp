@@ -126,6 +126,11 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        if (IsSdkManagedStatic(receiver))
+        {
+            return;
+        }
+
         var receiverType = (receiver as IFieldSymbol)?.Type ?? ((IPropertySymbol)receiver).Type;
         if (receiverType is null || !IsCollection(receiverType))
         {
@@ -144,6 +149,10 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
     private static bool IsCollection(ITypeSymbol type) =>
         TypeNames.IsOrImplements(type, "System.Collections.ICollection") ||
         TypeNames.IsOrImplements(type, "System.Collections.Generic.ICollection");
+
+    private static bool IsSdkManagedStatic(ISymbol symbol) =>
+        symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == SdkNames.WorkflowType &&
+        symbol.Name is "Signals" or "Updates";
 
     private static void ReportIfStaticMutable(
         SyntaxNodeAnalysisContext context,

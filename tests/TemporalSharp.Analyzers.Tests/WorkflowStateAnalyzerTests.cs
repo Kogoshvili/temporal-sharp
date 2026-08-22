@@ -172,4 +172,18 @@ public class WorkflowStateAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task SdkManagedStaticCollectionMutation_InWorkflow_DoesNotReport()
+        => Verify(TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    Temporalio.Workflows.Workflow.Signals.Remove("name");
+                }
+            }
+            """);
 }
