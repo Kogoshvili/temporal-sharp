@@ -4,8 +4,6 @@ A Roslyn static analyzer + CLI for the [Temporal](https://temporal.io) .NET SDK.
 It catches non-deterministic code and SDK feature-misuse in your workflows before
 they hit production replay bugs.
 
-> Not affiliated with or endorsed by Temporal Technologies.
-
 Two delivery vehicles, one rule engine:
 
 - **`TemporalSharp.Analyzers`** — a NuGet analyzer package that plugs into
@@ -16,9 +14,15 @@ Two delivery vehicles, one rule engine:
 ## Status
 
 Early development. See [`RULES.md`](RULES.md) for the full rule catalog. All 26
-rules (v1, v2, v3) are implemented. The CLI builds a solution-level call graph
-so a workflow that calls a helper in another project is still checked for
-non-determinism.
+rules are implemented. The CLI builds a solution-level call graph so a workflow
+that calls a helper in another project is still checked for non-determinism.
+
+## Install
+
+```sh
+dotnet add package TemporalSharp.Analyzers   # analyzer, via NuGet
+dotnet tool install -g TemporalSharp.Cli     # CLI, invoked as `temporal-sharp`
+```
 
 ## CLI
 
@@ -28,6 +32,8 @@ temporal-sharp analyze <path.sln|path.csproj> [options]
   --fail-on <none|info|warning|error>    Exit non-zero on findings at or above the given severity.
   --severity <TMPxxxx=severity>          Override a rule's severity (repeatable).
 ```
+
+## Configuration
 
 Suppress a finding with a `// temporalsharp:ignore` comment on the line or the
 line immediately above the violation. Opt-in rules (`TMP2102`, `TMP2151`,
@@ -55,6 +61,19 @@ temporalsharp.search_attributes = user_id=user_id, client_id=user_id
 - [ ] **Code fixes**: `CodeFixProvider`s for high-value rules (e.g.
       `DateTime.Now` → `Workflow.UtcNow`, `Guid.NewGuid()` → `Workflow.NewGuid()`).
 
+## Alternatives
+
+TemporalSharp covers the same ground as the Go ecosystem's tools, for .NET:
+
+- **workflowcheck** — Temporal's first-party Go determinism analyzer
+  (`github.com/temporalio/sdk-go/contrib/tools/workflowcheck`).
+- **temporalcheck-lint** — a community Go type-safety/feature-misuse linter
+  (`github.com/samgozman/temporalcheck-lint`).
+
 ## License
 
 [MIT](LICENSE)
+
+---
+
+> Not affiliated with or endorsed by Temporal Technologies.
