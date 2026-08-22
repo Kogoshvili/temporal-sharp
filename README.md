@@ -15,10 +15,10 @@ Two delivery vehicles, one rule engine:
 
 ## Status
 
-Early development. See [`RULES.md`](RULES.md) for the full rule catalog and
-[`plan.md`](plan.md) for the roadmap. All 26 rules (v1, v2, v3) are implemented.
-The CLI builds a solution-level call graph so a workflow that calls a helper in
-another project is still checked for non-determinism.
+Early development. See [`RULES.md`](RULES.md) for the full rule catalog. All 26
+rules (v1, v2, v3) are implemented. The CLI builds a solution-level call graph
+so a workflow that calls a helper in another project is still checked for
+non-determinism.
 
 ## CLI
 
@@ -49,6 +49,11 @@ Two rules take custom config keys:
 [*.cs]
 temporalsharp.search_attributes = user_id=user_id, client_id=user_id
 ```
+
+## Roadmap
+
+- [ ] **Code fixes**: `CodeFixProvider`s for high-value rules (e.g.
+      `DateTime.Now` → `Workflow.UtcNow`, `Guid.NewGuid()` → `Workflow.NewGuid()`).
 
 ## License
 
