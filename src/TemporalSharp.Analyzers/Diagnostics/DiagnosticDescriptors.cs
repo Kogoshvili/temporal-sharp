@@ -146,7 +146,22 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "HeartbeatTimeout set but activity never heartbeats",
         "Activity '{0}' is invoked with HeartbeatTimeout set but never calls ActivityExecutionContext.Heartbeat()",
-        "HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed.");
+        "HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor HeartbeatWithoutTimeout = Create(
+        "TMP3103",
+        SdkMisuseCategory,
+        "Heartbeat called without HeartbeatTimeout",
+        "Activity '{0}' calls Heartbeat() but is invoked without a HeartbeatTimeout; set one so the heartbeat takes effect",
+        "Without a HeartbeatTimeout, heartbeat calls have no effect and cannot influence failure detection or cancellation.");
+
+    internal static readonly DiagnosticDescriptor UnnecessaryHeartbeat = Create(
+        "TMP3104",
+        SdkMisuseCategory,
+        "Heartbeat called unnecessarily",
+        "Activity '{0}' calls Heartbeat() but has no loop and at most one await; the heartbeat is unnecessary",
+        "Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection.");
 
     internal static readonly DiagnosticDescriptor InvalidWorkflowRun = Create(
         "TMP3201",
@@ -205,14 +220,15 @@ internal static class DiagnosticDescriptors
         string title,
         string messageFormat,
         string description,
-        bool isEnabledByDefault = true)
+        bool isEnabledByDefault = true,
+        DiagnosticSeverity severity = DiagnosticSeverity.Warning)
     {
         return new DiagnosticDescriptor(
             id: id,
             title: title,
             messageFormat: messageFormat,
             category: category,
-            defaultSeverity: DiagnosticSeverity.Warning,
+            defaultSeverity: severity,
             isEnabledByDefault: isEnabledByDefault,
             description: description,
             helpLinkUri: "https://github.com/Kogoshvili/temporal-sharp/blob/main/RULES.md");

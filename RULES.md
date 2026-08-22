@@ -47,7 +47,9 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | ID | Rule |
 |---|---|
 | TMP3101 | **Heartbeat**: `[Activity]` method with a loop or multiple awaits but no `ActivityExecutionContext.Heartbeat()` call |
-| TMP3102 | **Heartbeat**: `HeartbeatTimeout` set on `ActivityOptions` but the activity method never calls `Heartbeat()` |
+| TMP3102 | **Heartbeat** (error): `HeartbeatTimeout` set on `ActivityOptions` but the activity method never calls `Heartbeat()` |
+| TMP3103 | **Heartbeat**: activity calls `Heartbeat()` but is invoked without a `HeartbeatTimeout` |
+| TMP3104 | **Heartbeat**: activity calls `Heartbeat()` but has no loop and at most one await (heartbeat unnecessary) |
 | TMP3201 | SDK-contract sanity: `[WorkflowRun]` not `public` / not `Task`-returning / multiple `[WorkflowRun]` / `[WorkflowRun]` without `[Workflow]` |
 | TMP3202 | SDK-contract sanity: `[Activity]` on a non-method / missing `[Activity]` where expected |
 | TMP3301 | Versioning misuse: `Patched` / `DeprecatePatch` usage anomalies |

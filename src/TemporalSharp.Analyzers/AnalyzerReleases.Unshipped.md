@@ -27,7 +27,9 @@ TMP2151 | TemporalSharp.SdkMisuse | Disabled | Sensitive-data parameter or prope
 TMP2161 | TemporalSharp.SdkMisuse | Disabled | Search attribute never upserted
 TMP2171 | TemporalSharp.SdkMisuse | Disabled | Lossy-number parameter in workflow/activity signature
 TMP3101 | TemporalSharp.SdkMisuse | Warning | Long-running activity does not heartbeat
-TMP3102 | TemporalSharp.SdkMisuse | Warning | HeartbeatTimeout set but activity never heartbeats
+TMP3102 | TemporalSharp.SdkMisuse | Error | HeartbeatTimeout set but activity never heartbeats
+TMP3103 | TemporalSharp.SdkMisuse | Warning | Heartbeat called without HeartbeatTimeout
+TMP3104 | TemporalSharp.SdkMisuse | Warning | Heartbeat called unnecessarily
 TMP3201 | TemporalSharp.SdkMisuse | Warning | Invalid workflow entry method
 TMP3202 | TemporalSharp.SdkMisuse | Warning | Invalid activity declaration
 TMP3301 | TemporalSharp.SdkMisuse | Warning | Workflow versioning (patch) misuse

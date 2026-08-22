@@ -18,7 +18,7 @@ public sealed class TemporalSharpIgnoreSuppressor : DiagnosticSuppressor
         "TMP0101", "TMP0102", "TMP0111", "TMP0121", "TMP0131", "TMP0141", "TMP0142", "TMP0151",
         "TMP1101", "TMP1102", "TMP1103", "TMP1104",
         "TMP2101", "TMP2102", "TMP2111", "TMP2121", "TMP2131", "TMP2141", "TMP2151", "TMP2161", "TMP2171",
-        "TMP3101", "TMP3102", "TMP3201", "TMP3202", "TMP3301",
+        "TMP3101", "TMP3102", "TMP3103", "TMP3104", "TMP3201", "TMP3202", "TMP3301",
     };
 
     public override ImmutableArray<SuppressionDescriptor> SupportedSuppressions { get; } = BuildSuppressions();

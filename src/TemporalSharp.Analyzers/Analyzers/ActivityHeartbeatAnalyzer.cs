@@ -10,9 +10,13 @@ using TemporalSharp.Analyzers.Diagnostics;
 namespace TemporalSharp.Analyzers.Analyzers;
 
 /// <summary>
-/// Flags activities that should heartbeat but never call
-/// <c>ActivityExecutionContext.Heartbeat()</c>: long-running activities (loops or
-/// multiple awaits) and activities invoked with a heartbeat timeout.
+/// Validates the heartbeat contract of activities:
+/// <list type="bullet">
+/// <item>TMP3101 — long-running activity (loop or multiple awaits) never heartbeats.</item>
+/// <item>TMP3102 — activity invoked with <c>HeartbeatTimeout</c> never heartbeats (error).</item>
+/// <item>TMP3103 — activity heartbeats but is invoked without a <c>HeartbeatTimeout</c>.</item>
+/// <item>TMP3104 — activity heartbeats but is not long-running (heartbeat unnecessary).</item>
+/// </list>
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
@@ -20,7 +24,9 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.ActivityNeverHeartbeats,
-            DiagnosticDescriptors.HeartbeatTimeoutWithoutHeartbeat);
+            DiagnosticDescriptors.HeartbeatTimeoutWithoutHeartbeat,
+            DiagnosticDescriptors.HeartbeatWithoutTimeout,
+            DiagnosticDescriptors.UnnecessaryHeartbeat);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -40,8 +46,12 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.InvocationExpression);
 
             startContext.RegisterSyntaxNodeAction(
-                nodeContext => CollectHeartbeatTimeoutCandidate(nodeContext, state),
+                nodeContext => CollectOptionsObjectCreation(nodeContext, state),
                 SyntaxKind.ObjectCreationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => CollectActivityInvocation(nodeContext, state),
+                SyntaxKind.InvocationExpression);
 
             startContext.RegisterCompilationEndAction(endContext => Report(endContext, state));
         });
@@ -85,7 +95,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static void CollectHeartbeatTimeoutCandidate(SyntaxNodeAnalysisContext context, HeartbeatState state)
+    private static void CollectOptionsObjectCreation(SyntaxNodeAnalysisContext context, HeartbeatState state)
     {
         var creation = (ObjectCreationExpressionSyntax)context.Node;
         var type = context.SemanticModel.GetTypeInfo(creation).Type;
@@ -100,20 +110,21 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (creation.Initializer is null ||
-            !creation.Initializer.Expressions
-                .OfType<AssignmentExpressionSyntax>()
-                .Any(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "HeartbeatTimeout"))
-        {
-            return;
-        }
+        var hasTimeout = InitializerHasHeartbeatTimeout(creation.Initializer);
 
-        var invocation = FindEnclosingInvocation(creation);
-        if (invocation is null)
+        if (creation.Parent is EqualsValueClauseSyntax { Parent: VariableDeclaratorSyntax declarator })
         {
-            return;
+            var symbol = context.SemanticModel.GetDeclaredSymbol(declarator);
+            if (symbol is not null)
+            {
+                state.OptionsStatus[symbol] = hasTimeout;
+            }
         }
+    }
 
+    private static void CollectActivityInvocation(SyntaxNodeAnalysisContext context, HeartbeatState state)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
         if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol apiMethod ||
             apiMethod.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) != SdkNames.WorkflowType ||
             apiMethod.Name is not ("ExecuteActivityAsync" or "ExecuteLocalActivityAsync"))
@@ -122,14 +133,48 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         }
 
         var activityMethod = LambdaTargetResolver.ResolveTypedLambdaTarget(context, invocation);
-        if (activityMethod is not null && WorkflowDetection.IsActivityMethod(activityMethod))
+        if (activityMethod is null || !WorkflowDetection.IsActivityMethod(activityMethod))
         {
-            state.HeartbeatTimeoutCandidates.Add((activityMethod, creation.GetLocation()));
+            return;
+        }
+
+        var options = FindOptionsArgument(context, invocation);
+        if (options is null)
+        {
+            return;
+        }
+
+        var location = invocation.GetLocation();
+        var unwrapped = Unwrap(options);
+
+        if (unwrapped is ObjectCreationExpressionSyntax creation)
+        {
+            if (InitializerHasHeartbeatTimeout(creation.Initializer))
+            {
+                state.TimeoutSet[activityMethod] = location;
+            }
+            else
+            {
+                state.TimeoutNotSet[activityMethod] = location;
+            }
+
+            return;
+        }
+
+        if (unwrapped is IdentifierNameSyntax identifier)
+        {
+            var symbol = context.SemanticModel.GetSymbolInfo(identifier).Symbol;
+            if (symbol is not null)
+            {
+                state.PendingOptionSymbols.Add((activityMethod, location, symbol));
+            }
         }
     }
 
     private static void Report(CompilationAnalysisContext context, HeartbeatState state)
     {
+        ResolvePendingOptions(state);
+
         foreach (var method in state.LongRunningActivities.Keys)
         {
             if (state.HeartbeatingActivities.ContainsKey(method))
@@ -143,17 +188,63 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
                 method.Name));
         }
 
-        foreach (var (method, location) in state.HeartbeatTimeoutCandidates)
+        foreach (var pair in state.TimeoutSet)
         {
-            if (state.HeartbeatingActivities.ContainsKey(method))
+            if (state.HeartbeatingActivities.ContainsKey(pair.Key))
             {
                 continue;
             }
 
             context.ReportDiagnostic(Diagnostic.Create(
                 DiagnosticDescriptors.HeartbeatTimeoutWithoutHeartbeat,
-                location,
+                pair.Value,
+                pair.Key.Name));
+        }
+
+        foreach (var pair in state.TimeoutNotSet)
+        {
+            if (!state.HeartbeatingActivities.ContainsKey(pair.Key) || state.TimeoutSet.ContainsKey(pair.Key))
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.HeartbeatWithoutTimeout,
+                pair.Value,
+                pair.Key.Name));
+        }
+
+        foreach (var method in state.HeartbeatingActivities.Keys)
+        {
+            if (state.LongRunningActivities.ContainsKey(method))
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnnecessaryHeartbeat,
+                FirstLocation(method),
                 method.Name));
+        }
+    }
+
+    private static void ResolvePendingOptions(HeartbeatState state)
+    {
+        foreach (var (method, location, symbol) in state.PendingOptionSymbols)
+        {
+            if (!state.OptionsStatus.TryGetValue(symbol, out var hasTimeout))
+            {
+                continue;
+            }
+
+            if (hasTimeout)
+            {
+                state.TimeoutSet[method] = location;
+            }
+            else
+            {
+                state.TimeoutNotSet[method] = location;
+            }
         }
     }
 
@@ -176,22 +267,52 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    private static InvocationExpressionSyntax? FindEnclosingInvocation(SyntaxNode node)
+    private static bool InitializerHasHeartbeatTimeout(InitializerExpressionSyntax? initializer)
     {
-        for (var current = node.Parent; current is not null; current = current.Parent)
+        if (initializer is null)
         {
-            if (current is InvocationExpressionSyntax invocation)
+            return false;
+        }
+
+        return initializer.Expressions
+            .OfType<AssignmentExpressionSyntax>()
+            .Any(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "HeartbeatTimeout");
+    }
+
+    private static ExpressionSyntax? FindOptionsArgument(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
+    {
+        foreach (var argument in invocation.ArgumentList.Arguments)
+        {
+            var type = context.SemanticModel.GetTypeInfo(argument.Expression).Type;
+            if (type is null)
             {
-                return invocation;
+                continue;
             }
 
-            if (current is StatementSyntax or MemberDeclarationSyntax)
+            var typeName = type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+            if (typeName == SdkNames.ActivityOptionsType || typeName == SdkNames.LocalActivityOptionsType)
             {
-                return null;
+                return argument.Expression;
             }
         }
 
         return null;
+    }
+
+    private static ExpressionSyntax Unwrap(ExpressionSyntax expression)
+    {
+        var current = expression;
+        while (current is CastExpressionSyntax cast)
+        {
+            current = cast.Expression;
+        }
+
+        while (current is ParenthesizedExpressionSyntax parens)
+        {
+            current = parens.Expression;
+        }
+
+        return current;
     }
 
     private static Location FirstLocation(IMethodSymbol method) =>
@@ -203,6 +324,12 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
 
         public ConcurrentDictionary<IMethodSymbol, byte> HeartbeatingActivities { get; } = new(SymbolEqualityComparer.Default);
 
-        public ConcurrentBag<(IMethodSymbol Method, Location Location)> HeartbeatTimeoutCandidates { get; } = new();
+        public ConcurrentDictionary<IMethodSymbol, Location> TimeoutSet { get; } = new(SymbolEqualityComparer.Default);
+
+        public ConcurrentDictionary<IMethodSymbol, Location> TimeoutNotSet { get; } = new(SymbolEqualityComparer.Default);
+
+        public ConcurrentDictionary<ISymbol, bool> OptionsStatus { get; } = new(SymbolEqualityComparer.Default);
+
+        public ConcurrentBag<(IMethodSymbol Method, Location Location, ISymbol Symbol)> PendingOptionSymbols { get; } = new();
     }
 }
