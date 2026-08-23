@@ -54,21 +54,35 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
         }
 
         var type = context.SemanticModel.GetTypeInfo(creation).Type;
-        if (type is null ||
-            TypeNames.FullName(type) is not ("System.Exception" or "System.SystemException"))
+        if (type is null)
         {
             return;
         }
 
-        if (!state.IsWorkflowReachable(throwStatement, context.SemanticModel) &&
-            GetEnclosingActivityMethod(context, throwStatement) is null)
+        // Only ApplicationFailureException fails a workflow; every other
+        // exception type retries the workflow task indefinitely.
+        if (TypeNames.IsOrDerivesFrom(type, "Temporalio.Exceptions.ApplicationFailureException"))
         {
             return;
         }
 
-        context.ReportDiagnostic(Diagnostic.Create(
-            DiagnosticDescriptors.ThrowsBaseException,
-            throwStatement.ThrowKeyword.GetLocation()));
+        if (state.IsWorkflowReachable(throwStatement, context.SemanticModel))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.ThrowsBaseException,
+                throwStatement.ThrowKeyword.GetLocation()));
+            return;
+        }
+
+        // Activities may throw, but throwing a bare base exception is still a
+        // smell (prefer ApplicationFailureException for a typed failure).
+        if (GetEnclosingActivityMethod(context, throwStatement) is not null &&
+            TypeNames.FullName(type) is "System.Exception" or "System.SystemException")
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.ThrowsBaseException,
+                throwStatement.ThrowKeyword.GetLocation()));
+        }
     }
 
     private static void AnalyzeAssert(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)

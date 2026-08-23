@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -59,42 +60,114 @@ public sealed class ActivityContextAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        context.RegisterSyntaxNodeAction(AnalyzeAssignment, AssignmentKinds);
-        context.RegisterSyntaxNodeAction(AnalyzeVariableDeclarator, SyntaxKind.VariableDeclarator);
-        context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
-    }
-
-    private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context)
-    {
-        var assignment = (AssignmentExpressionSyntax)context.Node;
-        ReportIfContextCaptured(context, assignment.Right);
-    }
-
-    private static void AnalyzeVariableDeclarator(SyntaxNodeAnalysisContext context)
-    {
-        var declarator = (VariableDeclaratorSyntax)context.Node;
-        if (declarator.Initializer is { } initializer)
+        context.RegisterCompilationStartAction(startContext =>
         {
-            ReportIfContextCaptured(context, initializer.Value);
-        }
+            var state = new ActivityContextState();
+
+            startContext.RegisterSyntaxNodeAction(
+                c => CollectCapture(c, state),
+                SyntaxKind.VariableDeclarator);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => CollectCapture(c, state),
+                AssignmentKinds);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => CollectUse(c, state),
+                SyntaxKind.IdentifierName);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => CollectAwait(c, state),
+                SyntaxKind.AwaitExpression);
+
+            startContext.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
+
+            startContext.RegisterCompilationEndAction(endContext => ReportContextCapture(endContext, state));
+        });
     }
 
-    private static void ReportIfContextCaptured(SyntaxNodeAnalysisContext context, ExpressionSyntax value)
+    private static void CollectCapture(SyntaxNodeAnalysisContext context, ActivityContextState state)
     {
-        if (!IsActivityContextCurrent(value, context.SemanticModel))
+        ExpressionSyntax? value;
+        ISymbol? captured;
+        switch (context.Node)
+        {
+            case VariableDeclaratorSyntax declarator when declarator.Initializer is { } initializer:
+                value = initializer.Value;
+                captured = context.SemanticModel.GetDeclaredSymbol(declarator);
+                break;
+
+            case AssignmentExpressionSyntax assignment:
+                value = assignment.Right;
+                captured = context.SemanticModel.GetSymbolInfo(assignment.Left).Symbol;
+                break;
+
+            default:
+                return;
+        }
+
+        if (captured is null ||
+            !IsActivityContextCurrent(value, context.SemanticModel) ||
+            GetEnclosingActivityMethod(context, context.Node) is not { } activityMethod)
         {
             return;
         }
 
-        if (GetEnclosingActivityMethod(context, value) is not { } activityMethod ||
-            !HasAwait(activityMethod))
+        state.Captures[captured] = (value.GetLocation(), activityMethod);
+    }
+
+    private static void CollectUse(SyntaxNodeAnalysisContext context, ActivityContextState state)
+    {
+        var identifier = (IdentifierNameSyntax)context.Node;
+        if (context.SemanticModel.GetSymbolInfo(identifier).Symbol is not { } symbol ||
+            GetEnclosingActivityMethod(context, identifier) is not { } activityMethod)
         {
             return;
         }
 
-        context.ReportDiagnostic(Diagnostic.Create(
-            DiagnosticDescriptors.ActivityContextAcrossAwait,
-            value.GetLocation()));
+        var uses = state.Uses.GetOrAdd(activityMethod, _ => new ConcurrentBag<(ISymbol Symbol, int SpanStart)>());
+        uses.Add((symbol, identifier.SpanStart));
+    }
+
+    private static void CollectAwait(SyntaxNodeAnalysisContext context, ActivityContextState state)
+    {
+        var awaitExpression = (AwaitExpressionSyntax)context.Node;
+        if (GetEnclosingActivityMethod(context, awaitExpression) is not { } activityMethod)
+        {
+            return;
+        }
+
+        state.FirstAwaitSpan.AddOrUpdate(
+            activityMethod,
+            awaitExpression.SpanStart,
+            (_, existing) => Math.Min(existing, awaitExpression.SpanStart));
+    }
+
+    private static void ReportContextCapture(CompilationAnalysisContext context, ActivityContextState state)
+    {
+        foreach (var capture in state.Captures)
+        {
+            var symbol = capture.Key;
+            var location = capture.Value.Location;
+            var method = capture.Value.Method;
+
+            // Capturing the context is only a problem when it is actually used
+            // after an await; using it before the await is fine.
+            if (!state.FirstAwaitSpan.TryGetValue(method, out var firstAwait))
+            {
+                continue;
+            }
+
+            if (!state.Uses.TryGetValue(method, out var uses) ||
+                !uses.Any(u => SymbolEqualityComparer.Default.Equals(u.Symbol, symbol) && u.SpanStart > firstAwait))
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.ActivityContextAcrossAwait,
+                location));
+        }
     }
 
     private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
@@ -147,19 +220,6 @@ public sealed class ActivityContextAnalyzer : DiagnosticAnalyzer
                SdkNames.ActivityExecutionContextType;
     }
 
-    private static bool HasAwait(IMethodSymbol method)
-    {
-        foreach (var syntaxReference in method.DeclaringSyntaxReferences)
-        {
-            if (syntaxReference.GetSyntax().DescendantNodes().OfType<AwaitExpressionSyntax>().Any())
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static bool HasCancellationTokenArgument(InvocationExpressionSyntax invocation, SemanticModel model)
     {
         foreach (var argument in invocation.ArgumentList.Arguments)
@@ -187,5 +247,17 @@ public sealed class ActivityContextAnalyzer : DiagnosticAnalyzer
         }
 
         return null;
+    }
+
+    private sealed class ActivityContextState
+    {
+        public ConcurrentDictionary<ISymbol, (Location Location, IMethodSymbol Method)> Captures { get; } =
+            new(SymbolEqualityComparer.Default);
+
+        public ConcurrentDictionary<IMethodSymbol, ConcurrentBag<(ISymbol Symbol, int SpanStart)>> Uses { get; } =
+            new(SymbolEqualityComparer.Default);
+
+        public ConcurrentDictionary<IMethodSymbol, int> FirstAwaitSpan { get; } =
+            new(SymbolEqualityComparer.Default);
     }
 }

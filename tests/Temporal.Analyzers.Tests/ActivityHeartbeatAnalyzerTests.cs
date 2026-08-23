@@ -176,4 +176,34 @@ public class ActivityHeartbeatAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task AsyncCompletionWithHeartbeatTimeout_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await Temporalio.Workflows.Workflow.ExecuteActivityAsync(
+                        () => Act.Do(),
+                        new Temporalio.Workflows.ActivityOptions { HeartbeatTimeout = System.TimeSpan.FromMinutes(1) });
+                }
+            }
+
+            public static class Act
+            {
+                [Temporalio.Activities.Activity]
+                public static async System.Threading.Tasks.Task Do()
+                {
+                    for (var i = 0; i < 3; i++)
+                    {
+                        await System.Threading.Tasks.Task.Delay(1);
+                    }
+
+                    throw new Temporalio.Activities.CompleteAsyncException();
+                }
+            }
+            """);
 }

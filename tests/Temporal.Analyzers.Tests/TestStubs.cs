@@ -212,12 +212,23 @@ internal static class TestStubs
 
         namespace Temporalio.Activities
         {
+            public sealed class CompleteAsyncException : System.Exception { }
+
             public sealed class ActivityExecutionContext
             {
                 public static ActivityExecutionContext Current => new ActivityExecutionContext();
                 public void Heartbeat(params object?[] details) { }
                 public System.Threading.CancellationToken CancellationToken => default;
                 public Temporalio.Workflows.WorkflowLogger Log => new Temporalio.Workflows.WorkflowLogger();
+            }
+        }
+
+        namespace Temporalio.Exceptions
+        {
+            public class ApplicationFailureException : System.Exception
+            {
+                public ApplicationFailureException() { }
+                public ApplicationFailureException(string message) : base(message) { }
             }
         }
         """;

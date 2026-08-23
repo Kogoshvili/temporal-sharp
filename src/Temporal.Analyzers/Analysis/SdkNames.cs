@@ -13,6 +13,10 @@ internal static class SdkNames
     public const string ActivityOptionsType = "Temporalio.Workflows.ActivityOptions";
     public const string LocalActivityOptionsType = "Temporalio.Workflows.LocalActivityOptions";
     public const string ActivityExecutionContextType = "Temporalio.Activities.ActivityExecutionContext";
+    public const string CompleteAsyncExceptionType = "Temporalio.Activities.CompleteAsyncException";
+    public const string CancellationTokenType = "System.Threading.CancellationToken";
+    public const string WorkflowOptionsType = "Temporalio.Client.WorkflowOptions";
+    public const string ClientNamespace = "Temporalio.Client";
 
     /// <summary>
     /// Workflow command methods that schedule commands or mutate workflow

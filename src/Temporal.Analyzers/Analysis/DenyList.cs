@@ -44,6 +44,18 @@ internal static class DenyList
             ["System.Runtime.CompilerServices.ConditionalWeakTable<TKey, TValue>..ctor"] = DiagnosticDescriptors.WeakReference,
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
+    // Constructors matched only when given at least one argument (e.g.
+    // new CancellationTokenSource(TimeSpan) schedules a system timer, whereas the
+    // parameterless CancellationTokenSource() is a harmless token factory).
+    private static readonly ImmutableDictionary<string, DiagnosticDescriptor> NonEmptyArgConstructors =
+        new Dictionary<string, DiagnosticDescriptor>(StringComparer.Ordinal)
+        {
+            ["System.Threading.CancellationTokenSource..ctor"] = DiagnosticDescriptors.TimerScheduling,
+            ["System.IO.FileStream..ctor"] = DiagnosticDescriptors.IoOrEnvironmentAccess,
+            ["System.IO.StreamReader..ctor"] = DiagnosticDescriptors.IoOrEnvironmentAccess,
+            ["System.IO.StreamWriter..ctor"] = DiagnosticDescriptors.IoOrEnvironmentAccess,
+        }.ToImmutableDictionary(StringComparer.Ordinal);
+
     public static bool TryGetMember(string key, out DiagnosticDescriptor? descriptor)
         => Members.TryGetValue(key, out descriptor);
 
@@ -52,6 +64,9 @@ internal static class DenyList
 
     public static bool TryGetAnyArgConstructor(string key, out DiagnosticDescriptor? descriptor)
         => AnyArgConstructors.TryGetValue(key, out descriptor);
+
+    public static bool TryGetNonEmptyArgConstructor(string key, out DiagnosticDescriptor? descriptor)
+        => NonEmptyArgConstructors.TryGetValue(key, out descriptor);
 
     private static ImmutableDictionary<string, DiagnosticDescriptor> BuildMembers()
     {
@@ -130,17 +145,58 @@ internal static class DenyList
             "System.Environment.GetEnvironmentVariable",
             "System.Environment.GetEnvironmentVariables",
             "System.IO.File.ReadAllText",
+            "System.IO.File.ReadAllTextAsync",
             "System.IO.File.ReadAllLines",
+            "System.IO.File.ReadAllLinesAsync",
             "System.IO.File.ReadAllBytes",
+            "System.IO.File.ReadAllBytesAsync",
             "System.IO.File.WriteAllText",
+            "System.IO.File.WriteAllTextAsync",
+            "System.IO.File.WriteAllLines",
+            "System.IO.File.WriteAllLinesAsync",
             "System.IO.File.WriteAllBytes",
+            "System.IO.File.WriteAllBytesAsync",
+            "System.IO.File.AppendAllText",
+            "System.IO.File.AppendAllTextAsync",
+            "System.IO.File.AppendAllLines",
+            "System.IO.File.AppendAllLinesAsync",
             "System.IO.File.Exists",
+            "System.IO.File.Delete",
+            "System.IO.File.Move",
+            "System.IO.File.Copy",
+            "System.IO.File.Open",
+            "System.IO.File.OpenRead",
+            "System.IO.File.OpenWrite",
+            "System.IO.File.OpenText",
+            "System.IO.File.Create",
+            "System.IO.File.CreateText",
             "System.IO.Directory.GetCurrentDirectory",
             "System.IO.Directory.GetFiles",
+            "System.IO.Directory.GetDirectories",
+            "System.IO.Directory.EnumerateFiles",
+            "System.IO.Directory.EnumerateDirectories",
+            "System.IO.Directory.CreateDirectory",
+            "System.IO.Directory.Delete",
+            "System.IO.Directory.Exists",
+            "System.IO.Directory.Move",
+            "System.IO.StreamReader.Read",
+            "System.IO.StreamReader.ReadLine",
+            "System.IO.StreamReader.ReadToEnd",
+            "System.IO.StreamWriter.Write",
+            "System.IO.StreamWriter.WriteLine",
             "System.Net.Http.HttpClient.GetAsync",
             "System.Net.Http.HttpClient.GetStringAsync",
+            "System.Net.Http.HttpClient.GetByteArrayAsync",
+            "System.Net.Http.HttpClient.GetStreamAsync",
             "System.Net.Http.HttpClient.PostAsync",
+            "System.Net.Http.HttpClient.PutAsync",
+            "System.Net.Http.HttpClient.DeleteAsync",
+            "System.Net.Http.HttpClient.PatchAsync",
             "System.Net.Http.HttpClient.SendAsync",
+            "System.Net.Dns.GetHostName",
+            "System.Net.Dns.GetHostAddresses",
+            "System.Net.Dns.GetHostEntry",
+            "System.Net.Dns.Resolve",
             "System.Diagnostics.Process.Start",
             "System.Net.Sockets.Socket.Connect",
             "System.Net.Sockets.Socket.Send",
@@ -217,7 +273,6 @@ internal static class DenyList
         // TMP0143 — raw task scheduling
         foreach (var name in new[]
         {
-            "System.Threading.Tasks.Task.WhenAll",
             "System.Threading.Tasks.Task.WhenAny",
             "System.Threading.Tasks.Task.ContinueWith",
             "System.Threading.Tasks.Task<TResult>.ContinueWith",
@@ -228,6 +283,10 @@ internal static class DenyList
         {
             entries.Add((name, DiagnosticDescriptors.TaskScheduling));
         }
+
+        // TMP0148 — Task.WhenAll is technically safe, but the wrapper is
+        // recommended (lower severity than the raw-scheduling rules above).
+        entries.Add(("System.Threading.Tasks.Task.WhenAll", DiagnosticDescriptors.TaskWhenAll));
 
         // TMP0145 — reflection / dynamic invocation
         foreach (var name in new[]
@@ -240,6 +299,16 @@ internal static class DenyList
             "System.Reflection.Assembly.GetTypes",
             "System.Reflection.Assembly.GetExportedTypes",
             "System.Type.GetType",
+            "System.Type.GetMethod",
+            "System.Type.GetMethods",
+            "System.Type.GetProperty",
+            "System.Type.GetProperties",
+            "System.Type.GetField",
+            "System.Type.GetFields",
+            "System.Type.GetMembers",
+            "System.Type.GetConstructors",
+            "System.Type.GetEvent",
+            "System.Type.GetEvents",
             "System.Reflection.MethodInfo.Invoke",
             "System.Reflection.MethodBase.Invoke",
             "System.Reflection.ConstructorInfo.Invoke",
@@ -284,6 +353,9 @@ internal static class DenyList
             "System.Threading.Timer.ChangeAsync",
             "System.Threading.PeriodicTimer.WaitForNextTickAsync",
             "System.Timers.Timer.Start",
+            "System.Threading.CancellationTokenSource.CancelAfter",
+            "System.Threading.Tasks.Task.WaitAsync",
+            "System.Threading.Tasks.Task<TResult>.WaitAsync",
         })
         {
             entries.Add((name, DiagnosticDescriptors.TimerScheduling));

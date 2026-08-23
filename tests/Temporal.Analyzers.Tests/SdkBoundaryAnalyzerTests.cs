@@ -70,6 +70,34 @@ public class SdkBoundaryAnalyzerTests
             """);
 
     [Fact]
+    public Task StartWorkflowWithIdViaVariable_DoesNotReport()
+        => Verify(Stubs + """
+            public class C
+            {
+                public async System.Threading.Tasks.Task Start()
+                {
+                    var client = new Temporalio.Client.WorkflowClient();
+                    var options = new Temporalio.Client.WorkflowOptions { Id = "my-id" };
+                    await client.StartWorkflowAsync(() => new object(), options);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task UserMethodNamedStartWorkflowAsync_DoesNotReport()
+        => Verify(Stubs + """
+            public class C
+            {
+                public async System.Threading.Tasks.Task Start()
+                {
+                    await StartWorkflowAsync();
+                }
+
+                public System.Threading.Tasks.Task StartWorkflowAsync() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
     public Task InternalTemporalNamespace_Reports()
     {
         var test = new CSharpAnalyzerTest<SdkBoundaryAnalyzer, DefaultVerifier>
@@ -78,6 +106,31 @@ public class SdkBoundaryAnalyzerTests
                 using {|TMP2146:Temporalio.Bridge|};
 
                 namespace Temporalio.Bridge { }
+
+                public class C { }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        return test.RunAsync();
+    }
+
+    [Fact]
+    public Task PublicTemporalNamespaces_DoNotReport()
+    {
+        var test = new CSharpAnalyzerTest<SdkBoundaryAnalyzer, DefaultVerifier>
+        {
+            TestCode = """
+                using Temporalio.Api;
+                using Temporalio.Api.Enums.V1;
+                using Temporalio.Worker.Interceptors;
+                using Temporalio.Runtime;
+                using Temporalio.Converters;
+
+                namespace Temporalio.Api { }
+                namespace Temporalio.Api.Enums.V1 { }
+                namespace Temporalio.Worker.Interceptors { }
+                namespace Temporalio.Runtime { }
+                namespace Temporalio.Converters { }
 
                 public class C { }
                 """,

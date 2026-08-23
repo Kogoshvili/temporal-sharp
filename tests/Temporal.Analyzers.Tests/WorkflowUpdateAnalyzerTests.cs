@@ -85,6 +85,22 @@ public class WorkflowUpdateAnalyzerTests
             """);
 
     [Fact]
+    public Task ValidatorMutatesCollection_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private System.Collections.Generic.List<int> _items = new();
+
+                [Temporalio.Workflows.WorkflowUpdateValidator]
+                public void Validate(int x)
+                {
+                    {|TMP3215:_items.Add(x)|};
+                }
+            }
+            """);
+
+    [Fact]
     public Task ValidatorSchedulesCommand_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

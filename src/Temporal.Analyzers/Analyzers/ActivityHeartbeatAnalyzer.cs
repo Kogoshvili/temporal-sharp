@@ -59,6 +59,15 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
                 nodeContext => CollectActivityInvocation(nodeContext, state),
                 SyntaxKind.InvocationExpression);
 
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => CollectAsyncCompletion(nodeContext, state),
+                SyntaxKind.ThrowStatement);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => CollectCancellationCheck(nodeContext, state),
+                SyntaxKind.InvocationExpression,
+                SyntaxKind.SimpleMemberAccessExpression);
+
             startContext.RegisterCompilationEndAction(endContext => Report(endContext, state));
         });
     }
@@ -112,8 +121,10 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Heartbeat far shorter than the total budget is a smell (heuristic).
-        if (heartbeatTicks.Value * 10 < startToCloseTicks.Value)
+        // Heartbeat far shorter than the total budget is a smell (heuristic). The
+        // skill's own GOOD example is a 15:1 ratio (30 min StartToClose, 2 min
+        // Heartbeat), so only flag at 100:1 and above (e.g. 30 min / 10 s).
+        if (heartbeatTicks.Value * 100 < startToCloseTicks.Value)
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 DiagnosticDescriptors.HeartbeatTimeoutMismatch,
@@ -289,13 +300,40 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         }
     }
 
+    private static void CollectAsyncCompletion(SyntaxNodeAnalysisContext context, HeartbeatState state)
+    {
+        var throwStatement = (ThrowStatementSyntax)context.Node;
+        if (throwStatement.Expression is not ObjectCreationExpressionSyntax creation)
+        {
+            return;
+        }
+
+        var type = context.SemanticModel.GetTypeInfo(creation).Type;
+        if (type is null ||
+            type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) != SdkNames.CompleteAsyncExceptionType)
+        {
+            return;
+        }
+
+        var enclosing = context.SemanticModel.GetEnclosingSymbol(throwStatement.SpanStart);
+        for (var current = enclosing; current is not null; current = current.ContainingSymbol)
+        {
+            if (current is IMethodSymbol method && WorkflowDetection.IsActivityMethod(method))
+            {
+                state.AsyncCompletionActivities.TryAdd(method, 0);
+                return;
+            }
+        }
+    }
+
     private static void Report(CompilationAnalysisContext context, HeartbeatState state)
     {
         ResolvePendingOptions(state);
 
         foreach (var method in state.LongRunningActivities.Keys)
         {
-            if (state.HeartbeatingActivities.ContainsKey(method))
+            if (state.HeartbeatingActivities.ContainsKey(method) ||
+                state.AsyncCompletionActivities.ContainsKey(method))
             {
                 continue;
             }
@@ -308,7 +346,8 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
 
         foreach (var pair in state.TimeoutSet)
         {
-            if (state.HeartbeatingActivities.ContainsKey(pair.Key))
+            if (state.HeartbeatingActivities.ContainsKey(pair.Key) ||
+                state.AsyncCompletionActivities.ContainsKey(pair.Key))
             {
                 continue;
             }
@@ -349,7 +388,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         foreach (var method in state.HeartbeatingActivities.Keys)
         {
             if (!state.LongRunningActivities.ContainsKey(method) ||
-                ReferencesCancellationCheck(method))
+                state.CancellationCheckingActivities.ContainsKey(method))
             {
                 continue;
             }
@@ -361,20 +400,42 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool ReferencesCancellationCheck(IMethodSymbol method)
+    private static void CollectCancellationCheck(SyntaxNodeAnalysisContext context, HeartbeatState state)
     {
-        foreach (var syntaxReference in method.DeclaringSyntaxReferences)
+        var symbol = context.Node switch
         {
-            foreach (var identifier in syntaxReference.GetSyntax().DescendantNodes().OfType<IdentifierNameSyntax>())
-            {
-                if (identifier.Identifier.ValueText.IndexOf("Cancellation", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    return true;
-                }
-            }
+            InvocationExpressionSyntax invocation => context.SemanticModel.GetSymbolInfo(invocation).Symbol,
+            MemberAccessExpressionSyntax access => context.SemanticModel.GetSymbolInfo(access).Symbol,
+            _ => null,
+        };
+
+        if (symbol is IMethodSymbol { Name: "ThrowIfCancellationRequested" } method &&
+            method.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
+            SdkNames.CancellationTokenType)
+        {
+            RecordCancellationCheck(context, state, context.Node);
+            return;
         }
 
-        return false;
+        if (symbol is IPropertySymbol { Name: "IsCancellationRequested" } property &&
+            property.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
+            SdkNames.CancellationTokenType)
+        {
+            RecordCancellationCheck(context, state, context.Node);
+        }
+    }
+
+    private static void RecordCancellationCheck(SyntaxNodeAnalysisContext context, HeartbeatState state, SyntaxNode node)
+    {
+        var enclosing = context.SemanticModel.GetEnclosingSymbol(node.SpanStart);
+        for (var current = enclosing; current is not null; current = current.ContainingSymbol)
+        {
+            if (current is IMethodSymbol method && WorkflowDetection.IsActivityMethod(method))
+            {
+                state.CancellationCheckingActivities.TryAdd(method, 0);
+                return;
+            }
+        }
     }
 
     private static void ResolvePendingOptions(HeartbeatState state)
@@ -472,6 +533,10 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         public ConcurrentDictionary<IMethodSymbol, byte> LongRunningActivities { get; } = new(SymbolEqualityComparer.Default);
 
         public ConcurrentDictionary<IMethodSymbol, byte> HeartbeatingActivities { get; } = new(SymbolEqualityComparer.Default);
+
+        public ConcurrentDictionary<IMethodSymbol, byte> AsyncCompletionActivities { get; } = new(SymbolEqualityComparer.Default);
+
+        public ConcurrentDictionary<IMethodSymbol, byte> CancellationCheckingActivities { get; } = new(SymbolEqualityComparer.Default);
 
         public ConcurrentDictionary<IMethodSymbol, Location> TimeoutSet { get; } = new(SymbolEqualityComparer.Default);
 

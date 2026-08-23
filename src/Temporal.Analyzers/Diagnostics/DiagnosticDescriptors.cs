@@ -26,7 +26,7 @@ internal static class DiagnosticDescriptors
         "TMP0111",
         DeterminismCategory,
         "Workflow code blocks the workflow thread",
-        "'{0}' blocks workflow code; use 'await' (or Workflow.DelayAsync for time-based waits) instead",
+        "'{0}' is non-deterministic in workflow code; use Workflow.DelayAsync for delays and 'await' instead of blocking waits",
         "Sleeping on wall-clock time or synchronously waiting on a task breaks replay determinism and deadlocks the single-threaded workflow runtime. Await asynchronously, and use Workflow.DelayAsync for delays.",
         severity: DiagnosticSeverity.Error);
 
@@ -139,6 +139,14 @@ internal static class DiagnosticDescriptors
         "Workflow code uses raw task scheduling",
         "'{0}' runs on the non-deterministic task scheduler; use Workflow.WhenAllAsync / Workflow.WhenAnyAsync instead",
         "Raw Task combinators (WhenAll/WhenAny/ContinueWith) schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAllAsync / Workflow.WhenAnyAsync, and use .Cancel() instead of CancellationTokenSource.CancelAsync().");
+
+    internal static readonly DiagnosticDescriptor TaskWhenAll = Create(
+        "TMP0148",
+        DeterminismCategory,
+        "Workflow code uses Task.WhenAll instead of Workflow.WhenAllAsync",
+        "'{0}' is technically safe today, but use Workflow.WhenAllAsync for determinism clarity",
+        "Task.WhenAll currently runs on the workflow scheduler, but the wrapper is the supported, forward-compatible API. Prefer Workflow.WhenAllAsync.",
+        severity: DiagnosticSeverity.Info);
 
     internal static readonly DiagnosticDescriptor ManualTaskCoordination = Create(
         "TMP0144",
@@ -444,7 +452,7 @@ internal static class DiagnosticDescriptors
         "Invalid workflow update return type",
         "Invalid [WorkflowUpdate] method: {0}",
         "An update handler must return a concrete Task<T>; returning void, a plain value, or a non-generic Task makes the update result unusable by callers.",
-        severity: DiagnosticSeverity.Warning);
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor ContinueAsNewInUpdate = Create(
         "TMP3209",
@@ -595,7 +603,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Use of internal Temporal namespace",
         "Use of internal Temporal namespace '{0}'",
-        "Temporalio.Bridge, Temporalio.Api, and other internal namespaces are not part of the public API and can change without notice.",
+        "Temporalio.Bridge is not part of the public API and can change without notice.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor UnsafeNamespaceReference = Create(

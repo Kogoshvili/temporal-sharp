@@ -72,7 +72,8 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
 
             startContext.RegisterSyntaxNodeAction(
                 AnalyzeObjectCreation,
-                SyntaxKind.ObjectCreationExpression);
+                SyntaxKind.ObjectCreationExpression,
+                SyntaxKind.ImplicitObjectCreationExpression);
 
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeInvocation(c, state),
@@ -243,7 +244,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext context)
     {
-        var creation = (ObjectCreationExpressionSyntax)context.Node;
+        var creation = (BaseObjectCreationExpressionSyntax)context.Node;
         var type = context.SemanticModel.GetTypeInfo(creation).Type;
         if (type is null)
         {

@@ -26,7 +26,7 @@ namespace Kogoshvili.Temporal.Analyzers.CodeFixes;
 public sealed class WorkflowApiReplacementCodeFixProvider : CodeFixProvider
 {
     public override ImmutableArray<string> FixableDiagnosticIds =>
-        ImmutableArray.Create("TMP0101", "TMP0111", "TMP0121", "TMP0143", "TMP0146");
+        ImmutableArray.Create("TMP0101", "TMP0111", "TMP0121", "TMP0143", "TMP0146", "TMP0148");
 
     public override FixAllProvider? GetFixAllProvider() => null;
 
@@ -129,22 +129,23 @@ public sealed class WorkflowApiReplacementCodeFixProvider : CodeFixProvider
                 break;
 
             case "TMP0143":
-                if (node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax combinatorAccess })
+                if (node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "WhenAny" } })
                 {
-                    var target = combinatorAccess.Name.Identifier.ValueText switch
-                    {
-                        "WhenAll" => "WhenAllAsync",
-                        "WhenAny" => "WhenAnyAsync",
-                        _ => null,
-                    };
+                    return new Replacement(
+                        "Use Workflow.WhenAnyAsync",
+                        CodeFixHelpers.QualifiedName("Temporalio", "Workflows", "Workflow", "WhenAnyAsync"),
+                        false);
+                }
 
-                    if (target is not null)
-                    {
-                        return new Replacement(
-                            $"Use Workflow.{target}",
-                            CodeFixHelpers.QualifiedName("Temporalio", "Workflows", "Workflow", target),
-                            false);
-                    }
+                break;
+
+            case "TMP0148":
+                if (node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "WhenAll" } })
+                {
+                    return new Replacement(
+                        "Use Workflow.WhenAllAsync",
+                        CodeFixHelpers.QualifiedName("Temporalio", "Workflows", "Workflow", "WhenAllAsync"),
+                        false);
                 }
 
                 break;

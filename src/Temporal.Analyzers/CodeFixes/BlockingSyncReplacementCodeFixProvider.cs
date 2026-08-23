@@ -138,46 +138,67 @@ public sealed class BlockingSyncReplacementCodeFixProvider : CodeFixProvider
 
         if (declarator.Initializer is { } initializer)
         {
-            if (initializer.Value is ObjectCreationExpressionSyntax creation)
+            switch (initializer.Value)
             {
-                if (!TryRewriteCreation(creation, TypeNames.FullName(receiverType), mapping.TargetType, out var newCreation))
-                {
-                    return null;
-                }
+                case ObjectCreationExpressionSyntax creation:
+                    if (!TryRewriteCreation(creation, TypeNames.FullName(receiverType), mapping.TargetType, out var newCreation))
+                    {
+                        return null;
+                    }
 
-                if (newCreation is not null)
-                {
-                    replacements[creation] = newCreation;
-                }
-            }
-            else if (initializer.Value is ImplicitObjectCreationExpressionSyntax implicitCreation)
-            {
-                if (!ValidateSemaphoreArgs(implicitCreation.ArgumentList, TypeNames.FullName(receiverType)))
-                {
+                    if (newCreation is not null)
+                    {
+                        replacements[creation] = newCreation;
+                    }
+
+                    break;
+
+                case ImplicitObjectCreationExpressionSyntax implicitCreation:
+                    if (!TryRewriteArgs(implicitCreation.ArgumentList, TypeNames.FullName(receiverType), out var newArgs))
+                    {
+                        return null;
+                    }
+
+                    if (newArgs is not null)
+                    {
+                        replacements[implicitCreation] = implicitCreation.WithArgumentList(newArgs);
+                    }
+
+                    break;
+
+                default:
                     return null;
-                }
-            }
-            else
-            {
-                return null;
             }
         }
 
-        // Call site: rename the wait method and await it.
+        // The SDK waits are async, so the call site must become `await`. Bail out
+        // when the enclosing code cannot legally await (a non-async method whose
+        // return type cannot be made async), otherwise we'd emit uncompilable code.
+        var function = CodeFixHelpers.EnclosingFunction(invocation);
+        var method = CodeFixHelpers.EnclosingMethod(model, invocation);
+        if (method is null || (!method.IsAsync && !CodeFixHelpers.IsAsyncCompatibleReturn(method.ReturnType)))
+        {
+            return null;
+        }
+
         var newMemberAccess = memberAccess.WithName(SyntaxFactory.IdentifierName(mapping.Method));
         var awaited = SyntaxFactory.AwaitExpression(
             SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Space),
             invocation.WithExpression(newMemberAccess));
         replacements[invocation] = awaited;
 
-        // Ensure the enclosing method is async.
-        var function = CodeFixHelpers.EnclosingFunction(invocation);
-        var method = CodeFixHelpers.EnclosingMethod(model, invocation);
-        if (function is not null && method is { IsAsync: false } && CodeFixHelpers.IsAsyncCompatibleReturn(method.ReturnType))
+        if (method.IsAsync)
         {
-            replacements[function] = CodeFixHelpers.AddAsyncModifier(function);
+            return replacements;
         }
 
+        // Make the enclosing method async so the `await` compiles.
+        if (function is null)
+        {
+            return null;
+        }
+
+        replacements[function] = CodeFixHelpers.AddAsyncModifier(function);
         return replacements;
     }
 
@@ -203,47 +224,29 @@ public sealed class BlockingSyncReplacementCodeFixProvider : CodeFixProvider
         out ObjectCreationExpressionSyntax? newCreation)
     {
         newCreation = null;
-
-        if (receiverFullName == "System.Threading.Mutex")
-        {
-            if (creation.ArgumentList is null || creation.ArgumentList.Arguments.Count != 0)
-            {
-                return false;
-            }
-
-            newCreation = creation.WithType(SyntaxFactory.ParseTypeName(targetType).WithTriviaFrom(creation.Type));
-            return true;
-        }
-
         if (creation.ArgumentList is not { } argumentList ||
-            !TryRewriteSemaphoreArgs(argumentList, receiverFullName, out var newArgs))
+            !TryRewriteArgs(argumentList, receiverFullName, out var newArgs))
         {
             return false;
         }
 
-        newCreation = creation
-            .WithType(SyntaxFactory.ParseTypeName(targetType).WithTriviaFrom(creation.Type))
-            .WithArgumentList(newArgs);
+        var rewritten = creation.WithType(SyntaxFactory.ParseTypeName(targetType).WithTriviaFrom(creation.Type));
+        newCreation = newArgs is null ? rewritten : rewritten.WithArgumentList(newArgs);
         return true;
     }
 
-    private static bool ValidateSemaphoreArgs(ArgumentListSyntax args, string receiverFullName)
-    {
-        if (receiverFullName == "System.Threading.Mutex")
-        {
-            return args.Arguments.Count == 0;
-        }
-
-        return TryRewriteSemaphoreArgs(args, receiverFullName, out _);
-    }
-
-    private static bool TryRewriteSemaphoreArgs(
+    private static bool TryRewriteArgs(
         ArgumentListSyntax args,
         string receiverFullName,
-        out ArgumentListSyntax newArgs)
+        out ArgumentListSyntax? newArgs)
     {
-        newArgs = args;
+        newArgs = null;
         var arguments = args.Arguments;
+
+        if (receiverFullName == "System.Threading.Mutex")
+        {
+            return arguments.Count == 0;
+        }
 
         if (receiverFullName == "System.Threading.SemaphoreSlim" && arguments.Count == 1)
         {
@@ -255,7 +258,11 @@ public sealed class BlockingSyncReplacementCodeFixProvider : CodeFixProvider
             TryGetIntLiteral(arguments[1].Expression) is int max &&
             initial == max)
         {
-            newArgs = SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(arguments[1]));
+            // The SDK Semaphore has a single initialCount constructor, so drop the
+            // redundant maximumCount and keep the initial count (stripping any
+            // name colon so `initialCount: 3`/`maximumCount: 3` still compile).
+            newArgs = SyntaxFactory.ArgumentList(
+                SyntaxFactory.SingletonSeparatedList(arguments[0].WithNameColon(null)));
             return true;
         }
 

@@ -208,6 +208,77 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task TargetTypedRandom_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    System.Random r = {|TMP0121:new()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task CancellationTokenSourceWithDelay_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var cts = {|TMP0172:new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(5))|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ParameterlessCancellationTokenSource_InWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var cts = new System.Threading.CancellationTokenSource();
+                }
+            }
+            """);
+
+    [Fact]
+    public Task HttpClientDeleteAsync_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var client = new System.Net.Http.HttpClient();
+                    await {|TMP0131:client.DeleteAsync("http://example.com")|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TypeGetProperty_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var p = {|TMP0145:typeof(object).GetProperty("ToString")|};
+                }
+            }
+            """);
+
+    [Fact]
     public Task EnvironmentAccess_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
@@ -346,7 +417,7 @@ public class DeterminismAnalyzerTests
                 public void Run()
                 {
                     var t = System.Threading.Tasks.Task.CompletedTask;
-                    {|TMP0143:System.Threading.Tasks.Task.WhenAll(t)|};
+                    {|TMP0148:System.Threading.Tasks.Task.WhenAll(t)|};
                 }
             }
             """);
@@ -614,7 +685,7 @@ public class DeterminismAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public void Run()
                 {
-                    var mi = typeof(object).GetMethod("ToString");
+                    var mi = {|TMP0145:typeof(object).GetMethod("ToString")|};
                     {|TMP0145:mi.Invoke(null, null)|};
                 }
             }

@@ -141,6 +141,45 @@ public class WorkflowMessageAnalyzerTests
             """);
 
     [Fact]
+    public Task QueryMutatesNestedMember_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private State _state = new State();
+
+                [Temporalio.Workflows.WorkflowQuery]
+                public int Get()
+                {
+                    {|TMP3206:_state.Count = 1|};
+                    return _state.Count;
+                }
+            }
+
+            public class State
+            {
+                public int Count;
+            }
+            """);
+
+    [Fact]
+    public Task QueryMutatesCollection_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private System.Collections.Generic.List<int> _items = new();
+
+                [Temporalio.Workflows.WorkflowQuery]
+                public int Get()
+                {
+                    {|TMP3206:_items.Add(1)|};
+                    return _items.Count;
+                }
+            }
+            """);
+
+    [Fact]
     public Task QueryReadsField_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

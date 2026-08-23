@@ -19,6 +19,7 @@ dotnet_diagnostic.TMP0144.severity = error
 dotnet_diagnostic.TMP0145.severity = error
 dotnet_diagnostic.TMP0146.severity = error
 dotnet_diagnostic.TMP0147.severity = error
+dotnet_diagnostic.TMP0148.severity = error
 dotnet_diagnostic.TMP0151.severity = error
 dotnet_diagnostic.TMP0161.severity = error
 dotnet_diagnostic.TMP0171.severity = error

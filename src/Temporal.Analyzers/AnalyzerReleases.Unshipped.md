@@ -21,7 +21,7 @@ TMP0177 | Determinism | Error | Static constructor / static field initializer / 
 TMP0175 | Determinism | Warning | Control flow depending on non-deterministic time or randomness
 TMP0104 | Determinism | Warning | Workflow.UtcNow compared to a persisted timestamp
 TMP0123 | Determinism | Warning | Workflow.Random / Workflow.NewGuid used for a persisted id or payload
-TMP3208 | SdkMisuse | Warning | [WorkflowUpdate] must return a concrete Task<T>
+TMP3208 | SdkMisuse | Error | [WorkflowUpdate] must return a concrete Task<T>
 TMP3209 | SdkMisuse | Error | Continue-as-new invoked inside a [WorkflowUpdate]
 TMP3211 | SdkMisuse | Warning | Query/signal/update Name must be a constant string literal
 TMP3212 | SdkMisuse | Error | Temporalio.Client / worker types referenced from workflow code
@@ -65,6 +65,7 @@ TMP4201 | BestPractice | Disabled | Workflow.NewGuid without a determinism comme
 TMP4202 | BestPractice | Disabled | Workflow.DeprecatePatch without an explanatory comment
 TMP4203 | BestPractice | Disabled | Versioning change without a replay-tested comment
 TMP2147 | SdkMisuse | Disabled | using directive for a namespace configured as unsafe for workflow code
+TMP0148 | Determinism | Info | Task.WhenAll in workflow code (use Workflow.WhenAllAsync)
 
 ### Removed Rules
 

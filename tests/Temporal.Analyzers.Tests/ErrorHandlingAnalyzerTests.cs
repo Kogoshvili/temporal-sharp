@@ -33,7 +33,7 @@ public class ErrorHandlingAnalyzerTests
             """);
 
     [Fact]
-    public Task ThrowsDerivedException_DoesNotReport()
+    public Task ThrowsDerivedException_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -41,7 +41,21 @@ public class ErrorHandlingAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    throw new System.InvalidOperationException("boom");
+                    {|TMP2132:throw|} new System.InvalidOperationException("boom");
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ThrowsApplicationFailure_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    throw new Temporalio.Exceptions.ApplicationFailureException("boom");
                 }
             }
             """);

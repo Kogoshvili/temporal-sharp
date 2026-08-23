@@ -28,6 +28,22 @@ public class ActivityContextAnalyzerTests
                 {
                     var ctx = {|TMP3105:Temporalio.Activities.ActivityExecutionContext.Current|};
                     await System.Threading.Tasks.Task.Delay(1);
+                    ctx.Heartbeat();
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ContextCapturedUsedBeforeAwait_DoesNotReport()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public async System.Threading.Tasks.Task Work()
+                {
+                    var ctx = Temporalio.Activities.ActivityExecutionContext.Current;
+                    ctx.Heartbeat();
+                    await System.Threading.Tasks.Task.Delay(1);
                 }
             }
             """);

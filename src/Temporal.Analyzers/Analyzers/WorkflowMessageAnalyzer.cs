@@ -218,7 +218,7 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!TryGetThisMember(target, context.SemanticModel, out var member))
+        if (!SymbolUtilities.TryGetMutatedInstanceMember(target, context.SemanticModel, out var member))
         {
             return;
         }
@@ -233,6 +233,20 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
+
+        // Query handlers must only read state; a mutating call on an instance
+        // member (e.g. _items.Add(x)) is a state mutation.
+        if (GetEnclosingQueryMethod(context, invocation) is { } queryMethod &&
+            SymbolUtilities.TryGetMutatedInstanceMember(invocation, context.SemanticModel, out var mutatedMember))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.QueryMutation,
+                invocation.GetLocation(),
+                queryMethod.Name,
+                mutatedMember.Name));
+            return;
+        }
+
         if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method)
         {
             return;
@@ -265,33 +279,6 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
         }
 
         return null;
-    }
-
-    private static bool TryGetThisMember(ExpressionSyntax target, SemanticModel model, out ISymbol member)
-    {
-        switch (target)
-        {
-            case IdentifierNameSyntax:
-                return TryResolveInstanceMember(model.GetSymbolInfo(target).Symbol, out member);
-
-            case MemberAccessExpressionSyntax { Expression: ThisExpressionSyntax or BaseExpressionSyntax }:
-                return TryResolveInstanceMember(model.GetSymbolInfo(target).Symbol, out member);
-
-            default:
-                member = null!;
-                return false;
-        }
-    }
-
-    private static bool TryResolveInstanceMember(ISymbol? symbol, out ISymbol member)
-    {
-        member = symbol!;
-        return symbol switch
-        {
-            IFieldSymbol { IsStatic: false } => true,
-            IPropertySymbol { IsStatic: false, SetMethod: not null } => true,
-            _ => false,
-        };
     }
 
     private static Location FirstLocation(ISymbol symbol) =>

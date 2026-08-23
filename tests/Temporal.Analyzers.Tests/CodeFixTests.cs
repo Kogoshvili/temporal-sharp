@@ -138,7 +138,7 @@ public class WorkflowApiReplacementCodeFixTests
                 {
                     var t1 = System.Threading.Tasks.Task.CompletedTask;
                     var t2 = System.Threading.Tasks.Task.CompletedTask;
-                    await {|TMP0143:System.Threading.Tasks.Task.WhenAll(t1, t2)|};
+                    await {|TMP0148:System.Threading.Tasks.Task.WhenAll(t1, t2)|};
                 }
             }
             """,
@@ -656,6 +656,62 @@ public class BlockingSyncReplacementCodeFixTests
                 public async System.Threading.Tasks.Task Run()
                 {
                     var _sem = new Temporalio.Workflows.Semaphore(2);
+                    await _sem.WaitAsync();
+                }
+            }
+            """);
+
+    [Fact]
+    public Task SemaphoreNamedArgs_ReplacedWithSingleArgSemaphore()
+        => Verify(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var _sem = new System.Threading.Semaphore(initialCount: 3, maximumCount: 3);
+                    {|TMP0147:_sem.WaitOne()|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var _sem = new Temporalio.Workflows.Semaphore(3);
+                    await _sem.WaitAsync();
+                }
+            }
+            """);
+
+    [Fact]
+    public Task SemaphoreTargetTyped_ReplacedWithSingleArgSemaphore()
+        => Verify(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    System.Threading.Semaphore _sem = new(2, 2);
+                    {|TMP0147:_sem.WaitOne()|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Workflows.Semaphore _sem = new(2);
                     await _sem.WaitAsync();
                 }
             }

@@ -29,6 +29,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.BlockingPrimitive,
             DiagnosticDescriptors.BlockingSyncReplacement,
             DiagnosticDescriptors.TaskScheduling,
+            DiagnosticDescriptors.TaskWhenAll,
             DiagnosticDescriptors.ManualTaskCoordination,
             DiagnosticDescriptors.ReflectionInvocation,
             DiagnosticDescriptors.AmbientState,
@@ -107,7 +108,8 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
             startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzeObjectCreation(nodeContext, state),
-                SyntaxKind.ObjectCreationExpression);
+                SyntaxKind.ObjectCreationExpression,
+                SyntaxKind.ImplicitObjectCreationExpression);
 
             startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzeMemberAccess(nodeContext, state),
@@ -252,7 +254,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
-        var node = (ObjectCreationExpressionSyntax)context.Node;
+        var node = (BaseObjectCreationExpressionSyntax)context.Node;
         if (context.SemanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol symbol)
         {
             return;
@@ -265,6 +267,15 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
         if (DenyList.TryGetAnyArgConstructor(key, out var concurrencyDescriptor))
         {
             ReportIfReachable(context, state, node, symbol, concurrencyDescriptor);
+            return;
+        }
+
+        // Constructors that are only non-deterministic when given arguments
+        // (e.g. new CancellationTokenSource(TimeSpan) schedules a timer).
+        if (node.ArgumentList is { Arguments.Count: > 0 } &&
+            DenyList.TryGetNonEmptyArgConstructor(key, out var nonEmptyDescriptor))
+        {
+            ReportIfReachable(context, state, node, symbol, nonEmptyDescriptor);
             return;
         }
 
