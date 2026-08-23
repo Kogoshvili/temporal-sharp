@@ -1,6 +1,6 @@
-# TemporalSharp Rule Catalog
+# Kogoshvili.Temporal Rule Catalog
 
-Rules implemented by TemporalSharp, grouped by category. The `Default`
+Rules implemented by the Kogoshvili.Temporal analyzer, grouped by category. The `Default`
 column is the default severity; `off` means the rule is opt-in — disabled by
 default and enabled via `.editorconfig` severity.
 

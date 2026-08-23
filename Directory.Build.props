@@ -9,6 +9,12 @@
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAuditLevel>moderate</NuGetAuditLevel>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <Authors>Andrian Kogoshvili</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Kogoshvili/temporal-sharp</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Kogoshvili/temporal-sharp</PackageProjectUrl>
+    <Copyright>© Andrian Kogoshvili</Copyright>
   </PropertyGroup>
 
 </Project>

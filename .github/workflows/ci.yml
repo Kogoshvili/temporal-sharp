@@ -27,12 +27,12 @@ jobs:
         run: dotnet test --no-build -c Release
 
       - name: Build sample (analyzer smoke test)
-        run: dotnet build samples/TemporalSharp.SampleApp/TemporalSharp.SampleApp.csproj -c Release
+        run: dotnet build samples/Temporal.SampleApp/Temporal.SampleApp.csproj -c Release
 
       - name: Pack
         run: |
-          dotnet pack src/TemporalSharp.Analyzers/TemporalSharp.Analyzers.csproj --no-build -c Release -o artifacts
-          dotnet pack src/TemporalSharp.Cli/TemporalSharp.Cli.csproj --no-build -c Release -o artifacts
+          dotnet pack src/Temporal.Analyzers/Temporal.Analyzers.csproj --no-build -c Release -o artifacts
+          dotnet pack src/Temporal.Cli/Temporal.Cli.csproj --no-build -c Release -o artifacts
 
       - name: Upload packages
         uses: actions/upload-artifact@v4

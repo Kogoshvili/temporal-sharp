@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <RootNamespace>Kogoshvili.Temporal.Analyzers</RootNamespace>
+    <PackageId>Kogoshvili.Temporal.Analyzers</PackageId>
+    <Description>Part of the Kogoshvili.Temporal tool suite — Roslyn analyzer for determinism and SDK feature-misuse checks in the Temporal .NET SDK. Not affiliated with or endorsed by Temporal Technologies.</Description>
+    <PackageTags>temporal;roslyn;analyzer;workflows;determinism</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Temporal.Cli" />
+  </ItemGroup>
+
+</Project>
