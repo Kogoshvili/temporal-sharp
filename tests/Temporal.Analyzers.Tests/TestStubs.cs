@@ -76,7 +76,10 @@ internal static class TestStubs
                 public string? TaskQueue { get; set; }
             }
 
-            public sealed class RetryPolicy { }
+            public sealed class RetryPolicy
+            {
+                public int MaximumAttempts { get; set; }
+            }
 
             public sealed class ContinueAsNewOptions { }
 
@@ -257,6 +260,11 @@ internal static class TestStubs
                 public ApplicationFailureException() { }
                 public ApplicationFailureException(string message) : base(message) { }
                 public ApplicationFailureException(string message, System.Exception innerException) : base(message, innerException) { }
+            }
+
+            public static class TemporalException
+            {
+                public static bool IsCanceledException(System.Exception ex) => false;
             }
         }
         """;

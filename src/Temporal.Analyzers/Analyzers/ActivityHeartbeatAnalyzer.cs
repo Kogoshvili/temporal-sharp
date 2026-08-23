@@ -411,27 +411,56 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
 
     private static void CollectCancellationCheck(SyntaxNodeAnalysisContext context, HeartbeatState state)
     {
-        var symbol = context.Node switch
+        if (context.Node is InvocationExpressionSyntax invocation)
         {
-            InvocationExpressionSyntax invocation => context.SemanticModel.GetSymbolInfo(invocation).Symbol,
-            MemberAccessExpressionSyntax access => context.SemanticModel.GetSymbolInfo(access).Symbol,
-            _ => null,
-        };
+            var symbol = context.SemanticModel.GetSymbolInfo(invocation).Symbol;
 
-        if (symbol is IMethodSymbol { Name: "ThrowIfCancellationRequested" } method &&
-            method.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
-            SdkNames.CancellationTokenType)
-        {
-            RecordCancellationCheck(context, state, context.Node);
+            if (symbol is IMethodSymbol { Name: "ThrowIfCancellationRequested" } method &&
+                method.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
+                SdkNames.CancellationTokenType)
+            {
+                RecordCancellationCheck(context, state, context.Node);
+                return;
+            }
+
+            // Passing a CancellationToken into a called method (e.g.
+            // Task.Delay(_, ct) or HttpClient.GetAsync(uri, ct)) also honors
+            // cancellation without an explicit ThrowIfCancellationRequested.
+            if (symbol is IMethodSymbol && HasCancellationTokenArgument(context, invocation))
+            {
+                RecordCancellationCheck(context, state, context.Node);
+            }
+
             return;
         }
 
-        if (symbol is IPropertySymbol { Name: "IsCancellationRequested" } property &&
+        if (context.Node is MemberAccessExpressionSyntax access &&
+            context.SemanticModel.GetSymbolInfo(access).Symbol is IPropertySymbol { Name: "IsCancellationRequested" } property &&
             property.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
             SdkNames.CancellationTokenType)
         {
             RecordCancellationCheck(context, state, context.Node);
         }
+    }
+
+    private static bool HasCancellationTokenArgument(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
+    {
+        if (invocation.ArgumentList is null)
+        {
+            return false;
+        }
+
+        foreach (var argument in invocation.ArgumentList.Arguments)
+        {
+            var type = context.SemanticModel.GetTypeInfo(argument.Expression).Type;
+            if (type is not null &&
+                type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == SdkNames.CancellationTokenType)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void RecordCancellationCheck(SyntaxNodeAnalysisContext context, HeartbeatState state, SyntaxNode node)
@@ -477,7 +506,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
                 return true;
             }
 
-            if (node.DescendantNodes().OfType<AwaitExpressionSyntax>().Count() >= 2)
+            if (node.DescendantNodes().OfType<AwaitExpressionSyntax>().Count() >= 4)
             {
                 return true;
             }

@@ -44,23 +44,6 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         "System.Diagnostics.Trace.TraceInformation",
         "System.Diagnostics.Trace.TraceWarning");
 
-    private static readonly Regex WordPattern = new(
-        @"[A-Z]+(?![a-z])|[A-Z][a-z0-9]+|[a-z0-9]+",
-        RegexOptions.Compiled,
-        TimeSpan.FromSeconds(1));
-
-    private static readonly ImmutableHashSet<string> IdempotentWords = ImmutableHashSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "get", "read", "query", "find", "lookup", "fetch", "load", "idempotent");
-
-    private static readonly ImmutableHashSet<string> MutatingWords = ImmutableHashSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "add", "append", "clear", "create", "delete", "dequeue", "enqueue",
-        "insert", "pop", "push", "put", "remove", "replace", "reset", "save",
-        "set", "sort", "reverse", "take", "update", "upsert", "write",
-        "increment", "decrement", "start", "stop", "dispose", "flush",
-        "register", "unregister", "subscribe", "unsubscribe");
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.ActivityMissingTimeout,
@@ -76,8 +59,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.ExceptionInPayload,
             DiagnosticDescriptors.LargeInlinePayload,
             DiagnosticDescriptors.NestedLossyNumber,
-            DiagnosticDescriptors.RetryOnNonIdempotent,
-            DiagnosticDescriptors.MissingIdempotencyKey);
+            DiagnosticDescriptors.RetryOnNonIdempotent);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -117,7 +99,9 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         });
     }
 
-    // TMP2106 — RetryPolicy set on a non-idempotent activity.
+    // TMP2106 — RetryPolicy with multiple attempts on an activity. Retries can
+    // duplicate side effects unless the activity is idempotent; this nudges the
+    // author to verify that (or use an internal idempotency key).
     private static void AnalyzeRetryPolicy(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
@@ -134,16 +118,12 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         }
 
         var options = FindOptionsArgument(context, invocation);
-        if (options is null || !OptionsSetRetryPolicy(options))
+        if (options is null || !RetryPolicyAllowsRetries(options))
         {
             return;
         }
 
-        var activityName = ResolveActivityName(context, invocation);
-        if (activityName is null || IsIdempotentName(activityName))
-        {
-            return;
-        }
+        var activityName = ResolveActivityName(context, invocation) ?? "activity";
 
         context.ReportDiagnostic(Diagnostic.Create(
             DiagnosticDescriptors.RetryOnNonIdempotent,
@@ -151,7 +131,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             activityName));
     }
 
-    private static bool OptionsSetRetryPolicy(ExpressionSyntax options)
+    private static bool RetryPolicyAllowsRetries(ExpressionSyntax options)
     {
         if (Unwrap(options) is not ObjectCreationExpressionSyntax creation ||
             creation.Initializer is not { } initializer)
@@ -159,9 +139,40 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             return false;
         }
 
-        return initializer.Expressions
+        var retryPolicy = initializer.Expressions
             .OfType<AssignmentExpressionSyntax>()
-            .Any(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "RetryPolicy");
+            .FirstOrDefault(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "RetryPolicy");
+
+        if (retryPolicy is null)
+        {
+            return false;
+        }
+
+        if (Unwrap(retryPolicy.Right) is not ObjectCreationExpressionSyntax retryCreation ||
+            retryCreation.Initializer is not { } retryInitializer)
+        {
+            // RetryPolicy built elsewhere; assume retries are enabled.
+            return true;
+        }
+
+        var maxAttempts = retryInitializer.Expressions
+            .OfType<AssignmentExpressionSyntax>()
+            .FirstOrDefault(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "MaximumAttempts");
+
+        if (maxAttempts is null)
+        {
+            // No MaximumAttempts means the SDK default, which retries.
+            return true;
+        }
+
+        return !IsLiteralOne(maxAttempts.Right);
+    }
+
+    private static bool IsLiteralOne(ExpressionSyntax expression)
+    {
+        var current = Unwrap(expression);
+        return current is LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NumericLiteralExpression } literal &&
+               literal.Token.ValueText == "1";
     }
 
     private static string? ResolveActivityName(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
@@ -327,17 +338,6 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        // TMP2107 — non-idempotent activity without an idempotency-key parameter.
-        if (WorkflowDetection.IsActivityMethod(method) &&
-            !IsIdempotentName(method.Name) &&
-            !HasIdempotencyKeyParameter(method))
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.MissingIdempotencyKey,
-                method.Locations[0],
-                method.Name));
-        }
-
         foreach (var parameter in method.Parameters)
         {
             var location = parameter.Locations.Length > 0 ? parameter.Locations[0] : method.Locations[0];
@@ -396,40 +396,6 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
     {
         var display = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         context.ReportDiagnostic(Diagnostic.Create(descriptor, location, display));
-    }
-
-    private static bool IsIdempotentName(string name)
-    {
-        var hasIdempotentWord = false;
-
-        foreach (Match match in WordPattern.Matches(name))
-        {
-            var word = match.Value;
-            if (MutatingWords.Contains(word))
-            {
-                return false;
-            }
-
-            if (IdempotentWords.Contains(word))
-            {
-                hasIdempotentWord = true;
-            }
-        }
-
-        return hasIdempotentWord;
-    }
-
-    private static bool HasIdempotencyKeyParameter(IMethodSymbol method)
-    {
-        foreach (var parameter in method.Parameters)
-        {
-            if (parameter.Name.IndexOf("idempotency", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static void ReportNestedLossyMembers(

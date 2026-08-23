@@ -506,9 +506,9 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor HandlerSchedulesWork = Create(
         "TMP3216",
         SdkMisuseCategory,
-        "Signal or update handler schedules workflow commands",
-        "'{0}' is called inside a {1}; handlers should return quickly without scheduling commands",
-        "Signal and update handlers are invoked inline during workflow execution; scheduling activities, child workflows, or delays from them keeps the workflow blocked.",
+        "Signal handler schedules workflow commands",
+        "'{0}' is called inside a signal handler; signal handlers should return quickly without scheduling commands",
+        "Signal handlers are invoked inline during workflow execution; scheduling activities, child workflows, or delays from them keeps the workflow blocked.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor CompleteWithPendingHandlers = Create(
@@ -554,17 +554,9 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor RetryOnNonIdempotent = Create(
         "TMP2106",
         SdkMisuseCategory,
-        "Retry policy allows retries on a non-idempotent activity",
-        "RetryPolicy is set on non-idempotent activity '{0}'",
-        "Retrying a non-idempotent activity can duplicate its side effects. Only set a RetryPolicy on idempotent activities.",
-        severity: DiagnosticSeverity.Warning);
-
-    internal static readonly DiagnosticDescriptor MissingIdempotencyKey = Create(
-        "TMP2107",
-        SdkMisuseCategory,
-        "Non-idempotent activity called without an idempotency-key argument",
-        "Non-idempotent activity '{0}' is called without an idempotency-key argument",
-        "A non-idempotent activity needs an idempotency key so retries do not duplicate its side effects. Pass an idempotency key as an argument.",
+        "Activity with retries must be idempotent",
+        "RetryPolicy with multiple attempts is set on activity '{0}'",
+        "Retrying an activity duplicates its side effects unless the activity is idempotent. Ensure the activity is safe to retry, or use an idempotency key inside the activity when calling the external service.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor ContinueAsNewWithoutState = Create(
@@ -733,7 +725,7 @@ internal static class DiagnosticDescriptors
         "Prefer a single object parameter",
         "'{0}' takes {1} parameters; prefer a single object parameter",
         "Passing many positional parameters to a workflow or activity couples the contract to argument order and makes it hard to evolve. Prefer a single object (DTO) parameter.",
-        severity: DiagnosticSeverity.Warning);
+        severity: DiagnosticSeverity.Info);
 
     internal static readonly DiagnosticDescriptor HeavyCpuLoop = Create(
         "TMP4104",
@@ -749,7 +741,7 @@ internal static class DiagnosticDescriptors
         "Hard-coded task-queue name",
         "Task queue '{0}' is hard-coded; use a shared constant",
         "Hard-coding a task queue name inline scatters the string across call sites and makes renaming error-prone. Extract it to a shared constant.",
-        severity: DiagnosticSeverity.Warning);
+        severity: DiagnosticSeverity.Info);
 
     internal static readonly DiagnosticDescriptor ConsecutiveLocalActivities = Create(
         "TMP4106",

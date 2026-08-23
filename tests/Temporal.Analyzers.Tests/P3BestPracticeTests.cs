@@ -47,7 +47,19 @@ public class BestPracticeAnalyzerTests
             public class W
             {
                 [Temporalio.Workflows.WorkflowRun]
-                public System.Threading.Tasks.Task {|TMP4101:Run|}(string a, int b)
+                public System.Threading.Tasks.Task {|TMP4101:Run|}(string a, int b, string c, long d)
+                    => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task WorkflowRun_TwoParameters_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run(string a, int b)
                     => System.Threading.Tasks.Task.CompletedTask;
             }
             """);
@@ -81,7 +93,7 @@ public class BestPracticeAnalyzerTests
             public class A
             {
                 [Temporalio.Activities.Activity]
-                public System.Threading.Tasks.Task {|TMP4101:Process|}(string orderId, int amount)
+                public System.Threading.Tasks.Task {|TMP4101:Process|}(string orderId, int amount, string c, long d)
                     => System.Threading.Tasks.Task.CompletedTask;
             }
             """);
@@ -92,10 +104,29 @@ public class BestPracticeAnalyzerTests
             [Temporalio.Workflows.Workflow]
             public class W
             {
+                private bool _done;
+
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    {|TMP4103:while|} (true)
+                    {|TMP4103:while|} (!_done)
+                    {
+                        await Temporalio.Workflows.Workflow.DelayAsync(100);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task PeriodicLoop_ConstantCondition_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    while (true)
                     {
                         await Temporalio.Workflows.Workflow.DelayAsync(100);
                     }
@@ -121,21 +152,26 @@ public class BestPracticeAnalyzerTests
             """);
 
     [Fact]
-    public Task TaskQueue_Hardcoded_Reports()
-        => Verify(Stubs + OptionsStub + """
-            [Temporalio.Workflows.Workflow]
-            public class W
+    public Task TaskQueue_SingleOccurrence_DoesNotReport()
+        => Verify(Stubs + """
+            public class C
             {
-                [Temporalio.Workflows.WorkflowRun]
-                public async System.Threading.Tasks.Task Run()
+                public void Start()
                 {
-                    await Temporalio.Workflows.Workflow.ExecuteActivityAsync(
-                        () => A.First(),
-                        new Temporalio.Workflows.ActivityOptions
-                        {
-                            StartToCloseTimeout = System.TimeSpan.FromMinutes(1),
-                            {|TMP4105:TaskQueue = "my-queue"|},
-                        });
+                    var options = new Temporalio.Client.WorkflowOptions { TaskQueue = "my-queue" };
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskQueue_DuplicatedAcrossSites_Reports()
+        => Verify(Stubs + """
+            public class C
+            {
+                public void Start()
+                {
+                    var a = new Temporalio.Client.WorkflowOptions { {|TMP4105:TaskQueue = "my-queue"|} };
+                    var b = new Temporalio.Client.WorkflowOptions { TaskQueue = "my-queue" };
                 }
             }
             """);
@@ -167,43 +203,33 @@ public class BestPracticeAnalyzerTests
             """);
 
     [Fact]
-    public Task TaskQueue_ClientSideWorkflowOptions_Reports()
+    public Task TaskQueue_WorkerOptionsConstructor_Duplicated_Reports()
         => Verify(Stubs + """
             public class C
             {
                 public void Start()
                 {
-                    var options = new Temporalio.Client.WorkflowOptions { {|TMP4105:TaskQueue = "my-queue"|} };
+                    var a = new Temporalio.Worker.TemporalWorkerOptions({|TMP4105:"my-queue"|});
+                    var b = new Temporalio.Worker.TemporalWorkerOptions("my-queue");
                 }
             }
             """);
 
     [Fact]
-    public Task TaskQueue_WorkerOptionsConstructor_Reports()
+    public Task TaskQueue_WorkflowOptionsNamedCtorArg_Duplicated_Reports()
         => Verify(Stubs + """
             public class C
             {
                 public void Start()
                 {
-                    var options = new Temporalio.Worker.TemporalWorkerOptions({|TMP4105:"my-queue"|});
+                    var a = new Temporalio.Client.WorkflowOptions({|TMP4105:taskQueue: "my-queue"|});
+                    var b = new Temporalio.Client.WorkflowOptions(taskQueue: "my-queue");
                 }
             }
             """);
 
     [Fact]
-    public Task TaskQueue_WorkflowOptionsNamedCtorArg_Reports()
-        => Verify(Stubs + """
-            public class C
-            {
-                public void Start()
-                {
-                    var options = new Temporalio.Client.WorkflowOptions({|TMP4105:taskQueue: "my-queue"|});
-                }
-            }
-            """);
-
-    [Fact]
-    public Task TaskQueue_ImplicitNew_Reports()
+    public Task TaskQueue_ImplicitNew_Duplicated_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -211,7 +237,8 @@ public class BestPracticeAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    Temporalio.Workflows.ActivityOptions options = new() { {|TMP4105:TaskQueue = "my-queue"|} };
+                    Temporalio.Workflows.ActivityOptions a = new() { {|TMP4105:TaskQueue = "my-queue"|} };
+                    Temporalio.Workflows.ActivityOptions b = new() { TaskQueue = "my-queue" };
                 }
             }
             """);

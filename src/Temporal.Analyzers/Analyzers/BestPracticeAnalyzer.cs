@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -55,6 +56,7 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
         {
             var state = CompilationAnalysisState.Get(startContext.Compilation, startContext.Options);
             var localActivityIndex = LocalActivityIndex.Get(startContext.Compilation);
+            var taskQueueState = new TaskQueueState();
 
             startContext.RegisterSymbolAction(
                 AnalyzeMethodSignature,
@@ -72,7 +74,7 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.ForEachStatement);
 
             startContext.RegisterSyntaxNodeAction(
-                c => AnalyzeTaskQueue(c),
+                c => CollectTaskQueue(c, taskQueueState),
                 SyntaxKind.ObjectCreationExpression,
                 SyntaxKind.ImplicitObjectCreationExpression);
 
@@ -83,6 +85,9 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeLocalActivityIo(c, localActivityIndex),
                 SyntaxKind.InvocationExpression);
+
+            startContext.RegisterCompilationEndAction(
+                endContext => ReportTaskQueues(endContext, taskQueueState));
         });
     }
 
@@ -104,7 +109,7 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        if (businessParams < 2)
+        if (businessParams < 4)
         {
             return;
         }
@@ -137,19 +142,24 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
     private static void AnalyzePollingLoop(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
         var node = context.Node;
+        if (node is not WhileStatementSyntax whileStatement)
+        {
+            return;
+        }
+
+        // A polling loop checks some state in its condition; a constant condition
+        // (e.g. `while (true)`) is a periodic or event loop, not a poll.
+        if (whileStatement.Condition is LiteralExpressionSyntax)
+        {
+            return;
+        }
+
         if (!state.IsWorkflowReachable(node, context.SemanticModel))
         {
             return;
         }
 
-        var body = node switch
-        {
-            WhileStatementSyntax whileStatement => whileStatement.Statement,
-            ForStatementSyntax forStatement => forStatement.Statement,
-            _ => node,
-        };
-
-        if (!ContainsConstantDelayAwait(body, context.SemanticModel))
+        if (!ContainsConstantDelayAwait(whileStatement.Statement, context.SemanticModel))
         {
             return;
         }
@@ -191,8 +201,9 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
     // TMP4105 — hard-coded task-queue name on a Temporal options type. Applies to
     // any Temporalio.*Options construction (worker, starter, or activity options),
     // not just workflow-reachable code, since task-queue strings typically live in
-    // worker/starter setup.
-    private static void AnalyzeTaskQueue(SyntaxNodeAnalysisContext context)
+    // worker/starter setup. Only reported when the same literal is scattered across
+    // two or more call sites; a single inline task-queue literal is idiomatic.
+    private static void CollectTaskQueue(SyntaxNodeAnalysisContext context, TaskQueueState state)
     {
         var creation = (BaseObjectCreationExpressionSyntax)context.Node;
         var type = context.SemanticModel.GetTypeInfo(creation).Type;
@@ -216,10 +227,7 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
                     continue;
                 }
 
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.HardcodedTaskQueue,
-                    assignment.GetLocation(),
-                    literal.Token.ValueText));
+                state.Add(literal.Token.ValueText, assignment.GetLocation());
             }
         }
 
@@ -248,11 +256,26 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
                 argument.Expression is LiteralExpressionSyntax literal &&
                 literal.IsKind(SyntaxKind.StringLiteralExpression))
             {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.HardcodedTaskQueue,
-                    argument.GetLocation(),
-                    literal.Token.ValueText));
+                state.Add(literal.Token.ValueText, argument.GetLocation());
             }
+        }
+    }
+
+    private static void ReportTaskQueues(CompilationAnalysisContext context, TaskQueueState state)
+    {
+        foreach (var kv in state.Locations)
+        {
+            var name = kv.Key;
+            var locations = kv.Value;
+            if (locations.Count < 2)
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.HardcodedTaskQueue,
+                locations.OrderBy(l => l.SourceSpan.Start).First(),
+                name));
         }
     }
 
@@ -406,4 +429,12 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
         ForEachStatementSyntax forEachStatement => forEachStatement.ForEachKeyword,
         _ => default,
     };
+
+    private sealed class TaskQueueState
+    {
+        public ConcurrentDictionary<string, ConcurrentBag<Location>> Locations { get; } = new(StringComparer.Ordinal);
+
+        public void Add(string name, Location location) =>
+            Locations.GetOrAdd(name, _ => new ConcurrentBag<Location>()).Add(location);
+    }
 }

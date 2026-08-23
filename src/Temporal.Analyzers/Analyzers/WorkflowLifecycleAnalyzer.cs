@@ -236,6 +236,11 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
 
     private static bool RethrowsOrChecksCancellation(CatchClauseSyntax catchClause, SemanticModel model)
     {
+        if (catchClause.Filter is { } filter && ReferencesCancellationInFilter(filter.FilterExpression))
+        {
+            return true;
+        }
+
         var catchVariable = catchClause.Declaration?.Identifier.ValueText;
 
         foreach (var node in catchClause.Block.DescendantNodesAndSelf())
@@ -266,6 +271,19 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             // non-ApplicationFailureException (or a swallowed catch) is flagged.
             if (model.GetTypeInfo(throwStatement.Expression).Type is { } type &&
                 TypeNames.IsOrDerivesFrom(type, "Temporalio.Exceptions.ApplicationFailureException"))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ReferencesCancellationInFilter(ExpressionSyntax expression)
+    {
+        foreach (var name in expression.DescendantNodesAndSelf().OfType<SimpleNameSyntax>())
+        {
+            if (name.Identifier.ValueText is "IsCanceledException" or "IsCancellationRequested")
             {
                 return true;
             }
@@ -340,6 +358,11 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        if (HasTerminatingStatement(body) || ReferencesWaitCondition(body))
+        {
+            return;
+        }
+
         var keyword = node switch
         {
             WhileStatementSyntax whileStatement => whileStatement.WhileKeyword,
@@ -362,10 +385,39 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
 
     private static bool ReferencesContinueAsNew(SyntaxNode body)
     {
-        foreach (var identifier in body.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>())
+        // SimpleNameSyntax covers both IdentifierNameSyntax and GenericNameSyntax
+        // (e.g. CreateContinueAsNewException<T>).
+        foreach (var name in body.DescendantNodesAndSelf().OfType<SimpleNameSyntax>())
         {
-            var name = identifier.Identifier.ValueText;
-            if (name is "ContinueAsNewSuggested" or "CreateContinueAsNewException")
+            var text = name.Identifier.ValueText;
+            if (text is "ContinueAsNewSuggested" or "CreateContinueAsNewException")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasTerminatingStatement(SyntaxNode body)
+    {
+        foreach (var statement in body.DescendantNodesAndSelf())
+        {
+            if (statement is BreakStatementSyntax or ReturnStatementSyntax or ThrowStatementSyntax)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ReferencesWaitCondition(SyntaxNode body)
+    {
+        foreach (var invocation in body.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
+        {
+            if (invocation.Expression is MemberAccessExpressionSyntax member &&
+                member.Name.Identifier.ValueText == "WaitConditionAsync")
             {
                 return true;
             }

@@ -73,12 +73,12 @@ public class SdkMisuseP2Tests
             """);
 
     [Fact]
-    public Task RetryPolicyOnNonIdempotentActivity_Reports()
+    public Task RetryPolicyWithoutMaximumAttempts_Reports()
         => Verify(Stubs + """
             public static class A
             {
                 [Temporalio.Activities.Activity]
-                public static System.Threading.Tasks.Task Process(string idempotencyKey)
+                public static System.Threading.Tasks.Task Process()
                     => System.Threading.Tasks.Task.CompletedTask;
             }
 
@@ -89,7 +89,7 @@ public class SdkMisuseP2Tests
                 public async System.Threading.Tasks.Task Run()
                 {
                     await {|TMP2106:Temporalio.Workflows.Workflow.ExecuteActivityAsync(
-                        () => A.Process("k"),
+                        () => A.Process(),
                         new Temporalio.Workflows.ActivityOptions
                         {
                             StartToCloseTimeout = System.TimeSpan.FromMinutes(1),
@@ -100,53 +100,56 @@ public class SdkMisuseP2Tests
             """);
 
     [Fact]
-    public Task NonIdempotentActivityWithoutKey_Reports()
+    public Task RetryPolicyWithMultipleAttempts_Reports()
         => Verify(Stubs + """
-            public class A
+            public static class A
             {
                 [Temporalio.Activities.Activity]
-                public System.Threading.Tasks.Task {|TMP2107:Process|}()
+                public static System.Threading.Tasks.Task Process()
                     => System.Threading.Tasks.Task.CompletedTask;
             }
-            """);
 
-    [Fact]
-    public Task IdempotentActivityWithoutKey_DoesNotReport()
-        => Verify(Stubs + """
-            public class A
+            [Temporalio.Workflows.Workflow]
+            public class W
             {
-                [Temporalio.Activities.Activity]
-                public System.Threading.Tasks.Task GetData() => System.Threading.Tasks.Task.CompletedTask;
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await {|TMP2106:Temporalio.Workflows.Workflow.ExecuteActivityAsync(
+                        () => A.Process(),
+                        new Temporalio.Workflows.ActivityOptions
+                        {
+                            StartToCloseTimeout = System.TimeSpan.FromMinutes(1),
+                            RetryPolicy = new Temporalio.Workflows.RetryPolicy { MaximumAttempts = 3 },
+                        })|};
+                }
             }
             """);
 
     [Fact]
-    public Task TargetNamedActivityWithoutKey_Reports()
+    public Task RetryPolicyWithSingleAttempt_DoesNotReport()
         => Verify(Stubs + """
-            public class A
+            public static class A
             {
                 [Temporalio.Activities.Activity]
-                public System.Threading.Tasks.Task {|TMP2107:Target|}() => System.Threading.Tasks.Task.CompletedTask;
+                public static System.Threading.Tasks.Task Process()
+                    => System.Threading.Tasks.Task.CompletedTask;
             }
-            """);
 
-    [Fact]
-    public Task ForgetNamedActivityWithoutKey_Reports()
-        => Verify(Stubs + """
-            public class A
+            [Temporalio.Workflows.Workflow]
+            public class W
             {
-                [Temporalio.Activities.Activity]
-                public System.Threading.Tasks.Task {|TMP2107:Forget|}() => System.Threading.Tasks.Task.CompletedTask;
-            }
-            """);
-
-    [Fact]
-    public Task GetAndUpdateActivityWithoutKey_Reports()
-        => Verify(Stubs + """
-            public class A
-            {
-                [Temporalio.Activities.Activity]
-                public System.Threading.Tasks.Task {|TMP2107:GetAndUpdate|}() => System.Threading.Tasks.Task.CompletedTask;
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await Temporalio.Workflows.Workflow.ExecuteActivityAsync(
+                        () => A.Process(),
+                        new Temporalio.Workflows.ActivityOptions
+                        {
+                            StartToCloseTimeout = System.TimeSpan.FromMinutes(1),
+                            RetryPolicy = new Temporalio.Workflows.RetryPolicy { MaximumAttempts = 1 },
+                        });
+                }
             }
             """);
 }

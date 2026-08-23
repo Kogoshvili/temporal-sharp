@@ -51,6 +51,20 @@ public class ActivityHeartbeatAnalyzerTests
             """);
 
     [Fact]
+    public Task TwoAwaitsWithoutHeartbeat_DoesNotReport()
+        => Verify(Stubs + """
+            public static class Act
+            {
+                [Temporalio.Activities.Activity]
+                public static async System.Threading.Tasks.Task Do()
+                {
+                    await System.Threading.Tasks.Task.Delay(1);
+                    await System.Threading.Tasks.Task.Delay(1);
+                }
+            }
+            """);
+
+    [Fact]
     public Task HeartbeatTimeoutWithoutHeartbeat_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

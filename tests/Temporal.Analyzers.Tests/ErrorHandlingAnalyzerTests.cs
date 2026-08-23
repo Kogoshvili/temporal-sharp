@@ -61,6 +61,23 @@ public class ErrorHandlingAnalyzerTests
             """);
 
     [Fact]
+    public Task ValidatorThrowsArgumentException_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowUpdate]
+                public System.Threading.Tasks.Task Update(int x) => System.Threading.Tasks.Task.CompletedTask;
+
+                [Temporalio.Workflows.WorkflowUpdateValidator]
+                public void Validate(int x)
+                {
+                    if (x < 0) { throw new System.ArgumentException("x must be non-negative"); }
+                }
+            }
+            """);
+
+    [Fact]
     public Task ActivityThrowsBaseException_Reports()
         => Verify(Stubs + """
             public class A

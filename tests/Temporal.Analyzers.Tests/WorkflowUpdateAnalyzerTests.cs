@@ -185,7 +185,7 @@ public class WorkflowUpdateAnalyzerTests
             """);
 
     [Fact]
-    public Task UpdateHandlerSchedulesCommand_Reports()
+    public Task UpdateHandlerSchedulesCommand_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -193,7 +193,7 @@ public class WorkflowUpdateAnalyzerTests
                 [Temporalio.Workflows.WorkflowUpdate]
                 public async System.Threading.Tasks.Task<int> Update(int x)
                 {
-                    {|TMP3216:Temporalio.Workflows.Workflow.DelayAsync(100)|};
+                    await Temporalio.Workflows.Workflow.DelayAsync(100);
                     return 1;
                 }
             }
@@ -210,6 +210,23 @@ public class WorkflowUpdateAnalyzerTests
                 {
                     await System.Threading.Tasks.Task.Delay(1);
                 }
+
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await System.Threading.Tasks.Task.Delay(1);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task SynchronousSignalHandler_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowSignal]
+                public System.Threading.Tasks.Task Handle() => System.Threading.Tasks.Task.CompletedTask;
 
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()

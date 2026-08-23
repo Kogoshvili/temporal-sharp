@@ -98,7 +98,8 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
 
         var hasAsyncHandler = methods.Any(m =>
             (WorkflowDetection.IsWorkflowSignalMethod(m) || WorkflowDetection.IsWorkflowUpdateMethod(m)) &&
-            TypeNames.FullName(m.ReturnType) == "System.Threading.Tasks.Task");
+            TypeNames.FullName(m.ReturnType) == "System.Threading.Tasks.Task" &&
+            ReferencesAwait(m));
 
         if (!hasAsyncHandler)
         {
@@ -115,6 +116,19 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.CompleteWithPendingHandlers,
             FirstLocation(type),
             type.Name));
+    }
+
+    private static bool ReferencesAwait(IMethodSymbol method)
+    {
+        foreach (var syntaxReference in method.DeclaringSyntaxReferences)
+        {
+            if (syntaxReference.GetSyntax().DescendantNodes().OfType<AwaitExpressionSyntax>().Any())
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool ReferencesAllHandlersFinished(IMethodSymbol method)
@@ -224,14 +238,15 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // TMP3216 — a signal/update handler schedules a workflow command.
-        if (GetEnclosingHandlerKind(context, invocation) is { } handlerKind)
+        // TMP3216 — a signal handler schedules a workflow command. Update
+        // handlers may schedule commands (that is the point of an update);
+        // only signal handlers must return quickly.
+        if (GetEnclosingHandlerKind(context, invocation) == "signal")
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 DiagnosticDescriptors.HandlerSchedulesWork,
                 invocation.GetLocation(),
-                display,
-                handlerKind));
+                display));
         }
 
         // TMP3215 — an update validator schedules a workflow command.

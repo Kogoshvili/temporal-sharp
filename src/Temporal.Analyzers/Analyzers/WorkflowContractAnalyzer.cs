@@ -57,7 +57,11 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
                 var hasUnresolvedWorkflowAttribute =
                     method.ContainingType.GetAttributes().Any(a => a.AttributeClass is IErrorTypeSymbol);
 
+                // [WorkflowRun] on an interface method is the standard
+                // interface-based workflow idiom: the [Workflow] class implements
+                // the interface, so the interface itself need not be [Workflow].
                 if (!hasUnresolvedWorkflowAttribute &&
+                    method.ContainingType.TypeKind != TypeKind.Interface &&
                     !WorkflowDetection.IsWorkflowType(method.ContainingType))
                 {
                     Report(symbolContext, location, "[WorkflowRun] must be declared in a [Workflow] type");

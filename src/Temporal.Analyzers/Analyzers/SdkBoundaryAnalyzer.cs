@@ -181,9 +181,16 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
         }
 
         // The SDK also allows WorkflowOptions to be built with a named
-        // constructor argument: new(id: "…", taskQueue: "…").
+        // constructor argument: new(id: "…", taskQueue: "…"), or with a
+        // positional first argument: new("id", "queue").
         if (creation.ArgumentList is { } argumentList)
         {
+            var first = argumentList.Arguments.FirstOrDefault();
+            if (first is not null && first.NameColon is null && !IsNullLiteral(first.Expression))
+            {
+                return true;
+            }
+
             foreach (var argument in argumentList.Arguments)
             {
                 if (argument.NameColon is { } nameColon &&
@@ -195,6 +202,17 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
         }
 
         return false;
+    }
+
+    private static bool IsNullLiteral(ExpressionSyntax expression)
+    {
+        var current = expression;
+        while (current is ParenthesizedExpressionSyntax parens)
+        {
+            current = parens.Expression;
+        }
+
+        return current is LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NullLiteralExpression };
     }
 
     // TMP2146 — using an internal Temporalio.* namespace.

@@ -142,6 +142,23 @@ public class ActivityHeartbeatP2Tests
             """);
 
     [Fact]
+    public Task HeartbeatsInLoopPassingTokenToDelay_DoesNotReport()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public async System.Threading.Tasks.Task LongPoll(System.Threading.CancellationToken token)
+                {
+                    for (var i = 0; i < 10; i++)
+                    {
+                        Temporalio.Activities.ActivityExecutionContext.Current.Heartbeat();
+                        await System.Threading.Tasks.Task.Delay(1, token);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
     public Task HeartbeatsInLoopWithUnusedCancellationToken_Reports()
         => Verify(Stubs + """
             public class A

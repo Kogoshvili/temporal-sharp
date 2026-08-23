@@ -322,6 +322,13 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // Query handlers are read-only and never affect replay; enumeration order
+        // there is irrelevant.
+        if (IsInsideWorkflowQuery(context, node))
+        {
+            return;
+        }
+
         if (!TryGetUnorderedSource(node.Expression, context.SemanticModel, out var collectionType))
         {
             return;
@@ -335,6 +342,11 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
     {
         var node = (InvocationExpressionSyntax)context.Node;
         if (!state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (IsInsideWorkflowQuery(context, node))
         {
             return;
         }
@@ -354,6 +366,20 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
         var display = type!.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UnorderedEnumeration, node.GetLocation(), display));
+    }
+
+    private static bool IsInsideWorkflowQuery(SyntaxNodeAnalysisContext context, SyntaxNode node)
+    {
+        var enclosing = context.SemanticModel.GetEnclosingSymbol(node.SpanStart);
+        for (var current = enclosing; current is not null; current = current.ContainingSymbol)
+        {
+            if (current is IMethodSymbol { MethodKind: not (MethodKind.LambdaMethod or MethodKind.LocalFunction) } method)
+            {
+                return WorkflowDetection.IsWorkflowQueryMethod(method);
+            }
+        }
+
+        return false;
     }
 
     private static bool IsLinqMethod(IMethodSymbol method) =>

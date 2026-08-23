@@ -69,6 +69,13 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // Update validators reject an update by throwing; a non-ApplicationFailure
+        // exception there is the documented mechanism, not a workflow-failure path.
+        if (GetEnclosingValidator(context, throwStatement) is not null)
+        {
+            return;
+        }
+
         if (state.IsWorkflowReachable(throwStatement, context.SemanticModel))
         {
             context.ReportDiagnostic(Diagnostic.Create(
@@ -117,6 +124,20 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
             if (current is IMethodSymbol { MethodKind: not (MethodKind.LambdaMethod or MethodKind.LocalFunction) } method)
             {
                 return WorkflowDetection.IsActivityMethod(method) ? method : null;
+            }
+        }
+
+        return null;
+    }
+
+    private static IMethodSymbol? GetEnclosingValidator(SyntaxNodeAnalysisContext context, SyntaxNode node)
+    {
+        var enclosing = context.SemanticModel.GetEnclosingSymbol(node.SpanStart);
+        for (var current = enclosing; current is not null; current = current.ContainingSymbol)
+        {
+            if (current is IMethodSymbol { MethodKind: not (MethodKind.LambdaMethod or MethodKind.LocalFunction) } method)
+            {
+                return WorkflowDetection.IsWorkflowUpdateValidatorMethod(method) ? method : null;
             }
         }
 

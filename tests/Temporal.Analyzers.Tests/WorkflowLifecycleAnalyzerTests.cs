@@ -260,4 +260,56 @@ public class WorkflowLifecycleAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task CancellationFilteredByWhen_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    catch (System.Exception ex) when (Temporalio.Exceptions.TemporalException.IsCanceledException(ex)) { }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task LoopWithBreakExit_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var attempts = 0;
+                    while (true)
+                    {
+                        attempts++;
+                        if (attempts > 3) { break; }
+                        await System.Threading.Tasks.Task.Delay(1);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task SignalWaitLoop_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    while (true)
+                    {
+                        await Temporalio.Workflows.Workflow.WaitConditionAsync(() => false);
+                    }
+                }
+            }
+            """);
 }

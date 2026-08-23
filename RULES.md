@@ -58,8 +58,7 @@ rules that users must enable explicitly.
 | TMP2101 | Error | Activity options missing required timeout | Temporal requires at least one of StartToCloseTimeout or ScheduleToCloseTimeout on ActivityOptions and LocalActivityOptions. |
 | TMP2103 | off | WaitConditionAsync called without a timeout | Waiting on a condition without a timeout can leave the workflow blocked forever if the signal never arrives. Use the timeout overload and handle the returned bool. |
 | TMP2104 | Warning | WaitConditionAsync timeout result ignored | When the bool returned by the timeout overload is discarded, the timeout has no effect and the workflow proceeds as if the condition were met. Check the result and handle the timeout path. |
-| TMP2106 | Warning | Retry policy allows retries on a non-idempotent activity | Retrying a non-idempotent activity can duplicate its side effects. Only set a RetryPolicy on idempotent activities. |
-| TMP2107 | Warning | Non-idempotent activity called without an idempotency-key argument | A non-idempotent activity needs an idempotency key so retries do not duplicate its side effects. Pass an idempotency key as an argument. |
+| TMP2106 | Warning | Activity with retries must be idempotent | Retrying an activity duplicates its side effects unless the activity is idempotent. Ensure the activity is safe to retry, or use an idempotency key inside the activity when calling the external service. |
 | TMP2111 | off | Workflow target named by string | String-named targets cannot be resolved statically and bypass compile-time type checking. This overload is legitimate for dynamic workflows, so the rule is opt-in. |
 | TMP2121 | Error | Continue-as-new exception is not thrown | CreateContinueAsNewException returns an exception that must be thrown to trigger continue-as-new. |
 | TMP2122 | Warning | Continue-as-new without passing current workflow state | Continue-as-new starts a fresh execution; any state needed by the new run must be passed as arguments or it is lost. |
@@ -110,7 +109,7 @@ rules that users must enable explicitly.
 | TMP3213 | Warning | Start/execute workflow without an explicit workflow id | Without an explicit workflow id, Temporal generates one per call and a retry can start a duplicate workflow. Set workflowId for idempotent starts. |
 | TMP3214 | Warning | Workflow and activity methods mixed in one class | Workflow and activity methods live on different execution threads and have different contracts; mixing them in one class invites accidental cross-thread access. |
 | TMP3215 | Error | Update validator mutates state or blocks | Update validators run synchronously before the update is accepted and must not mutate workflow state or perform blocking work such as activities, sleeps, or other commands. |
-| TMP3216 | Warning | Signal or update handler schedules workflow commands | Signal and update handlers are invoked inline during workflow execution; scheduling activities, child workflows, or delays from them keeps the workflow blocked. |
+| TMP3216 | Warning | Signal handler schedules workflow commands | Signal handlers are invoked inline during workflow execution; scheduling activities, child workflows, or delays from them keeps the workflow blocked. |
 | TMP3217 | Warning | Workflow may complete while async handlers are pending | Completing a workflow while an async signal or update handler is still running leaves the handler unjournaled. Await Workflow.AllHandlersFinished before completing. |
 | TMP3218 | Error | [WorkflowInit] and [WorkflowRun] parameter lists differ | The [WorkflowInit] constructor receives the arguments that start the workflow; it must accept exactly the parameters the [WorkflowRun] method declares. |
 | TMP3219 | Error | [Workflow] class has a parameterized constructor without [WorkflowInit] | Workflow constructors are not dependency-injected. A parameterized constructor will be called with no arguments and fail unless a constructor is marked [WorkflowInit]. |
@@ -123,10 +122,10 @@ rules that users must enable explicitly.
 
 | ID | Default | Rule | Description |
 |---|---|---|---|
-| TMP4101 | Warning | Prefer a single object parameter | Passing many positional parameters to a workflow or activity couples the contract to argument order and makes it hard to evolve. Prefer a single object (DTO) parameter. |
+| TMP4101 | Info | Prefer a single object parameter | Passing many positional parameters to a workflow or activity couples the contract to argument order and makes it hard to evolve. Prefer a single object (DTO) parameter. |
 | TMP4103 | Warning | Polling loop instead of Workflow.WaitConditionAsync | A loop that awaits a fixed delay to poll some state burns history and slows replay. Use Workflow.WaitConditionAsync or a signal-driven approach. |
 | TMP4104 | off | CPU-heavy loop in workflow code | A loop in workflow code that never awaits blocks the single-threaded workflow and inflates replay time. Move CPU-heavy computation into an activity. |
-| TMP4105 | Warning | Hard-coded task-queue name | Hard-coding a task queue name inline scatters the string across call sites and makes renaming error-prone. Extract it to a shared constant. |
+| TMP4105 | Info | Hard-coded task-queue name | Hard-coding a task queue name inline scatters the string across call sites and makes renaming error-prone. Extract it to a shared constant. |
 | TMP4106 | Warning | Consecutive local activities | Running several local activities back-to-back in a workflow adds latency and history events. Combine the work into fewer activities, or batch the calls. |
 | TMP4107 | Warning | Local activity performs blocking or network I/O | Local activities run on the worker's task queue and block a worker slot. Blocking or network I/O such as Task.Delay, sockets, or file I/O makes them long-running; use a regular activity instead. |
 | TMP4201 | off | Workflow.NewGuid without a determinism comment | Workflow.NewGuid produces a deterministic, replay-stable GUID, not a cryptographically secure identifier. Document this so it is not mistaken for a security token. |

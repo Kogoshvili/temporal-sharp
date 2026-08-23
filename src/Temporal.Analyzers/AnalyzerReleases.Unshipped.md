@@ -28,14 +28,13 @@ TMP3212 | SdkMisuse | Error | Temporalio.Client / worker types referenced from w
 TMP3213 | SdkMisuse | Warning | StartWorkflowAsync/ExecuteWorkflowAsync without an explicit workflow id
 TMP3214 | SdkMisuse | Warning | Workflow and activity methods mixed in one class
 TMP3215 | SdkMisuse | Error | [WorkflowUpdateValidator] mutates state or blocks
-TMP3216 | SdkMisuse | Warning | Signal/update handler schedules activities/child workflows/delays
+TMP3216 | SdkMisuse | Warning | Signal handler schedules activities/child workflows/delays
 TMP3217 | SdkMisuse | Warning | Workflow may complete while async handlers are pending
 TMP3218 | SdkMisuse | Error | [WorkflowInit] and [WorkflowRun] parameter lists mismatch
 TMP3219 | SdkMisuse | Error | [Workflow] parameterized constructor without [WorkflowInit]
 TMP2123 | SdkMisuse | Warning | catch swallows a cancellation
 TMP2124 | SdkMisuse | Warning | Cleanup after cancellation not in a non-cancellable scope
-TMP2106 | SdkMisuse | Warning | RetryPolicy set on a non-idempotent activity
-TMP2107 | SdkMisuse | Warning | Non-idempotent activity without an idempotency-key argument
+TMP2106 | SdkMisuse | Warning | Activity invoked with a RetryPolicy that allows retries (must be idempotent)
 TMP2122 | SdkMisuse | Warning | Continue-as-new without passing current workflow state
 TMP2125 | SdkMisuse | Warning | Unbounded loop without a continue-as-new check
 TMP2132 | SdkMisuse | Warning | Non-ApplicationFailureException thrown from workflow code
@@ -55,10 +54,10 @@ TMP2162 | SdkMisuse | Warning | Workflow.UpsertTypedSearchAttributes inside a lo
 TMP2163 | SdkMisuse | Warning | Search-attribute removal not using ValueUnset()
 TMP3303 | SdkMisuse | Error | Same patch id Patched more than once
 TMP3305 | SdkMisuse | Warning | Patched result discarded (does not guard a change)
-TMP4101 | BestPractice | Warning | Multiple positional parameters on a workflow/activity method (prefer a single object)
+TMP4101 | BestPractice | Info | Multiple positional parameters on a workflow/activity method (prefer a single object)
 TMP4103 | BestPractice | Warning | Polling loop with a constant Workflow.DelayAsync (use Workflow.WaitConditionAsync)
 TMP4104 | BestPractice | Disabled | CPU-heavy loop with no await in workflow code
-TMP4105 | BestPractice | Warning | Hard-coded task-queue name instead of a shared constant
+TMP4105 | BestPractice | Info | Hard-coded task-queue name instead of a shared constant
 TMP4106 | BestPractice | Warning | Consecutive ExecuteLocalActivityAsync calls with no intervening workflow command
 TMP4107 | BestPractice | Warning | Local activity performs blocking or network I/O
 TMP4201 | BestPractice | Disabled | Workflow.NewGuid without a determinism comment

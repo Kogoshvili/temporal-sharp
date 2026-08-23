@@ -37,7 +37,6 @@ dotnet_diagnostic.TMP2101.severity = error
 dotnet_diagnostic.TMP2103.severity = error
 dotnet_diagnostic.TMP2104.severity = error
 dotnet_diagnostic.TMP2106.severity = error
-dotnet_diagnostic.TMP2107.severity = error
 dotnet_diagnostic.TMP2111.severity = error
 dotnet_diagnostic.TMP2121.severity = error
 dotnet_diagnostic.TMP2122.severity = error
