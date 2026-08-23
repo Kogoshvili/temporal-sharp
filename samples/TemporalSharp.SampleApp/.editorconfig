@@ -1,0 +1,12 @@
+# BadWorkflow.cs intentionally violates rules that are Error by default.
+# Downgrade them to warning here so the smoke-test build still succeeds while
+# demonstrating the analyzer's diagnostics.
+[*.cs]
+dotnet_diagnostic.TMP0101.severity = warning
+dotnet_diagnostic.TMP0111.severity = warning
+dotnet_diagnostic.TMP0121.severity = warning
+dotnet_diagnostic.TMP0141.severity = warning
+dotnet_diagnostic.TMP0142.severity = warning
+dotnet_diagnostic.TMP0151.severity = warning
+dotnet_diagnostic.TMP1101.severity = warning
+dotnet_diagnostic.TMP2101.severity = warning
