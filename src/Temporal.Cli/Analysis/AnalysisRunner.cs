@@ -24,7 +24,8 @@ internal static class AnalysisRunner
         new ActivityContextAnalyzer(),
         new SdkBoundaryAnalyzer(),
         new BestPracticeAnalyzer(),
-        new CommentRuleAnalyzer());
+        new CommentRuleAnalyzer(),
+        new PackageDenyListAnalyzer());
 
     private static readonly ImmutableArray<string> RuleIds = Analyzers
         .SelectMany(a => a.SupportedDiagnostics)

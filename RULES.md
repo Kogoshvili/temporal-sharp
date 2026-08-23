@@ -4,6 +4,10 @@ Rules implemented by the Kogoshvili.Temporal analyzer, grouped by category. The 
 column is the default severity; `off` means the rule is opt-in — disabled by
 default and enabled via `.editorconfig` severity.
 
+Severity follows a simple philosophy: **Error** for replay-breaking determinism and
+correctness violations, **Warning** for heuristics and style, and **off** for opt-in
+rules that users must enable explicitly.
+
 <!-- This file is generated from DiagnosticDescriptors.cs by `temporal-sharp docs`. Do not edit by hand. -->
 
 ## Determinism
@@ -69,6 +73,7 @@ default and enabled via `.editorconfig` severity.
 | TMP2143 | Warning | Exception used as a payload | Serializing an Exception as a payload is lossy and couples the workflow contract to the .NET exception hierarchy. Use ApplicationFailure or a plain error model. |
 | TMP2144 | Warning | Oversized inline payload | Large literals or collection initializers passed to activities or persisted to state bloat event history. Move them to a field, an activity, or external storage. |
 | TMP2146 | Error | Use of internal Temporal namespace | Temporalio.Bridge, Temporalio.Api, and other internal namespaces are not part of the public API and can change without notice. |
+| TMP2147 | off | Unsafe namespace imported in workflow code | Importing namespaces that provide I/O, networking, or other non-deterministic APIs into workflow code invites replay bugs. Configure kogoshvili.temporal.unsafe_namespaces with a list of namespace prefixes that workflow code must not import. |
 | TMP2151 | off | Workflow/activity parameter or property may contain sensitive data | Workflow inputs are recorded in event history; avoid passing sensitive values directly. |
 | TMP2161 | off | Search attribute is never upserted | A search attribute set at workflow start is only indexed then. Upsert it with Workflow.UpsertTypedSearchAttributes when its value changes. |
 | TMP2162 | Warning | Search attributes upserted inside a loop | Upserting search attributes on every loop iteration writes a command to history each time. Upsert once after the loop, or only when the value changes. |

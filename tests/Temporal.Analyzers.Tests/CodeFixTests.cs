@@ -5,6 +5,357 @@ using Kogoshvili.Temporal.Analyzers.CodeFixes;
 
 namespace Kogoshvili.Temporal.Analyzers.Tests;
 
+public class WorkflowApiReplacementCodeFixTests
+{
+    private static Task VerifyReplacement<TAnalyzer, TCodeFix>(string source, string fixedSource)
+        where TAnalyzer : Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer, new()
+        where TCodeFix : Microsoft.CodeAnalysis.CodeFixes.CodeFixProvider, new()
+    {
+        var test = new CSharpCodeFixTest<TAnalyzer, TCodeFix, DefaultVerifier>
+        {
+            TestCode = source,
+            FixedCode = fixedSource,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            NumberOfIncrementalIterations = 1,
+            NumberOfFixAllIterations = 0,
+        };
+        return test.RunAsync();
+    }
+
+    [Fact]
+    public Task GuidNewGuid_ReplacedWithWorkflowNewGuid()
+        => VerifyReplacement<DeterminismAnalyzer, WorkflowApiReplacementCodeFixProvider>(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var g = {|TMP0121:System.Guid.NewGuid()|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var g = Temporalio.Workflows.Workflow.NewGuid();
+                }
+            }
+            """);
+
+    [Fact]
+    public Task NewRandom_ReplacedWithWorkflowRandom()
+        => VerifyReplacement<DeterminismAnalyzer, WorkflowApiReplacementCodeFixProvider>(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var r = {|TMP0121:new System.Random()|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var r = Temporalio.Workflows.Workflow.Random;
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DateTimeNow_ReplacedWithWorkflowUtcNow()
+        => VerifyReplacement<DeterminismAnalyzer, WorkflowApiReplacementCodeFixProvider>(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var now = {|TMP0101:System.DateTime.Now|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var now = Temporalio.Workflows.Workflow.UtcNow;
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskDelay_ReplacedWithWorkflowDelayAsync()
+        => VerifyReplacement<DeterminismAnalyzer, WorkflowApiReplacementCodeFixProvider>(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await {|TMP0111:System.Threading.Tasks.Task.Delay(100)|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await Temporalio.Workflows.Workflow.DelayAsync(100);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskWhenAll_ReplacedWithWorkflowWhenAllAsync()
+        => VerifyReplacement<DeterminismAnalyzer, WorkflowApiReplacementCodeFixProvider>(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var t1 = System.Threading.Tasks.Task.CompletedTask;
+                    var t2 = System.Threading.Tasks.Task.CompletedTask;
+                    await {|TMP0143:System.Threading.Tasks.Task.WhenAll(t1, t2)|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var t1 = System.Threading.Tasks.Task.CompletedTask;
+                    var t2 = System.Threading.Tasks.Task.CompletedTask;
+                    await Temporalio.Workflows.Workflow.WhenAllAsync(t1, t2);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskRun_ReplacedWithWorkflowRunTaskAsync()
+        => VerifyReplacement<DeterminismAnalyzer, WorkflowApiReplacementCodeFixProvider>(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await {|TMP0146:System.Threading.Tasks.Task.Run(() => DoAsync())|};
+                }
+
+                private static async System.Threading.Tasks.Task DoAsync() { }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await Temporalio.Workflows.Workflow.RunTaskAsync(() => DoAsync());
+                }
+
+                private static async System.Threading.Tasks.Task DoAsync() { }
+            }
+            """);
+}
+
+public class LoggingCodeFixTests
+{
+    private static Task Verify(string source, string fixedSource)
+    {
+        var test = new CSharpCodeFixTest<SdkMisuseAnalyzer, LoggingCodeFixProvider, DefaultVerifier>
+        {
+            TestCode = source,
+            FixedCode = fixedSource,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            NumberOfIncrementalIterations = 1,
+            NumberOfFixAllIterations = 0,
+        };
+        return test.RunAsync();
+    }
+
+    private static Task VerifyActivity(string source, string fixedSource)
+    {
+        var test = new CSharpCodeFixTest<ActivityContextAnalyzer, LoggingCodeFixProvider, DefaultVerifier>
+        {
+            TestCode = source,
+            FixedCode = fixedSource,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            NumberOfIncrementalIterations = 1,
+            NumberOfFixAllIterations = 0,
+        };
+        return test.RunAsync();
+    }
+
+    [Fact]
+    public Task ConsoleWriteLine_ReplacedWithWorkflowLogger()
+        => Verify(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    {|TMP2131:System.Console.WriteLine("x")|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Workflows.Workflow.Logger.LogInformation("x");
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DebugWriteLine_ReplacedWithLogDebug()
+        => Verify(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    {|TMP2131:System.Diagnostics.Debug.WriteLine("x")|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Workflows.Workflow.Logger.LogDebug("x");
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TraceTraceError_ReplacedWithLogError()
+        => Verify(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    {|TMP2131:System.Diagnostics.Trace.TraceError("x")|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Workflows.Workflow.Logger.LogError("x");
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ActivityConsoleWriteLine_ReplacedWithActivityContextLog()
+        => VerifyActivity(
+            TestStubs.Attributes + TestStubs.Sdk + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    {|TMP3106:System.Console.WriteLine("x")|};
+                }
+            }
+            """,
+            TestStubs.Attributes + TestStubs.Sdk + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Activities.ActivityExecutionContext.Current.Log.LogInformation("x");
+                }
+            }
+            """);
+}
+
+public class RemoveAssertCodeFixTests
+{
+    [Fact]
+    public Task DebugAssert_Removed()
+    {
+        var test = new CSharpCodeFixTest<ErrorHandlingAnalyzer, RemoveAssertCodeFixProvider, DefaultVerifier>
+        {
+            TestCode = TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    {|TMP2133:System.Diagnostics.Debug.Assert(true)|};
+                    return;
+                }
+            }
+            """,
+            FixedCode = TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    return;
+                }
+            }
+            """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            NumberOfIncrementalIterations = 1,
+            NumberOfFixAllIterations = 0,
+        };
+        return test.RunAsync();
+    }
+}
+
 public class CodeFixTests
 {
     private static Task VerifyBlocking(string source, string fixedSource)

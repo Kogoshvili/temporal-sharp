@@ -34,7 +34,17 @@ temporal-sharp analyze <path.sln|path.csproj> [options]
   --format <console|json|sarif>          Output format (default: console).
   --fail-on <none|info|warning|error>    Exit non-zero on findings at or above the given severity.
   --severity <TMPxxxx=severity>          Override a rule's severity (repeatable).
+
+temporal-sharp preset <recommended|strict> [--write <file>]
+                                         Emit an .editorconfig severity block for a preset.
 ```
+
+### Severity presets
+
+Two named presets are available as ready-to-copy `.editorconfig` bundles under
+[`editorconfig/`](editorconfig/) — `recommended` (today's defaults) and `strict`
+(every rule, including opt-in rules, promoted to `error`). Regenerate them with
+`temporal-sharp preset`, or copy the block straight into your `.editorconfig`.
 
 ### GitHub Actions
 
@@ -113,13 +123,20 @@ Two rules take custom config keys:
 kogoshvili.temporal.search_attributes = user_id=user_id, client_id=user_id
 ```
 
-## Roadmap
+Two more opt-in features are configured the same way:
 
-- [x] **Code fixes**: `CodeFixProvider`s that rewrite blocking task waits
-      (`.Result` / `.Wait()` / `.GetAwaiter().GetResult()`) and un-awaited
-      tasks into `await`.
-- [ ] **Code fixes**: more replacements (`DateTime.Now` → `Workflow.UtcNow`,
-      `Guid.NewGuid()` → `Workflow.NewGuid()`, `Task.Delay` → `Workflow.DelayAsync`).
+- `kogoshvili.temporal.workflow_paths` — comma-separated path globs (e.g.
+  `**/Workflows/**`) that treat files as workflow code even without a `[Workflow]`
+  attribute, so rules fire for non-annotated helpers.
+- `kogoshvili.temporal.unsafe_namespaces` — comma-separated namespace prefixes
+  that workflow code must not import (`TMP2147`, off by default):
+
+```ini
+[*.cs]
+kogoshvili.temporal.workflow_paths = **/Workflows/**
+kogoshvili.temporal.unsafe_namespaces = System.IO, System.Net.Http
+dotnet_diagnostic.TMP2147.severity = warning
+```
 
 ## Alternatives
 
@@ -129,6 +146,8 @@ Kogoshvili.Temporal covers the same ground as the Go ecosystem's tools, for .NET
   (`github.com/temporalio/sdk-go/contrib/tools/workflowcheck`).
 - **temporalcheck-lint** — a community Go type-safety/feature-misuse linter
   (`github.com/samgozman/temporalcheck-lint`).
+- **eslint-plugin-temporal** — the de-facto standard JavaScript/TypeScript Temporal
+  linter (`github.com/stevekinney/eslint-plugin-temporal`).
 
 ## License
 

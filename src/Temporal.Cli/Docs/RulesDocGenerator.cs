@@ -36,6 +36,10 @@ internal static class RulesDocGenerator
         sb.AppendLine("column is the default severity; `off` means the rule is opt-in — disabled by");
         sb.AppendLine("default and enabled via `.editorconfig` severity.");
         sb.AppendLine();
+        sb.AppendLine("Severity follows a simple philosophy: **Error** for replay-breaking determinism and");
+        sb.AppendLine("correctness violations, **Warning** for heuristics and style, and **off** for opt-in");
+        sb.AppendLine("rules that users must enable explicitly.");
+        sb.AppendLine();
         sb.AppendLine("<!-- This file is generated from DiagnosticDescriptors.cs by `temporal-sharp docs`. Do not edit by hand. -->");
         sb.AppendLine();
 

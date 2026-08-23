@@ -98,4 +98,22 @@ internal static class CodeFixHelpers
             or "System.Threading.Tasks.ValueTask"
             or "System.Collections.Generic.IAsyncEnumerable";
     }
+
+    /// <summary>
+    /// Builds a fully-qualified dotted name such as
+    /// <c>Temporalio.Workflows.Workflow.NewGuid</c>.
+    /// </summary>
+    public static ExpressionSyntax QualifiedName(params string[] parts)
+    {
+        ExpressionSyntax expression = SyntaxFactory.IdentifierName(parts[0]);
+        for (var i = 1; i < parts.Length; i++)
+        {
+            expression = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                expression,
+                SyntaxFactory.IdentifierName(parts[i]));
+        }
+
+        return expression;
+    }
 }

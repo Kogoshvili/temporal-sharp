@@ -78,8 +78,19 @@ internal static class TestStubs
 
             public sealed class SearchAttributeUpdate { }
 
+            public sealed class WorkflowLogger
+            {
+                public void LogInformation(string message, params object?[] args) { }
+                public void LogWarning(string message, params object?[] args) { }
+                public void LogError(string message, params object?[] args) { }
+                public void LogDebug(string message, params object?[] args) { }
+                public void LogTrace(string message, params object?[] args) { }
+            }
+
             public static class Workflow
             {
+                public static WorkflowLogger Logger => new WorkflowLogger();
+
                 public static System.DateTime UtcNow => default;
 
                 public static System.Guid NewGuid() => default;
@@ -100,6 +111,18 @@ internal static class TestStubs
                     => System.Threading.Tasks.Task.CompletedTask;
 
                 public static System.Threading.Tasks.Task DelayAsync(int millisecondsDelay)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public static System.Threading.Tasks.Task DelayAsync(System.TimeSpan delay)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public static System.Threading.Tasks.Task WhenAllAsync(params System.Threading.Tasks.Task[] tasks)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public static System.Threading.Tasks.Task<System.Threading.Tasks.Task> WhenAnyAsync(params System.Threading.Tasks.Task[] tasks)
+                    => System.Threading.Tasks.Task.FromResult(System.Threading.Tasks.Task.CompletedTask);
+
+                public static System.Threading.Tasks.Task RunTaskAsync(System.Func<System.Threading.Tasks.Task> work)
                     => System.Threading.Tasks.Task.CompletedTask;
 
                 public static void UpsertTypedSearchAttributes(params SearchAttributeUpdate[] updates) { }
@@ -164,7 +187,7 @@ internal static class TestStubs
                 public static ActivityExecutionContext Current => new ActivityExecutionContext();
                 public void Heartbeat(params object?[] details) { }
                 public System.Threading.CancellationToken CancellationToken => default;
-                public object Log => new object();
+                public Temporalio.Workflows.WorkflowLogger Log => new Temporalio.Workflows.WorkflowLogger();
             }
         }
         """;

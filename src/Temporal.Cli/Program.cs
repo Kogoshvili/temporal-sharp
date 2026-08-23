@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Kogoshvili.Temporal.Cli.Analysis;
 using Kogoshvili.Temporal.Cli.Docs;
+using Kogoshvili.Temporal.Cli.Presets;
 using Kogoshvili.Temporal.Cli.Reporting;
 
 namespace Kogoshvili.Temporal.Cli;
@@ -12,6 +13,11 @@ internal static class Program
         if (args.Length > 0 && args[0] == "docs")
         {
             return RunDocs(args);
+        }
+
+        if (args.Length > 0 && args[0] == "preset")
+        {
+            return RunPreset(args);
         }
 
         Options options;
@@ -66,6 +72,55 @@ internal static class Program
         var output = args.Length == 2 ? args[1] : "RULES.md";
         File.WriteAllText(output, RulesDocGenerator.Generate());
         Console.Out.WriteLine($"Wrote {output}");
+        return 0;
+    }
+
+    private static int RunPreset(string[] args)
+    {
+        if (args.Length < 2 || args.Length > 4)
+        {
+            Console.Error.WriteLine("Error: Usage: temporal-sharp preset <recommended|strict> [--write <file>]");
+            return 2;
+        }
+
+        var tier = args[1];
+        if (tier is not (SeverityPresetGenerator.Recommended or SeverityPresetGenerator.Strict))
+        {
+            Console.Error.WriteLine($"Error: Unknown preset '{tier}'. Expected 'recommended' or 'strict'.");
+            return 2;
+        }
+
+        string? writePath = null;
+        for (var i = 2; i < args.Length; i++)
+        {
+            if (args[i] == "--write")
+            {
+                if (i + 1 >= args.Length)
+                {
+                    Console.Error.WriteLine("Error: Option '--write' requires a file path.");
+                    return 2;
+                }
+
+                writePath = args[++i];
+            }
+            else
+            {
+                Console.Error.WriteLine($"Error: Unknown option '{args[i]}'.");
+                return 2;
+            }
+        }
+
+        var content = SeverityPresetGenerator.Generate(tier);
+        if (writePath is not null)
+        {
+            File.WriteAllText(writePath, content);
+            Console.Out.WriteLine($"Wrote {writePath}");
+        }
+        else
+        {
+            Console.Out.WriteLine(content);
+        }
+
         return 0;
     }
 

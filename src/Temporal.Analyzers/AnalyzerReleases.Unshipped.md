@@ -64,6 +64,7 @@ TMP4107 | BestPractice | Warning | Local activity performs blocking or network I
 TMP4201 | BestPractice | Disabled | Workflow.NewGuid without a determinism comment
 TMP4202 | BestPractice | Disabled | Workflow.DeprecatePatch without an explanatory comment
 TMP4203 | BestPractice | Disabled | Versioning change without a replay-tested comment
+TMP2147 | SdkMisuse | Disabled | using directive for a namespace configured as unsafe for workflow code
 
 ### Removed Rules
 

@@ -22,6 +22,8 @@ internal sealed class CompilationAnalysisState
 {
     public const string SolutionReachabilityFileName = "Kogoshvili.Temporal.SolutionReachability.txt";
 
+    private const string WorkflowPathsKey = "kogoshvili.temporal.workflow_paths";
+
     private static readonly ConditionalWeakTable<Compilation, CompilationAnalysisState> Cache = new();
 
     private readonly ImmutableHashSet<IMethodSymbol> _workflowReachable;
@@ -36,7 +38,9 @@ internal sealed class CompilationAnalysisState
     }
 
     public static CompilationAnalysisState Get(Compilation compilation, AnalyzerOptions options)
-        => Cache.GetValue(compilation, c => Create(c, ReadSolutionReachability(options)));
+        => Cache.GetValue(
+            compilation,
+            c => Create(c, ReadSolutionReachability(options), options.AnalyzerConfigOptionsProvider));
 
     /// <summary>
     /// Reads the solution-level reachable-method keys emitted by the CLI, if any.
@@ -63,6 +67,25 @@ internal sealed class CompilationAnalysisState
     }
 
     /// <summary>
+    /// Reads the opt-in path-convention globs used to treat files under e.g.
+    /// <c>**/Workflows/**</c> as workflow code even when types are not annotated
+    /// with <c>[Workflow]</c>.
+    /// </summary>
+    public static IReadOnlyList<string> ReadWorkflowPathGlobs(AnalyzerConfigOptions options)
+    {
+        if (!options.TryGetValue(WorkflowPathsKey, out var value) || string.IsNullOrWhiteSpace(value))
+        {
+            return Array.Empty<string>();
+        }
+
+        return value
+            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(g => g.Trim())
+            .Where(g => g.Length > 0)
+            .ToList();
+    }
+
+    /// <summary>
     /// Returns true if the given node is inside a method that is reachable from
     /// workflow code (including lambdas and local functions nested within such
     /// a method).
@@ -86,7 +109,8 @@ internal sealed class CompilationAnalysisState
 
     private static CompilationAnalysisState Create(
         Compilation compilation,
-        ImmutableHashSet<string>? solutionReachableKeys)
+        ImmutableHashSet<string>? solutionReachableKeys,
+        AnalyzerConfigOptionsProvider analyzerConfigOptions)
     {
         var roots = new List<IMethodSymbol>();
         var edges = new Dictionary<IMethodSymbol, HashSet<IMethodSymbol>>(SymbolEqualityComparer.Default);
@@ -97,11 +121,15 @@ internal sealed class CompilationAnalysisState
         {
             var semanticModel = compilation.GetSemanticModel(syntaxTree);
             var root = syntaxTree.GetRoot();
+            var workflowGlobs = ReadWorkflowPathGlobs(analyzerConfigOptions.GetOptions(syntaxTree));
+            var isWorkflowPath = workflowGlobs.Count > 0 &&
+                                 workflowGlobs.Any(g => PathGlob.IsMatch(g, syntaxTree.FilePath));
 
             foreach (var typeDeclaration in root.DescendantNodes().OfType<TypeDeclarationSyntax>())
             {
                 var typeSymbol = semanticModel.GetDeclaredSymbol(typeDeclaration);
-                if (typeSymbol is null || !WorkflowDetection.IsWorkflowType(typeSymbol))
+                if (typeSymbol is null ||
+                    (!WorkflowDetection.IsWorkflowType(typeSymbol) && !isWorkflowPath))
                 {
                     continue;
                 }

@@ -598,6 +598,14 @@ internal static class DiagnosticDescriptors
         "Temporalio.Bridge, Temporalio.Api, and other internal namespaces are not part of the public API and can change without notice.",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor UnsafeNamespaceReference = Create(
+        "TMP2147",
+        SdkMisuseCategory,
+        "Unsafe namespace imported in workflow code",
+        "Namespace '{0}' is configured as unsafe for workflow code",
+        "Importing namespaces that provide I/O, networking, or other non-deterministic APIs into workflow code invites replay bugs. Configure kogoshvili.temporal.unsafe_namespaces with a list of namespace prefixes that workflow code must not import.",
+        isEnabledByDefault: false);
+
     internal static readonly DiagnosticDescriptor BigIntegerInPayload = Create(
         "TMP2142",
         SdkMisuseCategory,
