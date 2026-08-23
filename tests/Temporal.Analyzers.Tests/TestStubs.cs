@@ -87,6 +87,36 @@ internal static class TestStubs
                 public void LogTrace(string message, params object?[] args) { }
             }
 
+            public sealed class Mutex
+            {
+                public System.Threading.Tasks.Task WaitOneAsync(System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public System.Threading.Tasks.Task<bool> WaitOneAsync(int millisecondsTimeout, System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.FromResult(true);
+
+                public System.Threading.Tasks.Task<bool> WaitOneAsync(System.TimeSpan timeout, System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.FromResult(true);
+
+                public void ReleaseMutex() { }
+            }
+
+            public sealed class Semaphore
+            {
+                public Semaphore(int initialCount) { }
+
+                public System.Threading.Tasks.Task WaitAsync(System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public System.Threading.Tasks.Task<bool> WaitAsync(int millisecondsTimeout, System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.FromResult(true);
+
+                public System.Threading.Tasks.Task<bool> WaitAsync(System.TimeSpan timeout, System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.FromResult(true);
+
+                public void Release() { }
+            }
+
             public static class Workflow
             {
                 public static WorkflowLogger Logger => new WorkflowLogger();
