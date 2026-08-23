@@ -22,6 +22,40 @@ TMP0175 | Determinism | Warning | Control flow depending on non-deterministic ti
 TMP0104 | Determinism | Warning | Workflow.UtcNow compared to a persisted timestamp
 TMP0123 | Determinism | Warning | Workflow.Random / Workflow.NewGuid used for a persisted id or payload
 TMP0181 | Determinism | Warning | Busy-wait polling loop with a constant Workflow.DelayAsync
+TMP3208 | SdkMisuse | Warning | [WorkflowUpdate] must return a concrete Task<T>
+TMP3209 | SdkMisuse | Error | Continue-as-new invoked inside a [WorkflowUpdate]
+TMP3211 | SdkMisuse | Warning | Query/signal/update Name must be a constant string literal
+TMP3212 | SdkMisuse | Error | Temporalio.Client / worker types referenced from workflow code
+TMP3213 | SdkMisuse | Warning | StartWorkflowAsync without an explicit workflow id
+TMP3214 | SdkMisuse | Warning | Workflow and activity methods mixed in one class
+TMP3215 | SdkMisuse | Error | [WorkflowUpdateValidator] mutates state or blocks
+TMP3216 | SdkMisuse | Warning | Signal/update handler schedules activities/child workflows/delays
+TMP3217 | SdkMisuse | Warning | Workflow may complete while async handlers are pending
+TMP3218 | SdkMisuse | Error | [WorkflowInit] and [WorkflowRun] parameter lists mismatch
+TMP3219 | SdkMisuse | Error | [Workflow] parameterized constructor without [WorkflowInit]
+TMP2123 | SdkMisuse | Warning | catch swallows a cancellation
+TMP2124 | SdkMisuse | Warning | Cleanup after cancellation not in a non-cancellable scope
+TMP2106 | SdkMisuse | Warning | RetryPolicy set on a non-idempotent activity
+TMP2107 | SdkMisuse | Warning | Non-idempotent activity without an idempotency-key argument
+TMP2122 | SdkMisuse | Warning | Continue-as-new without passing current workflow state
+TMP2125 | SdkMisuse | Warning | Unbounded loop without a continue-as-new check
+TMP2132 | SdkMisuse | Warning | Base Exception thrown instead of ApplicationFailure
+TMP2133 | SdkMisuse | Warning | Debug.Assert / Trace.Assert in workflow code
+TMP2146 | SdkMisuse | Error | Use of internal Temporalio.* namespaces
+TMP2142 | SdkMisuse | Warning | BigInteger in a payload without a converter
+TMP2143 | SdkMisuse | Warning | Exception used as a param/return payload
+TMP2144 | SdkMisuse | Warning | Oversized inline literal/collection payload
+TMP2172 | SdkMisuse | Warning | object/dynamic/JsonElement in nested payload members
+TMP3105 | SdkMisuse | Error | ActivityExecutionContext captured across an await
+TMP3106 | SdkMisuse | Warning | Console.* / non-SDK logger in an activity
+TMP3107 | SdkMisuse | Warning | HttpClient call without a CancellationToken
+TMP3108 | SdkMisuse | Warning | HeartbeatTimeout much shorter than StartToCloseTimeout
+TMP3109 | SdkMisuse | Warning | Activity heartbeats in a loop but never checks the CancellationToken
+TMP2162 | SdkMisuse | Warning | Workflow.UpsertTypedSearchAttributes inside a loop
+TMP2163 | SdkMisuse | Warning | Search-attribute removal not using the unset shape
+TMP3303 | SdkMisuse | Error | Same patch id Patched more than once
+TMP3305 | SdkMisuse | Warning | Patched result discarded (does not guard a change)
+TMP3307 | SdkMisuse | Warning | Patch fallback removed without DeprecatePatch
 
 ### Removed Rules
 

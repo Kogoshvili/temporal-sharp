@@ -43,6 +43,7 @@ public class ActivityHeartbeatAnalyzerTests
                     for (int i = 0; i < 3; i++)
                     {
                         Temporalio.Activities.ActivityExecutionContext.Current.Heartbeat();
+                        if (Temporalio.Activities.ActivityExecutionContext.Current.CancellationToken.IsCancellationRequested) { break; }
                     }
                     return System.Threading.Tasks.Task.CompletedTask;
                 }
@@ -113,6 +114,7 @@ public class ActivityHeartbeatAnalyzerTests
                     for (int i = 0; i < 3; i++)
                     {
                         Temporalio.Activities.ActivityExecutionContext.Current.Heartbeat();
+                        if (Temporalio.Activities.ActivityExecutionContext.Current.CancellationToken.IsCancellationRequested) { break; }
                     }
                     return System.Threading.Tasks.Task.CompletedTask;
                 }
@@ -140,6 +142,7 @@ public class ActivityHeartbeatAnalyzerTests
                     for (int i = 0; i < 3; i++)
                     {
                         Temporalio.Activities.ActivityExecutionContext.Current.Heartbeat();
+                        if (Temporalio.Activities.ActivityExecutionContext.Current.CancellationToken.IsCancellationRequested) { break; }
                     }
                     return System.Threading.Tasks.Task.CompletedTask;
                 }

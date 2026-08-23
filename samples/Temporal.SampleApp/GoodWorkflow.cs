@@ -27,7 +27,7 @@ public class GoodWorkflow
             StartToCloseTimeout = TimeSpan.FromMinutes(1),
             HeartbeatTimeout = TimeSpan.FromSeconds(30),
         };
-        await Workflow.ExecuteActivityAsync(() => GoodActivities.Greet(), opts);
+        await Workflow.ExecuteActivityAsync(() => GoodActivities.GetGreeting(), opts);
 
         // Wait on a condition with a timeout, and handle the result.
         var met = await Workflow.WaitConditionAsync(() => approved, TimeSpan.FromMinutes(5));
@@ -43,13 +43,14 @@ public class GoodWorkflow
 
 public static class GoodActivities
 {
-    // Stateless, long-running activity that heartbeats.
+    // Stateless, long-running activity that heartbeats and checks cancellation.
     [Activity]
-    public static async Task Greet()
+    public static async Task GetGreeting()
     {
         for (var i = 0; i < 10; i++)
         {
             ActivityExecutionContext.Current.Heartbeat();
+            if (ActivityExecutionContext.Current.CancellationToken.IsCancellationRequested) { break; }
             await Task.Delay(1);
         }
     }

@@ -30,7 +30,21 @@ internal static class SdkNames
         "UpsertTypedSearchAttributes",
         "Patched",
         "DeprecatePatch",
-        "SignalExternalWorkflowAsync");
+        "SignalExternalWorkflowAsync",
+        "ExecuteUpdateAsync");
+
+    /// <summary>
+    /// Temporal client and worker types that must never be referenced from
+    /// workflow code (TMP3212).
+    /// </summary>
+    public static readonly ImmutableHashSet<string> ClientWorkerTypes = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "Temporalio.Client.ITemporalClient",
+        "Temporalio.Client.TemporalClient",
+        "Temporalio.Client.AsyncActivityHandle",
+        "Temporalio.Worker.TemporalWorker",
+        "Temporalio.Worker.TemporalWorkerOptions",
+        "Temporalio.Runtime.TemporalRuntime");
 
     public static bool IsWorkflowType(ITypeSymbol type) =>
         type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == WorkflowType;

@@ -152,7 +152,7 @@ public class SdkMisuseAnalyzerTests
             public static class Act
             {
                 [Temporalio.Activities.Activity]
-                public static System.Threading.Tasks.Task<int> Do(System.IO.Stream {|TMP2141:s|})
+                public static System.Threading.Tasks.Task<int> Read(System.IO.Stream {|TMP2141:s|})
                     => System.Threading.Tasks.Task.FromResult(0);
             }
             """);

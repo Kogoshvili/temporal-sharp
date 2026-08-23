@@ -18,7 +18,10 @@ namespace Kogoshvili.Temporal.Analyzers.Analyzers;
 public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
 {
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(DiagnosticDescriptors.SearchAttributeNotUpserted);
+        ImmutableArray.Create(
+            DiagnosticDescriptors.SearchAttributeNotUpserted,
+            DiagnosticDescriptors.UpsertInLoop,
+            DiagnosticDescriptors.SearchAttributeUnsetShape);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -41,8 +44,84 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
                 c => CollectUpsert(c, state, upserted),
                 SyntaxKind.InvocationExpression);
 
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeUpsertInLoop(c, state),
+                SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeUnsetShape(c, state),
+                SyntaxKind.InvocationExpression);
+
             startContext.RegisterCompilationEndAction(endContext => Report(endContext, required, upserted));
         });
+    }
+
+    // TMP2162 — UpsertTypedSearchAttributes inside a loop.
+    private static void AnalyzeUpsertInLoop(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (!IsUpsertCall(context, invocation))
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (invocation.Ancestors().Any(a =>
+                a is ForStatementSyntax or ForEachStatementSyntax or WhileStatementSyntax or DoStatementSyntax))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UpsertInLoop,
+                invocation.GetLocation()));
+        }
+    }
+
+    // TMP2163 — ValueSet(null) used to remove a search attribute.
+    private static void AnalyzeUnsetShape(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
+            method.Name != "ValueSet")
+        {
+            return;
+        }
+
+        if (invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression is not
+            LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NullLiteralExpression })
+        {
+            return;
+        }
+
+        if (!invocation.Ancestors().OfType<InvocationExpressionSyntax>().Any(a => IsUpsertCall(context, a)))
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
+        {
+            return;
+        }
+
+        var location = (invocation.Expression as MemberAccessExpressionSyntax)?.Name.GetLocation()
+                       ?? invocation.GetLocation();
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.SearchAttributeUnsetShape,
+            location));
+    }
+
+    private static bool IsUpsertCall(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
+    {
+        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method)
+        {
+            return false;
+        }
+
+        return method.Name == "UpsertTypedSearchAttributes" &&
+               method.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == SdkNames.WorkflowType;
     }
 
     private static void AnalyzeWorkflowRun(

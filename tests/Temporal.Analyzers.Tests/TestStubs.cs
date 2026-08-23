@@ -11,13 +11,30 @@ internal static class TestStubs
         {
             public sealed class WorkflowAttribute : System.Attribute { }
             public sealed class WorkflowRunAttribute : System.Attribute { }
-            public sealed class WorkflowQueryAttribute : System.Attribute { }
-            public sealed class WorkflowSignalAttribute : System.Attribute { }
+            public sealed class WorkflowQueryAttribute : System.Attribute { public string? Name { get; set; } }
+            public sealed class WorkflowSignalAttribute : System.Attribute { public string? Name { get; set; } }
+            public sealed class WorkflowUpdateAttribute : System.Attribute { public string? Name { get; set; } }
+            public sealed class WorkflowUpdateValidatorAttribute : System.Attribute { public string? Name { get; set; } }
+            public sealed class WorkflowInitAttribute : System.Attribute { }
         }
 
         namespace Temporalio.Activities
         {
             public sealed class ActivityAttribute : System.Attribute { }
+        }
+
+        namespace Temporalio.Client
+        {
+            public sealed class WorkflowOptions { public string? Id { get; set; } }
+            public interface ITemporalClient { }
+            public sealed class TemporalClient : ITemporalClient { }
+            public sealed class WorkflowClient
+            {
+                public System.Threading.Tasks.Task<string> StartWorkflowAsync(
+                    System.Linq.Expressions.Expression<System.Func<object?>> workflowRunCall,
+                    WorkflowOptions options)
+                    => System.Threading.Tasks.Task.FromResult("");
+            }
         }
         """;
 
@@ -29,6 +46,7 @@ internal static class TestStubs
                 public System.TimeSpan? StartToCloseTimeout { get; set; }
                 public System.TimeSpan? ScheduleToCloseTimeout { get; set; }
                 public System.TimeSpan? HeartbeatTimeout { get; set; }
+                public RetryPolicy? RetryPolicy { get; set; }
                 public string? TaskQueue { get; set; }
             }
 
@@ -37,8 +55,11 @@ internal static class TestStubs
                 public System.TimeSpan? StartToCloseTimeout { get; set; }
                 public System.TimeSpan? ScheduleToCloseTimeout { get; set; }
                 public System.TimeSpan? HeartbeatTimeout { get; set; }
+                public RetryPolicy? RetryPolicy { get; set; }
                 public string? TaskQueue { get; set; }
             }
+
+            public sealed class RetryPolicy { }
 
             public sealed class ContinueAsNewOptions { }
 
@@ -50,7 +71,12 @@ internal static class TestStubs
             public sealed class SearchAttributeKey
             {
                 public static SearchAttributeKey ForKeyword(string name) => new SearchAttributeKey();
+                public SearchAttributeUpdate ValueSet(object? value) => new SearchAttributeUpdate();
+                public SearchAttributeUpdate ValueUnset() => new SearchAttributeUpdate();
+                public SearchAttributeUpdate ValueNull() => new SearchAttributeUpdate();
             }
+
+            public sealed class SearchAttributeUpdate { }
 
             public static class Workflow
             {
@@ -64,10 +90,19 @@ internal static class TestStubs
 
                 public static void DeprecatePatch(string patchId) { }
 
+                public static bool IsCancellationRequested => false;
+
+                public static bool ContinueAsNewSuggested => false;
+
+                public static System.Threading.Tasks.Task AllHandlersFinished => System.Threading.Tasks.Task.CompletedTask;
+
+                public static System.Threading.Tasks.Task NonCancellableAsync(System.Func<System.Threading.Tasks.Task> work)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
                 public static System.Threading.Tasks.Task DelayAsync(int millisecondsDelay)
                     => System.Threading.Tasks.Task.CompletedTask;
 
-                public static void UpsertTypedSearchAttributes(params SearchAttributeKey[] updates) { }
+                public static void UpsertTypedSearchAttributes(params SearchAttributeUpdate[] updates) { }
 
                 public static System.Collections.Generic.IDictionary<string, object> Signals { get; } = new System.Collections.Generic.Dictionary<string, object>();
                 public static System.Threading.Tasks.Task ExecuteActivityAsync(
@@ -117,6 +152,8 @@ internal static class TestStubs
             {
                 public static ActivityExecutionContext Current => new ActivityExecutionContext();
                 public void Heartbeat(params object?[] details) { }
+                public System.Threading.CancellationToken CancellationToken => default;
+                public object Log => new object();
             }
         }
         """;

@@ -438,6 +438,278 @@ internal static class DiagnosticDescriptors
         "A search attribute set at workflow start is only indexed then. Upsert it with Workflow.UpsertTypedSearchAttributes when its value changes.",
         isEnabledByDefault: false);
 
+    internal static readonly DiagnosticDescriptor InvalidWorkflowUpdate = Create(
+        "TMP3208",
+        SdkMisuseCategory,
+        "Invalid workflow update return type",
+        "Invalid [WorkflowUpdate] method: {0}",
+        "An update handler must return a concrete Task<T>; returning void, a plain value, or a non-generic Task makes the update result unusable by callers.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor ContinueAsNewInUpdate = Create(
+        "TMP3209",
+        SdkMisuseCategory,
+        "Continue-as-new invoked inside an update handler",
+        "'{0}' is invoked inside a [WorkflowUpdate]; continue-as-new must be raised from the main workflow method",
+        "Continue-as-new replaces the workflow execution and is only valid from the main workflow method. Raising it from an update handler is rejected at run time.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor MessageNameNotLiteral = Create(
+        "TMP3211",
+        SdkMisuseCategory,
+        "Workflow message name is not a string literal",
+        "The {0} name must be a constant string literal",
+        "Query, signal, and update names are part of the workflow's public contract. A computed name makes the contract unstable and breaks clients that reference the literal name.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor ClientOrWorkerTypeInWorkflow = Create(
+        "TMP3212",
+        SdkMisuseCategory,
+        "Client/worker types used from workflow code",
+        "'{0}' is a Temporal client or worker type and must not be referenced from workflow code",
+        "Workflow code runs on the replay-deterministic workflow thread; referencing client or worker types pulls the worker process into the workflow and breaks determinism.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor StartWorkflowWithoutId = Create(
+        "TMP3213",
+        SdkMisuseCategory,
+        "StartWorkflowAsync called without an explicit workflow id",
+        "StartWorkflowAsync does not set an explicit workflow id; provide one so the start is idempotent",
+        "Without an explicit workflow id, Temporal generates one per call and a retry can start a duplicate workflow. Set workflowId for idempotent starts.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor MixedWorkflowAndActivity = Create(
+        "TMP3214",
+        SdkMisuseCategory,
+        "Workflow and activity methods mixed in one class",
+        "'{0}' mixes workflow and activity methods; split them into separate classes",
+        "Workflow and activity methods live on different execution threads and have different contracts; mixing them in one class invites accidental cross-thread access.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor UpdateValidatorSideEffect = Create(
+        "TMP3215",
+        SdkMisuseCategory,
+        "Update validator mutates state or blocks",
+        "Update validator '{0}' {1}; validators must be pure and non-blocking",
+        "Update validators run synchronously before the update is accepted and must not mutate workflow state or perform blocking work such as activities, sleeps, or other commands.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor HandlerSchedulesWork = Create(
+        "TMP3216",
+        SdkMisuseCategory,
+        "Signal or update handler schedules workflow commands",
+        "'{0}' is called inside a {1}; handlers should return quickly without scheduling commands",
+        "Signal and update handlers are invoked inline during workflow execution; scheduling activities, child workflows, or delays from them keeps the workflow blocked.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor CompleteWithPendingHandlers = Create(
+        "TMP3217",
+        SdkMisuseCategory,
+        "Workflow may complete while async handlers are pending",
+        "Workflow type '{0}' declares async handlers but never awaits Workflow.AllHandlersFinished",
+        "Completing a workflow while an async signal or update handler is still running leaves the handler unjournaled. Await Workflow.AllHandlersFinished before completing.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor WorkflowInitMismatch = Create(
+        "TMP3218",
+        SdkMisuseCategory,
+        "[WorkflowInit] and [WorkflowRun] parameter lists differ",
+        "[WorkflowInit] constructor and [WorkflowRun] method '{0}' have mismatched parameter lists",
+        "The [WorkflowInit] constructor receives the arguments that start the workflow; it must accept exactly the parameters the [WorkflowRun] method declares.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor WorkflowParameterizedCtor = Create(
+        "TMP3219",
+        SdkMisuseCategory,
+        "[Workflow] class has a parameterized constructor without [WorkflowInit]",
+        "[Workflow] class '{0}' has a parameterized constructor; mark one with [WorkflowInit] to receive workflow arguments",
+        "Workflow constructors are not dependency-injected. A parameterized constructor will be called with no arguments and fail unless a constructor is marked [WorkflowInit].",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor SwallowedCancellation = Create(
+        "TMP2123",
+        SdkMisuseCategory,
+        "Cancellation is swallowed",
+        "catch block neither rethrows nor checks Workflow.IsCancellationRequested",
+        "Catching a cancellation without rethrowing or checking Workflow.IsCancellationRequested hides a workflow/activity cancellation and can leave work running after cancellation.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor CleanupNotNonCancellable = Create(
+        "TMP2124",
+        SdkMisuseCategory,
+        "Cleanup after cancellation is not in a non-cancellable scope",
+        "cleanup awaits a task outside a non-cancellable scope; wrap it in Workflow.NonCancellableAsync",
+        "Cleanup that runs after cancellation should not itself be cancelled; wrap the cleanup work in Workflow.NonCancellableAsync so it always completes.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor RetryOnNonIdempotent = Create(
+        "TMP2106",
+        SdkMisuseCategory,
+        "Retry policy allows retries on a non-idempotent activity",
+        "RetryPolicy is set on non-idempotent activity '{0}'",
+        "Retrying a non-idempotent activity can duplicate its side effects. Only set a RetryPolicy on idempotent activities.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor MissingIdempotencyKey = Create(
+        "TMP2107",
+        SdkMisuseCategory,
+        "Non-idempotent activity called without an idempotency-key argument",
+        "Non-idempotent activity '{0}' is called without an idempotency-key argument",
+        "A non-idempotent activity needs an idempotency key so retries do not duplicate its side effects. Pass an idempotency key as an argument.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor ContinueAsNewWithoutState = Create(
+        "TMP2122",
+        SdkMisuseCategory,
+        "Continue-as-new without passing current workflow state",
+        "Continue-as-new does not pass the current workflow state; pass it via the new run's arguments",
+        "Continue-as-new starts a fresh execution; any state needed by the new run must be passed as arguments or it is lost.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor LongRunningLoopWithoutContinueAsNew = Create(
+        "TMP2125",
+        SdkMisuseCategory,
+        "Unbounded loop without a continue-as-new check",
+        "Long-running loop never checks Workflow.ContinueAsNewSuggested",
+        "An unbounded loop that never checks Workflow.ContinueAsNewSuggested grows the workflow history until it hits the size limit. Break the loop and continue as new.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor ThrowsBaseException = Create(
+        "TMP2132",
+        SdkMisuseCategory,
+        "Base Exception thrown instead of ApplicationFailure",
+        "Throwing a base Exception; throw Temporalio.Exceptions.ApplicationFailure instead",
+        "A non-ApplicationFailure exception from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailure with a typed message.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor AssertInWorkflow = Create(
+        "TMP2133",
+        SdkMisuseCategory,
+        "Debug/Trace assert in workflow code",
+        "'{0}' asserts in workflow code outside tests; remove the assertion",
+        "Debug.Assert and Trace.Assert are compiled out in release builds and have no place in production workflow code.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor InternalTemporalNamespace = Create(
+        "TMP2146",
+        SdkMisuseCategory,
+        "Use of internal Temporal namespace",
+        "Use of internal Temporal namespace '{0}'",
+        "Temporalio.Bridge, Temporalio.Api, and other internal namespaces are not part of the public API and can change without notice.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor BigIntegerInPayload = Create(
+        "TMP2142",
+        SdkMisuseCategory,
+        "BigInteger in a payload without a converter",
+        "Type '{0}' is not serializable without a custom payload converter",
+        "System.Numerics.BigInteger is not supported by the default JSON payload converter. Register a custom converter or use a supported type.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor ExceptionInPayload = Create(
+        "TMP2143",
+        SdkMisuseCategory,
+        "Exception used as a payload",
+        "Type '{0}' (an Exception) is passed across the workflow/activity boundary; prefer ApplicationFailure or error codes",
+        "Serializing an Exception as a payload is lossy and couples the workflow contract to the .NET exception hierarchy. Use ApplicationFailure or a plain error model.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor LargeInlinePayload = Create(
+        "TMP2144",
+        SdkMisuseCategory,
+        "Oversized inline payload",
+        "Inline payload is unusually large; large literals and collections bloat history and may exceed the event-size limit",
+        "Large literals or collection initializers passed to activities or persisted to state bloat event history. Move them to a field, an activity, or external storage.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor NestedLossyNumber = Create(
+        "TMP2172",
+        SdkMisuseCategory,
+        "Lossy-number member in a workflow/activity payload type",
+        "Member '{0}' has type '{1}'; the JSON DataConverter may lose precision, use a concrete type instead",
+        "object/dynamic/JsonElement members decode to JsonElement and may lose precision. Declare a concrete member type on the payload DTO.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor ActivityContextAcrossAwait = Create(
+        "TMP3105",
+        SdkMisuseCategory,
+        "ActivityExecutionContext captured across an await",
+        "ActivityExecutionContext is captured across an await boundary",
+        "ActivityExecutionContext.Current is only valid until the next await. Store the values you need (cancellation token, logger, info) instead of the context itself.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor NonSdkActivityLog = Create(
+        "TMP3106",
+        SdkMisuseCategory,
+        "Non-SDK logger used in an activity",
+        "'{0}' writes to a non-SDK logger; use ActivityExecutionContext.Current.Log instead",
+        "Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Log.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor HttpClientWithoutCancellation = Create(
+        "TMP3107",
+        SdkMisuseCategory,
+        "HttpClient call without a CancellationToken",
+        "'{0}' is called without a CancellationToken; pass one so cancellation can propagate",
+        "HTTP calls should honor the activity's CancellationToken so a cancelled activity stops its network I/O immediately.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor HeartbeatTimeoutMismatch = Create(
+        "TMP3108",
+        SdkMisuseCategory,
+        "HeartbeatTimeout much shorter than StartToCloseTimeout",
+        "HeartbeatTimeout is much shorter than StartToCloseTimeout; the activity may be considered failed long before it can complete",
+        "A HeartbeatTimeout far shorter than StartToCloseTimeout causes the activity to be marked failed on the first missed heartbeat.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor HeartbeatWithoutCancellationCheck = Create(
+        "TMP3109",
+        SdkMisuseCategory,
+        "Activity heartbeats in a loop but never checks the CancellationToken",
+        "Activity '{0}' heartbeats in a loop but never checks the CancellationToken",
+        "Heartbeating without checking the cancellation token defeats cancellation: the activity keeps running after the heartbeat times out.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor UpsertInLoop = Create(
+        "TMP2162",
+        SdkMisuseCategory,
+        "Search attributes upserted inside a loop",
+        "Workflow.UpsertTypedSearchAttributes is called inside a loop",
+        "Upserting search attributes on every loop iteration writes a command to history each time. Upsert once after the loop, or only when the value changes.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor SearchAttributeUnsetShape = Create(
+        "TMP2163",
+        SdkMisuseCategory,
+        "Search attribute removal uses the wrong shape",
+        "Search-attribute removal should use the unset shape, not ValueSet(null)",
+        "Removing a search attribute requires the unset/[] shape; ValueSet(null) does not remove the attribute.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor DuplicatePatchId = Create(
+        "TMP3303",
+        SdkMisuseCategory,
+        "Patch id applied more than once",
+        "patch id '{0}' is Patched more than once in the same workflow method",
+        "Applying the same patch id more than once in a workflow method is redundant and usually indicates a merge error.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor PatchWithoutGuard = Create(
+        "TMP3305",
+        SdkMisuseCategory,
+        "Patched call does not guard a behavior change",
+        "Workflow.Patched result is discarded; the patch does not guard a behavior change",
+        "Workflow.Patched is meant to guard an incompatible behavior change; discarding its result means the patch has no effect.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor PatchWithoutDeprecation = Create(
+        "TMP3307",
+        SdkMisuseCategory,
+        "Patch fallback removed without deprecation",
+        "patch '{0}' removed its fallback branch but never calls DeprecatePatch",
+        "Once the old behavior is removed, the patch branch should be simplified and Workflow.DeprecatePatch called so the version marker is preserved for old replays.",
+        severity: DiagnosticSeverity.Warning);
+
     private static DiagnosticDescriptor Create(
         string id,
         string category,

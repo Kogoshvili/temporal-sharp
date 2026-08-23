@@ -52,7 +52,13 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.WaitConditionTimeoutIgnored,
             DiagnosticDescriptors.NonSerializableType,
             DiagnosticDescriptors.SensitiveArgument,
-            DiagnosticDescriptors.LossyNumber);
+            DiagnosticDescriptors.LossyNumber,
+            DiagnosticDescriptors.BigIntegerInPayload,
+            DiagnosticDescriptors.ExceptionInPayload,
+            DiagnosticDescriptors.LargeInlinePayload,
+            DiagnosticDescriptors.NestedLossyNumber,
+            DiagnosticDescriptors.RetryOnNonIdempotent,
+            DiagnosticDescriptors.MissingIdempotencyKey);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -72,10 +78,167 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
                 c => AnalyzeInvocation(c, state),
                 SyntaxKind.InvocationExpression);
 
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeRetryPolicy(c, state),
+                SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeLargeStringLiteral(c, state),
+                SyntaxKind.StringLiteralExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeLargeCollection(c, state),
+                SyntaxKind.ArrayInitializerExpression,
+                SyntaxKind.CollectionInitializerExpression);
+
             startContext.RegisterSymbolAction(
                 c => AnalyzeMethodSignature(c, config),
                 SymbolKind.Method);
         });
+    }
+
+    // TMP2106 — RetryPolicy set on a non-idempotent activity.
+    private static void AnalyzeRetryPolicy(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol apiMethod ||
+            apiMethod.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) != SdkNames.WorkflowType ||
+            apiMethod.Name is not ("ExecuteActivityAsync" or "ExecuteLocalActivityAsync"))
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
+        {
+            return;
+        }
+
+        var options = FindOptionsArgument(context, invocation);
+        if (options is null || !OptionsSetRetryPolicy(options))
+        {
+            return;
+        }
+
+        var activityName = ResolveActivityName(context, invocation);
+        if (activityName is null || IsIdempotentName(activityName))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.RetryOnNonIdempotent,
+            invocation.GetLocation(),
+            activityName));
+    }
+
+    private static bool OptionsSetRetryPolicy(ExpressionSyntax options)
+    {
+        if (Unwrap(options) is not ObjectCreationExpressionSyntax creation ||
+            creation.Initializer is not { } initializer)
+        {
+            return false;
+        }
+
+        return initializer.Expressions
+            .OfType<AssignmentExpressionSyntax>()
+            .Any(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "RetryPolicy");
+    }
+
+    private static string? ResolveActivityName(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
+    {
+        var target = LambdaTargetResolver.ResolveTypedLambdaTarget(context, invocation);
+        if (target is not null)
+        {
+            return target.Name;
+        }
+
+        var first = invocation.ArgumentList.Arguments.FirstOrDefault();
+        if (first?.Expression is LiteralExpressionSyntax literal &&
+            literal.IsKind(SyntaxKind.StringLiteralExpression))
+        {
+            return literal.Token.ValueText;
+        }
+
+        return null;
+    }
+
+    private static ExpressionSyntax? FindOptionsArgument(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
+    {
+        foreach (var argument in invocation.ArgumentList.Arguments)
+        {
+            var type = context.SemanticModel.GetTypeInfo(argument.Expression).Type;
+            if (type is null)
+            {
+                continue;
+            }
+
+            var typeName = type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+            if (typeName == SdkNames.ActivityOptionsType || typeName == SdkNames.LocalActivityOptionsType)
+            {
+                return argument.Expression;
+            }
+        }
+
+        return null;
+    }
+
+    private static ExpressionSyntax Unwrap(ExpressionSyntax expression)
+    {
+        var current = expression;
+        while (current is CastExpressionSyntax cast)
+        {
+            current = cast.Expression;
+        }
+
+        while (current is ParenthesizedExpressionSyntax parens)
+        {
+            current = parens.Expression;
+        }
+
+        return current;
+    }
+
+    // TMP2144 — oversized inline string literal.
+    private static void AnalyzeLargeStringLiteral(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var literal = (LiteralExpressionSyntax)context.Node;
+        if (!state.IsWorkflowReachable(literal, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (literal.Token.ValueText.Length <= 1024)
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.LargeInlinePayload,
+            literal.GetLocation()));
+    }
+
+    // TMP2144 — oversized inline collection/array initializer.
+    private static void AnalyzeLargeCollection(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var initializer = (InitializerExpressionSyntax)context.Node;
+        if (initializer.IsKind(SyntaxKind.ObjectInitializerExpression))
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(initializer, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (initializer.Expressions.Count <= 20)
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.LargeInlinePayload,
+            initializer.GetLocation()));
     }
 
     private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext context)
@@ -127,16 +290,41 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
 
         var payloadType = PayloadType(method);
 
-        if (payloadType is not null && IsNonSerializable(payloadType))
+        if (payloadType is not null)
         {
-            ReportNonSerializable(context, payloadType, method.Locations[0]);
+            if (IsNonSerializable(payloadType))
+            {
+                ReportNonSerializable(context, payloadType, method.Locations[0]);
+            }
+            else
+            {
+                ReportPayloadTypeIssue(context, payloadType, method.Locations[0]);
+            }
+        }
+
+        // TMP2107 — non-idempotent activity without an idempotency-key parameter.
+        if (WorkflowDetection.IsActivityMethod(method) &&
+            !IsIdempotentName(method.Name) &&
+            !HasIdempotencyKeyParameter(method))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.MissingIdempotencyKey,
+                method.Locations[0],
+                method.Name));
         }
 
         foreach (var parameter in method.Parameters)
         {
+            var location = parameter.Locations.Length > 0 ? parameter.Locations[0] : method.Locations[0];
+
             if (IsNonSerializable(parameter.Type))
             {
-                ReportNonSerializable(context, parameter.Type, parameter.Locations.Length > 0 ? parameter.Locations[0] : method.Locations[0]);
+                ReportNonSerializable(context, parameter.Type, location);
+                continue;
+            }
+
+            if (ReportPayloadTypeIssue(context, parameter.Type, location))
+            {
                 continue;
             }
 
@@ -144,18 +332,111 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.LossyNumber,
-                    parameter.Locations.Length > 0 ? parameter.Locations[0] : method.Locations[0],
+                    location,
                     parameter.Name,
                     parameter.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
                 continue;
             }
 
+            ReportNestedLossyMembers(context, parameter.Type, new HashSet<ISymbol>(SymbolEqualityComparer.Default));
+
             if (MatchesSensitivePattern(parameter.Name, method.DeclaringSyntaxReferences, config))
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.SensitiveArgument,
-                    parameter.Locations.Length > 0 ? parameter.Locations[0] : method.Locations[0],
+                    location,
                     parameter.Name));
+            }
+        }
+    }
+
+    private static bool ReportPayloadTypeIssue(SymbolAnalysisContext context, ITypeSymbol type, Location location)
+    {
+        if (TypeNames.FullName(type) == "System.Numerics.BigInteger")
+        {
+            ReportType(context, DiagnosticDescriptors.BigIntegerInPayload, type, location);
+            return true;
+        }
+
+        if (TypeNames.IsOrDerivesFrom(type, "System.Exception"))
+        {
+            ReportType(context, DiagnosticDescriptors.ExceptionInPayload, type, location);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void ReportType(SymbolAnalysisContext context, DiagnosticDescriptor descriptor, ITypeSymbol type, Location location)
+    {
+        var display = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        context.ReportDiagnostic(Diagnostic.Create(descriptor, location, display));
+    }
+
+    private static bool IsIdempotentName(string name)
+    {
+        var normalized = name.ToLowerInvariant();
+        return normalized.Contains("get") ||
+               normalized.Contains("read") ||
+               normalized.Contains("query") ||
+               normalized.Contains("find") ||
+               normalized.Contains("lookup") ||
+               normalized.Contains("fetch") ||
+               normalized.Contains("load") ||
+               normalized.Contains("idempotent");
+    }
+
+    private static bool HasIdempotencyKeyParameter(IMethodSymbol method)
+    {
+        foreach (var parameter in method.Parameters)
+        {
+            if (parameter.Name.IndexOf("idempotency", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ReportNestedLossyMembers(
+        SymbolAnalysisContext context,
+        ITypeSymbol type,
+        HashSet<ISymbol> visited)
+    {
+        if (type is not INamedTypeSymbol named ||
+            named.DeclaringSyntaxReferences.Length == 0 ||
+            !visited.Add(named))
+        {
+            return;
+        }
+
+        foreach (var member in named.GetMembers())
+        {
+            ITypeSymbol? memberType = member switch
+            {
+                IPropertySymbol { DeclaredAccessibility: Accessibility.Public } property => property.Type,
+                IFieldSymbol { DeclaredAccessibility: Accessibility.Public } field => field.Type,
+                _ => null,
+            };
+
+            if (memberType is null)
+            {
+                continue;
+            }
+
+            if (IsLossyNumber(memberType))
+            {
+                var location = member.Locations.Length > 0 ? member.Locations[0] : context.Symbol.Locations[0];
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.NestedLossyNumber,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+            }
+            else
+            {
+                ReportNestedLossyMembers(context, memberType, visited);
             }
         }
     }
@@ -175,6 +456,8 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
     private static bool IsNonSerializable(ITypeSymbol type) =>
         type.TypeKind == TypeKind.Delegate ||
         TypeNames.IsOrDerivesFrom(type, "System.IO.Stream") ||
+        TypeNames.IsOrDerivesFrom(type, "System.Reflection.MemberInfo") ||
+        TypeNames.FullName(type) == "System.Type" ||
         TypeNames.IsOrImplements(type, "System.Collections.Generic.IAsyncEnumerable") ||
         TypeNames.FullName(type) is "System.Threading.Channels.Channel" or
             "System.Threading.Channels.ChannelReader" or

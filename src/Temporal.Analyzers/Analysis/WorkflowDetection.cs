@@ -13,6 +13,9 @@ internal static class WorkflowDetection
     public const string ActivityAttributeName = "Temporalio.Activities.ActivityAttribute";
     public const string WorkflowQueryAttributeName = "Temporalio.Workflows.WorkflowQueryAttribute";
     public const string WorkflowSignalAttributeName = "Temporalio.Workflows.WorkflowSignalAttribute";
+    public const string WorkflowUpdateAttributeName = "Temporalio.Workflows.WorkflowUpdateAttribute";
+    public const string WorkflowUpdateValidatorAttributeName = "Temporalio.Workflows.WorkflowUpdateValidatorAttribute";
+    public const string WorkflowInitAttributeName = "Temporalio.Workflows.WorkflowInitAttribute";
 
     public static bool IsWorkflowType(INamedTypeSymbol type)
         => HasAttribute(type, WorkflowAttributeName);
@@ -31,6 +34,15 @@ internal static class WorkflowDetection
 
     public static bool IsWorkflowSignalMethod(IMethodSymbol method)
         => HasAttribute(method, WorkflowSignalAttributeName);
+
+    public static bool IsWorkflowUpdateMethod(IMethodSymbol method)
+        => HasAttribute(method, WorkflowUpdateAttributeName);
+
+    public static bool IsWorkflowUpdateValidatorMethod(IMethodSymbol method)
+        => HasAttribute(method, WorkflowUpdateValidatorAttributeName);
+
+    public static bool IsWorkflowInit(IMethodSymbol method)
+        => HasAttribute(method, WorkflowInitAttributeName);
 
     private static bool HasAttribute(ISymbol symbol, string attributeFullName)
     {

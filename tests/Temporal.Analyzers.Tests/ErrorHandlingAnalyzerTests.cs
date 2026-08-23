@@ -4,13 +4,13 @@ using Kogoshvili.Temporal.Analyzers.Analyzers;
 
 namespace Kogoshvili.Temporal.Analyzers.Tests;
 
-public class VersioningAnalyzerTests
+public class ErrorHandlingAnalyzerTests
 {
     private const string Stubs = TestStubs.Attributes + TestStubs.Sdk;
 
     private static Task Verify(string source)
     {
-        var test = new CSharpAnalyzerTest<VersioningAnalyzer, DefaultVerifier>
+        var test = new CSharpAnalyzerTest<ErrorHandlingAnalyzer, DefaultVerifier>
         {
             TestCode = source,
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
@@ -19,60 +19,53 @@ public class VersioningAnalyzerTests
     }
 
     [Fact]
-    public Task NonConstantPatchId_Reports()
+    public Task ThrowsBaseException_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
             {
                 [Temporalio.Workflows.WorkflowRun]
-                public void Run()
+                public async System.Threading.Tasks.Task Run()
                 {
-                    var id = "my-patch";
-                    if ({|TMP3302:Temporalio.Workflows.Workflow.Patched(id)|}) { } else { }
+                    {|TMP2132:throw|} new System.Exception("boom");
                 }
             }
             """);
 
     [Fact]
-    public Task ConstantPatchId_DoesNotReport()
+    public Task ThrowsDerivedException_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
             {
                 [Temporalio.Workflows.WorkflowRun]
-                public void Run()
+                public async System.Threading.Tasks.Task Run()
                 {
-                    if (Temporalio.Workflows.Workflow.Patched("my-patch")) { } else { }
+                    throw new System.InvalidOperationException("boom");
                 }
             }
             """);
 
     [Fact]
-    public Task LeftoverPatchedAndDeprecated_Reports()
+    public Task DebugAssertInWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
             {
                 [Temporalio.Workflows.WorkflowRun]
-                public void Run()
+                public async System.Threading.Tasks.Task Run()
                 {
-                    if (Temporalio.Workflows.Workflow.Patched("my-patch")) { }
-                    {|TMP3301:Temporalio.Workflows.Workflow.DeprecatePatch("my-patch")|};
+                    {|TMP2133:System.Diagnostics.Debug.Assert(true)|};
                 }
             }
             """);
 
     [Fact]
-    public Task DeprecateOnly_DoesNotReport()
+    public Task DebugAssertOutsideWorkflow_DoesNotReport()
         => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class W
+            public static class Helper
             {
-                [Temporalio.Workflows.WorkflowRun]
-                public void Run()
-                {
-                    Temporalio.Workflows.Workflow.DeprecatePatch("my-patch");
-                }
+                public static void Check() { System.Diagnostics.Debug.Assert(true); }
             }
             """);
 }

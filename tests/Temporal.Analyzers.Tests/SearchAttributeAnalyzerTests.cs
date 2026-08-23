@@ -57,7 +57,7 @@ public class SearchAttributeAnalyzerTests
                 public System.Threading.Tasks.Task Run(MyInput input)
                 {
                     Temporalio.Workflows.Workflow.UpsertTypedSearchAttributes(
-                        Temporalio.Workflows.SearchAttributeKey.ForKeyword("user_id"));
+                        Temporalio.Workflows.SearchAttributeKey.ForKeyword("user_id").ValueSet("user_id"));
                     return System.Threading.Tasks.Task.CompletedTask;
                 }
             }

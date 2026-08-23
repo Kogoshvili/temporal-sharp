@@ -11,16 +11,28 @@ namespace Temporalio.Workflows
     public sealed class WorkflowRunAttribute : System.Attribute { }
 
     [System.AttributeUsage(System.AttributeTargets.Method)]
-    public sealed class WorkflowQueryAttribute : System.Attribute { }
+    public sealed class WorkflowQueryAttribute : System.Attribute { public string? Name { get; set; } }
 
     [System.AttributeUsage(System.AttributeTargets.Method)]
-    public sealed class WorkflowSignalAttribute : System.Attribute { }
+    public sealed class WorkflowSignalAttribute : System.Attribute { public string? Name { get; set; } }
+
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    public sealed class WorkflowUpdateAttribute : System.Attribute { public string? Name { get; set; } }
+
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    public sealed class WorkflowUpdateValidatorAttribute : System.Attribute { public string? Name { get; set; } }
+
+    [System.AttributeUsage(System.AttributeTargets.Constructor)]
+    public sealed class WorkflowInitAttribute : System.Attribute { }
+
+    public sealed class RetryPolicy { }
 
     public sealed class ActivityOptions
     {
         public System.TimeSpan? StartToCloseTimeout { get; set; }
         public System.TimeSpan? ScheduleToCloseTimeout { get; set; }
         public System.TimeSpan? HeartbeatTimeout { get; set; }
+        public RetryPolicy? RetryPolicy { get; set; }
         public string? TaskQueue { get; set; }
     }
 
@@ -29,6 +41,7 @@ namespace Temporalio.Workflows
         public System.TimeSpan? StartToCloseTimeout { get; set; }
         public System.TimeSpan? ScheduleToCloseTimeout { get; set; }
         public System.TimeSpan? HeartbeatTimeout { get; set; }
+        public RetryPolicy? RetryPolicy { get; set; }
         public string? TaskQueue { get; set; }
     }
 
@@ -63,6 +76,13 @@ namespace Temporalio.Workflows
         public static System.Guid NewGuid() => default;
         public static System.Random Random => new();
         public static WorkflowLogger Logger => new();
+
+        public static bool IsCancellationRequested => false;
+        public static bool ContinueAsNewSuggested => false;
+        public static System.Threading.Tasks.Task AllHandlersFinished => System.Threading.Tasks.Task.CompletedTask;
+
+        public static System.Threading.Tasks.Task NonCancellableAsync(System.Func<System.Threading.Tasks.Task> work)
+            => System.Threading.Tasks.Task.CompletedTask;
 
         public static System.Threading.Tasks.Task DelayAsync(int millisecondsDelay)
             => System.Threading.Tasks.Task.CompletedTask;
@@ -145,5 +165,27 @@ namespace Temporalio.Activities
     {
         public static ActivityExecutionContext Current => new();
         public void Heartbeat(params object?[] details) { }
+        public System.Threading.CancellationToken CancellationToken => default;
+        public Temporalio.Workflows.WorkflowLogger Log => new();
+    }
+}
+
+namespace Temporalio.Client
+{
+    public sealed class WorkflowOptions
+    {
+        public string? Id { get; set; }
+    }
+
+    public interface ITemporalClient { }
+
+    public sealed class TemporalClient : ITemporalClient { }
+
+    public sealed class WorkflowClient
+    {
+        public System.Threading.Tasks.Task<string> StartWorkflowAsync(
+            System.Linq.Expressions.Expression<System.Func<object?>> workflowRunCall,
+            WorkflowOptions options)
+            => System.Threading.Tasks.Task.FromResult("");
     }
 }

@@ -21,7 +21,10 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.InvalidWorkflowRun,
-            DiagnosticDescriptors.InvalidActivity);
+            DiagnosticDescriptors.InvalidActivity,
+            DiagnosticDescriptors.MixedWorkflowAndActivity,
+            DiagnosticDescriptors.WorkflowInitMismatch,
+            DiagnosticDescriptors.WorkflowParameterizedCtor);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -68,6 +71,10 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
                 AnalyzeActivityOnNonMethod,
                 SymbolKind.Field, SymbolKind.Property, SymbolKind.NamedType);
 
+            startContext.RegisterSymbolAction(
+                AnalyzeWorkflowTypeContract,
+                SymbolKind.NamedType);
+
             startContext.RegisterSyntaxNodeAction(
                 AnalyzeMissingActivity,
                 SyntaxKind.InvocationExpression);
@@ -97,6 +104,77 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
         }
 
         Report(context, FirstLocation(context.Symbol), "the [Activity] attribute may only be applied to a method", DiagnosticDescriptors.InvalidActivity);
+    }
+
+    private static void AnalyzeWorkflowTypeContract(SymbolAnalysisContext context)
+    {
+        var type = (INamedTypeSymbol)context.Symbol;
+        var methods = type.GetMembers().OfType<IMethodSymbol>().ToList();
+
+        var hasWorkflowMethod = methods.Any(m =>
+            WorkflowDetection.IsWorkflowRunMethod(m) ||
+            WorkflowDetection.IsWorkflowQueryMethod(m) ||
+            WorkflowDetection.IsWorkflowSignalMethod(m) ||
+            WorkflowDetection.IsWorkflowUpdateMethod(m));
+        var hasActivityMethod = methods.Any(WorkflowDetection.IsActivityMethod);
+
+        // TMP3214 — workflow and activity methods mixed in one class.
+        if (hasWorkflowMethod && hasActivityMethod)
+        {
+            Report(context, FirstLocation(type), type.Name, DiagnosticDescriptors.MixedWorkflowAndActivity);
+        }
+
+        // TMP3219 — [Workflow] type with a parameterized constructor and no [WorkflowInit].
+        if (WorkflowDetection.IsWorkflowType(type))
+        {
+            var initCtor = methods.FirstOrDefault(m =>
+                m.MethodKind == MethodKind.Constructor && WorkflowDetection.IsWorkflowInit(m));
+
+            if (initCtor is null)
+            {
+                foreach (var ctor in methods.Where(m =>
+                             m.MethodKind == MethodKind.Constructor &&
+                             !m.IsStatic &&
+                             m.Parameters.Length > 0))
+                {
+                    Report(context, FirstLocation(ctor), type.Name, DiagnosticDescriptors.WorkflowParameterizedCtor);
+                }
+            }
+        }
+
+        // TMP3218 — [WorkflowInit] constructor and [WorkflowRun] parameter lists mismatch.
+        var init = methods.FirstOrDefault(m =>
+            m.MethodKind == MethodKind.Constructor && WorkflowDetection.IsWorkflowInit(m));
+        if (init is not null)
+        {
+            foreach (var run in methods.Where(WorkflowDetection.IsWorkflowRunMethod))
+            {
+                if (!ParameterListsMatch(init, run))
+                {
+                    Report(context, FirstLocation(run), run.Name, DiagnosticDescriptors.WorkflowInitMismatch);
+                }
+            }
+        }
+    }
+
+    private static bool ParameterListsMatch(IMethodSymbol init, IMethodSymbol run)
+    {
+        if (init.Parameters.Length != run.Parameters.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < init.Parameters.Length; i++)
+        {
+            var initType = init.Parameters[i].Type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+            var runType = run.Parameters[i].Type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+            if (initType != runType)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void AnalyzeMissingActivity(SyntaxNodeAnalysisContext context)
