@@ -11,6 +11,8 @@ internal static class TestStubs
         {
             public sealed class WorkflowAttribute : System.Attribute { }
             public sealed class WorkflowRunAttribute : System.Attribute { }
+            public sealed class WorkflowQueryAttribute : System.Attribute { }
+            public sealed class WorkflowSignalAttribute : System.Attribute { }
         }
 
         namespace Temporalio.Activities
@@ -55,6 +57,9 @@ internal static class TestStubs
                 public static bool Patched(string patchId) => false;
 
                 public static void DeprecatePatch(string patchId) { }
+
+                public static System.Threading.Tasks.Task DelayAsync(int millisecondsDelay)
+                    => System.Threading.Tasks.Task.CompletedTask;
 
                 public static void UpsertTypedSearchAttributes(params SearchAttributeKey[] updates) { }
 

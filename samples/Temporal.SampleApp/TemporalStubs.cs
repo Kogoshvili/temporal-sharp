@@ -10,6 +10,12 @@ namespace Temporalio.Workflows
     [System.AttributeUsage(System.AttributeTargets.Method)]
     public sealed class WorkflowRunAttribute : System.Attribute { }
 
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    public sealed class WorkflowQueryAttribute : System.Attribute { }
+
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    public sealed class WorkflowSignalAttribute : System.Attribute { }
+
     public sealed class ActivityOptions
     {
         public System.TimeSpan? StartToCloseTimeout { get; set; }

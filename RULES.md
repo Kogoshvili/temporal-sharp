@@ -14,6 +14,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP0101 | Error | Wall-clock time: `DateTime.Now` / `DateTime.UtcNow` / `DateTime.Today` / `DateTimeOffset.Now` / `DateTimeOffset.UtcNow` / `TimeZoneInfo.Local` / `Environment.TickCount` / `Environment.TickCount64` | `Workflow.UtcNow` |
 | TMP0102 | Error | `Stopwatch` usage | `Workflow.UtcNow` |
 | TMP0111 | Error | Block: `Thread.Sleep` / `Task.Delay` / `Task.Wait` / `Task.WaitAll` / `Task.WaitAny` / `.Result` / `.GetAwaiter().GetResult()` (incl. `ValueTask` variants) | `await` (or `Workflow.DelayAsync` for delays) |
+| TMP0112 | Error | Un-awaited `Task`/`ValueTask` (fire-and-forget) call in workflow code | `await`, or `_ =` discard |
 | TMP0113 | Error | `ConfigureAwait(false)` in workflow code (leaves the workflow context) | omit, or `ConfigureAwait(true)` |
 | TMP0121 | Error | Randomness/identity: `Random.Shared` / `new Random()` / `Guid.NewGuid()` | `Workflow.Random` / `Workflow.NewGuid()` |
 | TMP0131 | Error | I/O & env: `Environment.GetEnvironmentVariable` / `File.*` / `Directory.*` / `Console.*` / `HttpClient` / sockets / `Process.Start` | pass via activity |
@@ -64,6 +65,10 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP3201 | Error | SDK-contract sanity: `[WorkflowRun]` not `public` / not `Task`-returning / multiple `[WorkflowRun]` / `[WorkflowRun]` without `[Workflow]` |
 | TMP3202 | Error | SDK-contract sanity: `[Activity]` on a non-method / missing `[Activity]` where expected |
 | TMP3203 | Warning | SDK-contract sanity: `[Activity]` method writes to a mutable instance field/property (races across concurrent executions) |
+| TMP3204 | Error | SDK-contract sanity: `[WorkflowQuery]` method is `async` or returns `void`/`Task`/`Task<T>` (queries must be synchronous and return a value) |
+| TMP3205 | Error | SDK-contract sanity: `[WorkflowSignal]` method returns `Task<T>` or a value (must return `void` or `Task`) |
+| TMP3206 | Error | SDK-contract sanity: `[WorkflowQuery]` method writes to an instance field/property (queries must be read-only) |
+| TMP3207 | Error | SDK-contract sanity: Workflow command API (`DelayAsync` / `WaitConditionAsync` / `ExecuteActivityAsync` / …) called inside a `[WorkflowQuery]` |
 | TMP3301 | Error | Versioning: patch id both `Patched` and `DeprecatePatch`'d in the same workflow (leftover) |
 | TMP3302 | Warning | Versioning: `Patched` / `DeprecatePatch` id is not a constant string |
 

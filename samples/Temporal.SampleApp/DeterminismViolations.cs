@@ -34,6 +34,9 @@ public class DeterminismViolations
         // TMP0113 — ConfigureAwait(false) leaves the workflow context
         _ = System.Threading.Tasks.Task.CompletedTask.ConfigureAwait(false);
 
+        // TMP0112 — un-awaited (floating) task
+        DoWorkAsync();
+
         // TMP0141 — concurrency (no Workflow.* replacement)
         _ = System.Threading.ThreadPool.QueueUserWorkItem(_ => { });
 
@@ -68,4 +71,8 @@ public class DeterminismViolations
         _ = DateTimeOffset.Parse("2026-01-01");
         _ = string.Format("value={0}", 1);
     }
+
+    // Helper returning a Task so the TMP0112 floating-task example above has a
+    // task-returning method to discard.
+    private static Task DoWorkAsync() => Task.CompletedTask;
 }

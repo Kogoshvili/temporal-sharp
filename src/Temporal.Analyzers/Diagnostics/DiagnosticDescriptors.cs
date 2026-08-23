@@ -38,6 +38,14 @@ internal static class DiagnosticDescriptors
         "ConfigureAwait(false) abandons the workflow's synchronization context, so continuations run on the default task scheduler rather than the deterministic workflow scheduler. Omit the call or pass true.",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor FloatingTask = Create(
+        "TMP0112",
+        DeterminismCategory,
+        "Workflow code discards an un-awaited task",
+        "'{0}' returns a task that is neither awaited nor assigned; await it or discard it explicitly with '_ ='",
+        "Fire-and-forget task calls in workflow code are not tracked by the deterministic scheduler, so their completion is not journaled and replays diverge. Await the task, assign it, or discard it explicitly.",
+        severity: DiagnosticSeverity.Error);
+
     internal static readonly DiagnosticDescriptor NonDeterministicRandomness = Create(
         "TMP0121",
         DeterminismCategory,
@@ -302,6 +310,38 @@ internal static class DiagnosticDescriptors
         "Activity method '{0}' writes to instance member '{1}'; mutable instance state races across concurrent executions",
         "Activities are not required to be stateless — DI-injected readonly fields are idiomatic. But writing to mutable instance fields or properties from an activity method races when a worker shares a single activity instance across concurrent executions.",
         severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor InvalidQuery = Create(
+        "TMP3204",
+        SdkMisuseCategory,
+        "Invalid workflow query method",
+        "Invalid [WorkflowQuery] method: {0}",
+        "A query handler must be synchronous and return a value: it must not be async and must not return void, Task, or Task<T>.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor InvalidSignal = Create(
+        "TMP3205",
+        SdkMisuseCategory,
+        "Invalid workflow signal method",
+        "Invalid [WorkflowSignal] method: {0}",
+        "A signal handler must return void or Task; returning Task<T> or a value is not allowed.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor QueryMutation = Create(
+        "TMP3206",
+        SdkMisuseCategory,
+        "Workflow query mutates workflow state",
+        "Query method '{0}' writes to instance member '{1}'; queries must be read-only",
+        "Query handlers must not mutate workflow state; writing to instance fields or properties makes query results non-deterministic.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor WorkflowApiInQuery = Create(
+        "TMP3207",
+        SdkMisuseCategory,
+        "Workflow API called inside a query",
+        "'{0}' is called inside a [WorkflowQuery]; queries must be synchronous and read-only",
+        "Query handlers run synchronously and must not schedule workflow commands or mutate state; avoid calling Workflow APIs such as DelayAsync, WaitConditionAsync, or ExecuteActivityAsync from a query.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor PatchLeftover = Create(
         "TMP3301",

@@ -72,8 +72,11 @@ kogoshvili.temporal.search_attributes = user_id=user_id, client_id=user_id
 
 ## Roadmap
 
-- [ ] **Code fixes**: `CodeFixProvider`s for high-value rules (e.g.
-      `DateTime.Now` → `Workflow.UtcNow`, `Guid.NewGuid()` → `Workflow.NewGuid()`).
+- [x] **Code fixes**: `CodeFixProvider`s that rewrite blocking task waits
+      (`.Result` / `.Wait()` / `.GetAwaiter().GetResult()`) and un-awaited
+      tasks into `await`.
+- [ ] **Code fixes**: more replacements (`DateTime.Now` → `Workflow.UtcNow`,
+      `Guid.NewGuid()` → `Workflow.NewGuid()`, `Task.Delay` → `Workflow.DelayAsync`).
 
 ## Alternatives
 

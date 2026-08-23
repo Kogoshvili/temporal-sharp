@@ -20,6 +20,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.WallClockTime,
             DiagnosticDescriptors.BlockOrSleep,
             DiagnosticDescriptors.ConfigureAwaitFalse,
+            DiagnosticDescriptors.FloatingTask,
             DiagnosticDescriptors.NonDeterministicRandomness,
             DiagnosticDescriptors.StopwatchUsage,
             DiagnosticDescriptors.IoOrEnvironmentAccess,
@@ -130,12 +131,24 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!DenyList.TryGetMember(SymbolKeys.Member(symbol), out var descriptor))
+        if (DenyList.TryGetMember(SymbolKeys.Member(symbol), out var descriptor))
         {
+            ReportIfReachable(context, state, node, symbol, descriptor);
             return;
         }
 
-        ReportIfReachable(context, state, node, symbol, descriptor);
+        // TMP0112 — an un-awaited (floating) task-returning call, reported only for
+        // calls that are not already handled by a deny-list rule above.
+        if (node.Parent is ExpressionStatementSyntax && IsTaskLike(symbol.ReturnType))
+        {
+            ReportIfReachable(context, state, node, symbol, DiagnosticDescriptors.FloatingTask);
+        }
+    }
+
+    private static bool IsTaskLike(ITypeSymbol type)
+    {
+        var name = TypeNames.FullName(type);
+        return name is "System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask";
     }
 
     private static bool IsConfigureAwaitFalse(InvocationExpressionSyntax node, IMethodSymbol symbol)

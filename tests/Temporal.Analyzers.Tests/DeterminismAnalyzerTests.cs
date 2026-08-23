@@ -1118,4 +1118,144 @@ public class DeterminismAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task FloatingTask_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0112:DoWorkAsync()|};
+                }
+
+                public static System.Threading.Tasks.Task DoWorkAsync() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task FloatingValueTask_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0112:DoWorkAsync()|};
+                }
+
+                public static System.Threading.Tasks.ValueTask DoWorkAsync() => default;
+            }
+            """);
+
+    [Fact]
+    public Task FloatingTaskOfT_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0112:GetValueAsync()|};
+                }
+
+                public static System.Threading.Tasks.Task<int> GetValueAsync() => System.Threading.Tasks.Task.FromResult(1);
+            }
+            """);
+
+    [Fact]
+    public Task FloatingTaskDiscarded_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    _ = DoWorkAsync();
+                }
+
+                public static System.Threading.Tasks.Task DoWorkAsync() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task FloatingTaskAssignedToVariable_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var task = DoWorkAsync();
+                }
+
+                public static System.Threading.Tasks.Task DoWorkAsync() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task FloatingTaskAwaited_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await DoWorkAsync();
+                }
+
+                public static System.Threading.Tasks.Task DoWorkAsync() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task FloatingVoidCall_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    DoNothing();
+                }
+
+                public static void DoNothing() { }
+            }
+            """);
+
+    [Fact]
+    public Task FloatingTaskInActivity_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    Activities.DoWork();
+                }
+            }
+
+            public static class Activities
+            {
+                [Temporalio.Activities.Activity]
+                public static void DoWork()
+                {
+                    Helper.Go();
+                }
+            }
+
+            public static class Helper
+            {
+                public static System.Threading.Tasks.Task Go() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
 }

@@ -8,6 +8,11 @@ Rule ID | Category | Severity | Notes
 TMP0113 | Determinism | Error | ConfigureAwait(false) in workflow code
 TMP0146 | Determinism | Error | Task.Run / TaskFactory.StartNew in workflow code (use Workflow.RunTaskAsync)
 TMP0147 | Determinism | Error | Mutex / Semaphore / SemaphoreSlim in workflow code (use Temporalio.Workflows.*)
+TMP0112 | Determinism | Error | Un-awaited (floating) Task/ValueTask in workflow code
+TMP3204 | SdkMisuse | Error | [WorkflowQuery] must not be async or return void/Task/Task<T>
+TMP3205 | SdkMisuse | Error | [WorkflowSignal] must return void or Task
+TMP3206 | SdkMisuse | Error | [WorkflowQuery] mutates workflow state
+TMP3207 | SdkMisuse | Error | Workflow command API called inside a [WorkflowQuery]
 
 ### Removed Rules
 
