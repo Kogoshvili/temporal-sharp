@@ -31,11 +31,22 @@ public class DeterminismViolations
         // TMP0131 — I/O and environment access
         _ = Environment.GetEnvironmentVariable("HOME");
 
-        // TMP0141 — concurrency
+        // TMP0113 — ConfigureAwait(false) leaves the workflow context
+        _ = System.Threading.Tasks.Task.CompletedTask.ConfigureAwait(false);
+
+        // TMP0141 — concurrency (no Workflow.* replacement)
+        _ = System.Threading.ThreadPool.QueueUserWorkItem(_ => { });
+
+        // TMP0146 — task scheduling on the default scheduler
         _ = System.Threading.Tasks.Task.Run(() => { });
+        _ = System.Threading.Tasks.Task.Factory.StartNew(() => { });
 
         // TMP0142 — blocking synchronization primitive
         lock (this) { }
+
+        // TMP0147 — blocking primitive with a deterministic replacement
+        var semaphore = new System.Threading.SemaphoreSlim(1);
+        semaphore.Wait();
 
         // TMP0143 — raw task scheduling
         var task = System.Threading.Tasks.Task.CompletedTask;

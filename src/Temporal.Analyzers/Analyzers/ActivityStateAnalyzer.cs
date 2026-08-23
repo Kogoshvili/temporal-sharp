@@ -135,7 +135,12 @@ public sealed class ActivityStateAnalyzer : DiagnosticAnalyzer
     private static bool TryResolveInstanceMember(ISymbol? symbol, out ISymbol member)
     {
         member = symbol!;
-        return symbol is IFieldSymbol { IsStatic: false } or
-               IPropertySymbol { IsStatic: false, SetMethod: not null };
+        return symbol switch
+        {
+            IFieldSymbol { IsStatic: false, IsReadOnly: false } => true,
+            IPropertySymbol { IsStatic: false, SetMethod: not null } property
+                when !property.IsReadOnly && !property.SetMethod!.IsInitOnly => true,
+            _ => false,
+        };
     }
 }

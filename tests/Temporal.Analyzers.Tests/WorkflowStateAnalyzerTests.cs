@@ -230,4 +230,20 @@ public class WorkflowStateAnalyzerTests
                 public int Get(string key) => 0;
             }
             """);
+
+    [Fact]
+    public Task StaticReadonlyRegexMethodCall_InWorkflow_DoesNotReport()
+        => Verify(TestStubs.Attributes + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private static readonly System.Text.RegularExpressions.Regex pattern = new("a");
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var s = pattern.Replace("abc", "x");
+                }
+            }
+            """);
 }

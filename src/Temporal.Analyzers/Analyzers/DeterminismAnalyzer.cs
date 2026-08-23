@@ -19,11 +19,14 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
         ImmutableArray.Create(
             DiagnosticDescriptors.WallClockTime,
             DiagnosticDescriptors.BlockOrSleep,
+            DiagnosticDescriptors.ConfigureAwaitFalse,
             DiagnosticDescriptors.NonDeterministicRandomness,
             DiagnosticDescriptors.StopwatchUsage,
             DiagnosticDescriptors.IoOrEnvironmentAccess,
             DiagnosticDescriptors.ConcurrentExecution,
+            DiagnosticDescriptors.ConcurrentTaskRun,
             DiagnosticDescriptors.BlockingPrimitive,
+            DiagnosticDescriptors.BlockingSyncReplacement,
             DiagnosticDescriptors.TaskScheduling,
             DiagnosticDescriptors.ManualTaskCoordination,
             DiagnosticDescriptors.ReflectionInvocation,
@@ -113,12 +116,74 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // TMP0113 — ConfigureAwait(false) leaves the workflow synchronization context.
+        if (IsConfigureAwaitFalse(node, symbol))
+        {
+            ReportIfReachable(context, state, node, symbol, DiagnosticDescriptors.ConfigureAwaitFalse);
+            return;
+        }
+
+        // TMP0147 — Mutex / Semaphore / SemaphoreSlim have deterministic replacements.
+        if (TryGetBlockingSyncReplacementDescriptor(node, symbol, context.SemanticModel) is { } replacement)
+        {
+            ReportIfReachable(context, state, node, symbol, replacement);
+            return;
+        }
+
         if (!DenyList.TryGetMember(SymbolKeys.Member(symbol), out var descriptor))
         {
             return;
         }
 
         ReportIfReachable(context, state, node, symbol, descriptor);
+    }
+
+    private static bool IsConfigureAwaitFalse(InvocationExpressionSyntax node, IMethodSymbol symbol)
+    {
+        if (symbol.Name != "ConfigureAwait")
+        {
+            return false;
+        }
+
+        var typeName = TypeNames.FullName(symbol.ContainingType);
+        if (typeName is not ("System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask"))
+        {
+            return false;
+        }
+
+        var argument = node.ArgumentList?.Arguments.FirstOrDefault();
+        return argument?.Expression is LiteralExpressionSyntax literal &&
+               literal.IsKind(SyntaxKind.FalseLiteralExpression);
+    }
+
+    private static DiagnosticDescriptor? TryGetBlockingSyncReplacementDescriptor(
+        InvocationExpressionSyntax node,
+        IMethodSymbol symbol,
+        SemanticModel model)
+    {
+        if (symbol.Name is not ("WaitOne" or "Wait" or "WaitAsync"))
+        {
+            return null;
+        }
+
+        if (node.Expression is not MemberAccessExpressionSyntax memberAccess)
+        {
+            return null;
+        }
+
+        var receiverType = model.GetTypeInfo(memberAccess.Expression).Type;
+        if (receiverType is null)
+        {
+            return null;
+        }
+
+        return TypeNames.FullName(receiverType) switch
+        {
+            "System.Threading.Mutex" or
+            "System.Threading.Semaphore" or
+            "System.Threading.SemaphoreSlim" => DiagnosticDescriptors.BlockingSyncReplacement,
+            _ => null,
+        };
     }
 
     private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)

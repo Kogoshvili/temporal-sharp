@@ -49,11 +49,10 @@ var now = DateTime.Now;
 #pragma warning restore TMP0101
 ```
 
-Opt-in rules (`TMP2102`, `TMP2103`, `TMP2111`, `TMP2151`, `TMP2161`, `TMP2171`)
+Opt-in rules (`TMP2103`, `TMP2111`, `TMP2151`, `TMP2161`, `TMP2171`)
 are enabled via `.editorconfig`:
 
 ```ini
-dotnet_diagnostic.TMP2102.severity = warning
 dotnet_diagnostic.TMP2103.severity = warning
 dotnet_diagnostic.TMP2111.severity = warning
 dotnet_diagnostic.TMP2151.severity = warning

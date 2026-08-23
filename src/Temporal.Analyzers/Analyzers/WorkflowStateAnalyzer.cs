@@ -62,6 +62,23 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
         "Register", "Unregister", "Subscribe", "Unsubscribe", "Append", "Extend",
         "Increment", "Decrement");
 
+    // Immutable BCL reference types whose instance methods return new instances
+    // rather than mutating in place; a mutating-verb call on one of these is a
+    // false positive.
+    private static readonly ImmutableHashSet<string> ImmutableBclReferenceTypes = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "System.Text.RegularExpressions.Regex",
+        "System.Text.Json.JsonSerializerOptions",
+        "System.Text.Json.JsonDocument",
+        "System.Globalization.CultureInfo",
+        "System.Collections.Immutable.ImmutableList",
+        "System.Collections.Immutable.ImmutableDictionary",
+        "System.Collections.Immutable.ImmutableHashSet",
+        "System.Collections.Immutable.ImmutableSortedDictionary",
+        "System.Collections.Immutable.ImmutableSortedSet",
+        "System.Collections.Immutable.ImmutableStack",
+        "System.Collections.Immutable.ImmutableQueue");
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.StaticStateMutation,
@@ -211,7 +228,8 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
     private static bool IsMutableReference(ITypeSymbol type) =>
         type.IsReferenceType &&
         type.SpecialType != SpecialType.System_String &&
-        !IsCollection(type);
+        !IsCollection(type) &&
+        !ImmutableBclReferenceTypes.Contains(TypeNames.FullName(type));
 
     private static bool IsSdkManagedStatic(ISymbol symbol) =>
         symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == SdkNames.WorkflowType &&

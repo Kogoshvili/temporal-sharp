@@ -2,7 +2,7 @@ using Temporalio.Workflows;
 
 namespace Kogoshvili.Temporal.SampleApp;
 
-// SDK feature-misuse (TMP21xx). Note: TMP2102, TMP2103, TMP2111, TMP2151,
+// SDK feature-misuse (TMP21xx). Note: TMP2103, TMP2111, TMP2151,
 // TMP2161, and TMP2171 are opt-in; they are enabled in this sample's
 // .editorconfig so they show up here too.
 [Workflow]
@@ -11,11 +11,8 @@ public class SdkMisuseViolations
     [WorkflowRun]
     public async Task RunAsync()
     {
-        // TMP2101 — activity options set no required timeout
+        // TMP2101 — activity options set neither required timeout
         var noTimeout = new ActivityOptions { TaskQueue = "default" };
-
-        // TMP2102 (opt-in) — ScheduleToCloseTimeout without StartToCloseTimeout
-        _ = new ActivityOptions { ScheduleToCloseTimeout = TimeSpan.FromMinutes(5) };
 
         // TMP2111 (opt-in) — string-named activity target
         await Workflow.ExecuteActivityAsync("Greet", null, noTimeout);

@@ -107,7 +107,7 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
-    public Task ConfiguredAwaitGetResult_InWorkflow_Reports()
+    public Task ConfigureAwaitFalse_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class MyWorkflow
@@ -116,7 +116,22 @@ public class DeterminismAnalyzerTests
                 public void Run()
                 {
                     var t = System.Threading.Tasks.Task.FromResult(1);
-                    {|TMP0111:t.ConfigureAwait(false).GetAwaiter().GetResult()|};
+                    {|TMP0113:t.ConfigureAwait(false)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ConfigureAwaitTrue_InWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var t = System.Threading.Tasks.Task.FromResult(1);
+                    _ = t.ConfigureAwait(true);
                 }
             }
             """);
@@ -274,7 +289,35 @@ public class DeterminismAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public void Run()
                 {
-                    {|TMP0141:System.Threading.Tasks.Task.Run(() => { })|};
+                    {|TMP0146:System.Threading.Tasks.Task.Run(() => { })|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskFactoryStartNew_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0146:System.Threading.Tasks.Task.Factory.StartNew(() => { })|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ThreadPoolQueueUserWorkItem_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0141:System.Threading.ThreadPool.QueueUserWorkItem(_ => { })|};
                 }
             }
             """);
@@ -402,7 +445,7 @@ public class DeterminismAnalyzerTests
                 public void Run()
                 {
                     var sem = new System.Threading.SemaphoreSlim(1);
-                    {|TMP0142:sem.Wait()|};
+                    {|TMP0147:sem.Wait()|};
                 }
             }
             """);
@@ -417,7 +460,37 @@ public class DeterminismAnalyzerTests
                 public void Run()
                 {
                     var sem = new System.Threading.Semaphore(1, 1);
-                    {|TMP0142:sem.WaitOne()|};
+                    {|TMP0147:sem.WaitOne()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task MutexWaitOne_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var mutex = new System.Threading.Mutex();
+                    {|TMP0147:mutex.WaitOne()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task AutoResetEventWaitOne_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var evt = new System.Threading.AutoResetEvent(false);
+                    {|TMP0142:evt.WaitOne()|};
                 }
             }
             """);

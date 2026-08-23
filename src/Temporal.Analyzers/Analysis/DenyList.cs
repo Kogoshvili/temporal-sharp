@@ -145,11 +145,9 @@ internal static class DenyList
             entries.Add((name, DiagnosticDescriptors.IoOrEnvironmentAccess));
         }
 
-        // TMP0141 — concurrency
+        // TMP0141 — concurrency (no Workflow.* replacement; move to an activity)
         foreach (var name in new[]
         {
-            "System.Threading.Tasks.Task.Run",
-            "System.Threading.Tasks.TaskFactory.StartNew",
             "System.Threading.ThreadPool.QueueUserWorkItem",
             "System.Threading.Tasks.Parallel.For",
             "System.Threading.Tasks.Parallel.ForEach",
@@ -161,11 +159,19 @@ internal static class DenyList
             entries.Add((name, DiagnosticDescriptors.ConcurrentExecution));
         }
 
-        // TMP0142 — blocking synchronization primitives
+        // TMP0146 — task scheduling on the default scheduler (Workflow.RunTaskAsync)
         foreach (var name in new[]
         {
-            "System.Threading.SemaphoreSlim.Wait",
-            "System.Threading.SemaphoreSlim.WaitAsync",
+            "System.Threading.Tasks.Task.Run",
+            "System.Threading.Tasks.TaskFactory.StartNew",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.ConcurrentTaskRun));
+        }
+
+        // TMP0142 — blocking synchronization primitives (no Workflow.* replacement)
+        foreach (var name in new[]
+        {
             "System.Threading.ManualResetEventSlim.Wait",
             "System.Threading.Monitor.Enter",
             "System.Threading.Monitor.TryEnter",
@@ -173,7 +179,6 @@ internal static class DenyList
             "System.Threading.Monitor.Wait",
             "System.Threading.Monitor.Pulse",
             "System.Threading.Monitor.PulseAll",
-            "System.Threading.Mutex.WaitOne",
             "System.Threading.AutoResetEvent.WaitOne",
             // WaitHandle.WaitOne/WaitAny/WaitAll are the base declarations; on modern
             // .NET the subclasses (Semaphore, Mutex, EventWaitHandle,
@@ -182,7 +187,6 @@ internal static class DenyList
             "System.Threading.WaitHandle.WaitOne",
             "System.Threading.WaitHandle.WaitAny",
             "System.Threading.WaitHandle.WaitAll",
-            "System.Threading.Semaphore.WaitOne",
             "System.Threading.EventWaitHandle.WaitOne",
             "System.Threading.ReaderWriterLock.AcquireReaderLock",
             "System.Threading.ReaderWriterLock.AcquireWriterLock",

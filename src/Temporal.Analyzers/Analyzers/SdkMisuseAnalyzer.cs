@@ -48,7 +48,6 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.StringTarget,
             DiagnosticDescriptors.ContinueAsNewNotThrown,
             DiagnosticDescriptors.NonReplayAwareLogger,
-            DiagnosticDescriptors.MissingStartToCloseTimeout,
             DiagnosticDescriptors.WaitConditionWithoutTimeout,
             DiagnosticDescriptors.WaitConditionTimeoutIgnored,
             DiagnosticDescriptors.NonSerializableType,
@@ -111,16 +110,10 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        // TMP2101 — no required timeout at all.
+        // TMP2101 — neither required timeout set.
         if (!hasStartToClose && !hasScheduleToClose)
         {
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ActivityMissingTimeout, creation.GetLocation()));
-        }
-
-        // TMP2102 (opt-in) — ScheduleToCloseTimeout without StartToCloseTimeout.
-        if (hasScheduleToClose && !hasStartToClose)
-        {
-            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.MissingStartToCloseTimeout, creation.GetLocation()));
         }
     }
 

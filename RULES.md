@@ -13,11 +13,14 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 |---|---|---|---|
 | TMP0101 | Error | Wall-clock time: `DateTime.Now` / `DateTime.UtcNow` / `DateTime.Today` / `DateTimeOffset.Now` / `DateTimeOffset.UtcNow` / `TimeZoneInfo.Local` / `Environment.TickCount` / `Environment.TickCount64` | `Workflow.UtcNow` |
 | TMP0102 | Error | `Stopwatch` usage | `Workflow.UtcNow` |
-| TMP0111 | Error | Sleep/block: `Thread.Sleep` / `Task.Delay` / `Task.Wait` / `Task.WaitAll` / `Task.WaitAny` / `.Result` / `.GetAwaiter().GetResult()` (incl. `ValueTask` and `ConfigureAwait` variants) | `Workflow.DelayAsync` |
+| TMP0111 | Error | Block: `Thread.Sleep` / `Task.Delay` / `Task.Wait` / `Task.WaitAll` / `Task.WaitAny` / `.Result` / `.GetAwaiter().GetResult()` (incl. `ValueTask` variants) | `await` (or `Workflow.DelayAsync` for delays) |
+| TMP0113 | Error | `ConfigureAwait(false)` in workflow code (leaves the workflow context) | omit, or `ConfigureAwait(true)` |
 | TMP0121 | Error | Randomness/identity: `Random.Shared` / `new Random()` / `Guid.NewGuid()` | `Workflow.Random` / `Workflow.NewGuid()` |
 | TMP0131 | Error | I/O & env: `Environment.GetEnvironmentVariable` / `File.*` / `Directory.*` / `Console.*` / `HttpClient` / sockets / `Process.Start` | pass via activity |
-| TMP0141 | Error | Concurrency: `Task.Run` / `TaskFactory.StartNew` / `Thread.Start` / `new Thread(...)` / `ThreadPool.QueueUserWorkItem` / `Parallel.*` / `BackgroundWorker` | `Workflow.ExecuteActivityAsync` / `Workflow.DelayAsync` |
-| TMP0142 | Error | Sync/blocking primitives: `Channel<T>` (`ReadAsync`/`WriteAsync`) / `BlockingCollection<T>` / `SemaphoreSlim` / `Semaphore` / `WaitHandle.WaitOne`/`WaitAny`/`WaitAll` / `ManualResetEventSlim` / `ManualResetEvent` / `EventWaitHandle` / `Monitor` / `lock` / `Mutex` / `AutoResetEvent` / `ReaderWriterLockSlim` / `ReaderWriterLock` / `SpinWait` / `CountdownEvent` / `Barrier` | await async equivalents / activity |
+| TMP0141 | Error | Concurrency: `Thread.Start` / `new Thread(...)` / `ThreadPool.QueueUserWorkItem` / `Parallel.*` / `BackgroundWorker` | move into an activity |
+| TMP0146 | Error | `Task.Run` / `TaskFactory.StartNew` (default task scheduler) | `Workflow.RunTaskAsync` |
+| TMP0142 | Error | Sync/blocking primitives: `Channel<T>` (`ReadAsync`/`WriteAsync`) / `BlockingCollection<T>` / `WaitHandle.WaitOne`/`WaitAny`/`WaitAll` / `ManualResetEventSlim` / `ManualResetEvent` / `EventWaitHandle` / `Monitor` / `lock` / `AutoResetEvent` / `ReaderWriterLockSlim` / `ReaderWriterLock` / `SpinWait` / `CountdownEvent` / `Barrier` | move into an activity |
+| TMP0147 | Error | `Mutex` / `Semaphore` / `SemaphoreSlim` blocking primitives | `Temporalio.Workflows.Mutex` / `Temporalio.Workflows.Semaphore` |
 | TMP0143 | Warning | Raw task scheduling: `Task.WhenAll` / `Task.WhenAny` / `Task.ContinueWith` / `TaskFactory.ContinueWhenAll` / `ContinueWhenAny` / `CancellationTokenSource.CancelAsync()` | `Workflow.WhenAllAsync` / `Workflow.WhenAnyAsync` / `.Cancel()` |
 | TMP0144 | Error | Raw task coordination: `new TaskCompletionSource<T>()` (task not owned by the deterministic scheduler) | `Workflow.WaitConditionAsync` on a field |
 | TMP0145 | Error | Reflection / dynamic invocation: `Activator.CreateInstance` / `Assembly.Load*` / `Assembly.GetTypes` / `Type.GetType` / `MethodInfo.Invoke` / `Delegate.DynamicInvoke` | move into an activity |
@@ -32,15 +35,14 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP1102 | Error | `static` field writes when field is `[ThreadStatic]` |
 | TMP1103 | Error | `static` property setters from workflow code |
 | TMP1104 | Error | Mutation of static collections (`Add`/`Remove`/`Clear`/`TryAdd`…) |
-| TMP1105 | Error | Mutation of shared static reference state via a mutating method call (`Set`/`Create`/`Update`/`Write`/`Dispose`…) |
+| TMP1105 | Error | Mutation of shared static reference state via a mutating method call (`Set`/`Create`/`Update`/`Write`/`Dispose`…); immutable BCL statics (`Regex`, `JsonSerializerOptions`, …) are excluded |
 | TMP1106 | Error | Ambient `AsyncLocal<T>` / `ThreadLocal<T>` declarations and `.Value` access from workflow code |
 
 ## SDK feature-misuse
 
 | ID | Default | Rule |
 |---|---|---|
-| TMP2101 | Error | `ActivityOptions`/`LocalActivityOptions` initializer missing `StartToCloseTimeout` **and** `ScheduleToCloseTimeout` (both `TimeSpan?`) |
-| TMP2102 | off | `ScheduleToCloseTimeout` set but no `StartToCloseTimeout` |
+| TMP2101 | Error | `ActivityOptions`/`LocalActivityOptions` initializer missing both `StartToCloseTimeout` and `ScheduleToCloseTimeout` (at least one is required) |
 | TMP2103 | off | `Workflow.WaitConditionAsync` called without a timeout (can wait forever) |
 | TMP2104 | Warning | `Workflow.WaitConditionAsync` timeout result discarded (timeout has no effect) |
 | TMP2111 | off | String-name overloads (`ExecuteActivityAsync(string, IReadOnlyCollection<object?>, …)`, same for child/local) instead of a typed lambda |
@@ -61,7 +63,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP3104 | Warning | **Heartbeat**: activity calls `Heartbeat()` but has no loop and at most one await (heartbeat unnecessary) |
 | TMP3201 | Error | SDK-contract sanity: `[WorkflowRun]` not `public` / not `Task`-returning / multiple `[WorkflowRun]` / `[WorkflowRun]` without `[Workflow]` |
 | TMP3202 | Error | SDK-contract sanity: `[Activity]` on a non-method / missing `[Activity]` where expected |
-| TMP3203 | Error | SDK-contract sanity: `[Activity]` method writes to an instance field/property (activities must be stateless) |
+| TMP3203 | Warning | SDK-contract sanity: `[Activity]` method writes to a mutable instance field/property (races across concurrent executions) |
 | TMP3301 | Error | Versioning: patch id both `Patched` and `DeprecatePatch`'d in the same workflow (leftover) |
 | TMP3302 | Warning | Versioning: `Patched` / `DeprecatePatch` id is not a constant string |
 

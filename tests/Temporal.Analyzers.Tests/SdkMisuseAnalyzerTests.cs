@@ -170,29 +170,6 @@ public class SdkMisuseAnalyzerTests
             """);
 
     [Fact]
-    public Task ScheduleToCloseWithoutStart_Reports_WhenOptedIn()
-    {
-        var test = new CSharpAnalyzerTest<SdkMisuseAnalyzer, DefaultVerifier>
-        {
-            TestCode = Stubs + """
-                public class C
-                {
-                    public void M()
-                    {
-                        var opts = {|TMP2102:new Temporalio.Workflows.ActivityOptions { ScheduleToCloseTimeout = System.TimeSpan.FromSeconds(1) }|};
-                    }
-                }
-                """,
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
-        };
-        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", """
-            root = true
-            dotnet_diagnostic.TMP2102.severity = warning
-            """));
-        return test.RunAsync();
-    }
-
-    [Fact]
     public Task SensitiveParameter_Reports_WhenOptedIn()
     {
         var test = new CSharpAnalyzerTest<SdkMisuseAnalyzer, DefaultVerifier>

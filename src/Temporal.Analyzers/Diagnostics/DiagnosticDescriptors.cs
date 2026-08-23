@@ -11,6 +11,8 @@ internal static class DiagnosticDescriptors
     private const string DeterminismCategory = "Determinism";
     private const string WorkflowStateCategory = "WorkflowState";
     private const string SdkMisuseCategory = "SdkMisuse";
+    private const string BestPracticeCategory = "BestPractice";
+    private const string TestingCategory = "Testing";
 
     internal static readonly DiagnosticDescriptor WallClockTime = Create(
         "TMP0101",
@@ -23,9 +25,17 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor BlockOrSleep = Create(
         "TMP0111",
         DeterminismCategory,
-        "Workflow code blocks on wall-clock time",
-        "'{0}' is non-deterministic in workflow code; use Workflow.DelayAsync instead",
-        "Sleeping or blocking on wall-clock time breaks replay determinism. Use Workflow.DelayAsync.",
+        "Workflow code blocks the workflow thread",
+        "'{0}' blocks workflow code; use 'await' (or Workflow.DelayAsync for time-based waits) instead",
+        "Sleeping on wall-clock time or synchronously waiting on a task breaks replay determinism and deadlocks the single-threaded workflow runtime. Await asynchronously, and use Workflow.DelayAsync for delays.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor ConfigureAwaitFalse = Create(
+        "TMP0113",
+        DeterminismCategory,
+        "Workflow code uses ConfigureAwait(false)",
+        "'{0}' leaves the workflow synchronization context; omit ConfigureAwait or pass true",
+        "ConfigureAwait(false) abandons the workflow's synchronization context, so continuations run on the default task scheduler rather than the deterministic workflow scheduler. Omit the call or pass true.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor NonDeterministicRandomness = Create(
@@ -56,8 +66,8 @@ internal static class DiagnosticDescriptors
         "TMP2101",
         SdkMisuseCategory,
         "Activity options missing required timeout",
-        "Activity options set no required timeout; set StartToCloseTimeout or ScheduleToCloseTimeout, or the activity is rejected at run time",
-        "Temporal requires StartToCloseTimeout or ScheduleToCloseTimeout on ActivityOptions and LocalActivityOptions.",
+        "Activity options set neither StartToCloseTimeout nor ScheduleToCloseTimeout; set at least one, or the activity is rejected at run time",
+        "Temporal requires at least one of StartToCloseTimeout or ScheduleToCloseTimeout on ActivityOptions and LocalActivityOptions.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor StringTarget = Create(
@@ -87,16 +97,32 @@ internal static class DiagnosticDescriptors
         "TMP0141",
         DeterminismCategory,
         "Workflow code starts concurrent work",
-        "'{0}' starts concurrent work in workflow code; use Workflow.ExecuteActivityAsync or Workflow.DelayAsync instead",
-        "Starting threads or tasks in workflow code breaks replay determinism. Delegate concurrent work to activities.",
+        "'{0}' starts concurrent work in workflow code; move the work into an activity instead",
+        "Starting threads or parallel work in workflow code breaks replay determinism and has no Workflow.* replacement. Delegate the work to an activity.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor ConcurrentTaskRun = Create(
+        "TMP0146",
+        DeterminismCategory,
+        "Workflow code starts work on the default task scheduler",
+        "'{0}' uses the default task scheduler in workflow code; use Workflow.RunTaskAsync instead",
+        "Task.Run and TaskFactory.StartNew schedule work on the default task scheduler rather than the deterministic workflow scheduler. Use Workflow.RunTaskAsync.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor BlockingPrimitive = Create(
         "TMP0142",
         DeterminismCategory,
         "Workflow code uses a blocking synchronization primitive",
-        "'{0}' blocks workflow code; use an async alternative instead",
+        "'{0}' blocks workflow code; move the synchronization into an activity instead",
         "Blocking on locks, channels, or other synchronization primitives can deadlock the single-threaded workflow runtime and break determinism.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor BlockingSyncReplacement = Create(
+        "TMP0147",
+        DeterminismCategory,
+        "Workflow code uses a blocking synchronization primitive with a deterministic replacement",
+        "'{0}' blocks workflow code; use Temporalio.Workflows.Mutex or Temporalio.Workflows.Semaphore instead",
+        "System.Threading.Mutex, Semaphore, and SemaphoreSlim block the single-threaded workflow runtime. Use the SDK's Temporalio.Workflows.Mutex / Temporalio.Workflows.Semaphore, which integrate with the deterministic scheduler.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor TaskScheduling = Create(
@@ -152,14 +178,6 @@ internal static class DiagnosticDescriptors
         "Static property '{0}' is set from workflow code",
         "Mutating static state from workflow code breaks replay determinism and races across executions.",
         severity: DiagnosticSeverity.Error);
-
-    internal static readonly DiagnosticDescriptor MissingStartToCloseTimeout = Create(
-        "TMP2102",
-        SdkMisuseCategory,
-        "ScheduleToCloseTimeout set without StartToCloseTimeout",
-        "ScheduleToCloseTimeout is set but StartToCloseTimeout is not",
-        "When both are relevant, StartToCloseTimeout should be set so the activity cannot run for longer than expected.",
-        isEnabledByDefault: false);
 
     internal static readonly DiagnosticDescriptor WaitConditionWithoutTimeout = Create(
         "TMP2103",
@@ -281,9 +299,9 @@ internal static class DiagnosticDescriptors
         "TMP3203",
         SdkMisuseCategory,
         "Activity method mutates instance state",
-        "Activity method '{0}' writes to instance member '{1}'; activities must be stateless",
-        "Activities must be stateless. Mutable instance fields and properties race across concurrent executions when the worker shares a single activity instance (or never accumulate when the worker re-instantiates per call).",
-        severity: DiagnosticSeverity.Error);
+        "Activity method '{0}' writes to instance member '{1}'; mutable instance state races across concurrent executions",
+        "Activities are not required to be stateless — DI-injected readonly fields are idiomatic. But writing to mutable instance fields or properties from an activity method races when a worker shares a single activity instance across concurrent executions.",
+        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor PatchLeftover = Create(
         "TMP3301",
