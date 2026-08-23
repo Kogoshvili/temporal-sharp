@@ -13,7 +13,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 |---|---|---|---|
 | TMP0101 | Error | Wall-clock time: `DateTime.Now` / `DateTime.UtcNow` / `DateTime.Today` / `DateTimeOffset.Now` / `DateTimeOffset.UtcNow` / `TimeZoneInfo.Local` / `Environment.TickCount` / `Environment.TickCount64` | `Workflow.UtcNow` |
 | TMP0102 | Error | `Stopwatch` usage | `Workflow.UtcNow` |
-| TMP0111 | Error | Sleep/block: `Thread.Sleep` / `Task.Delay` / `Task.DelayAsync` / `Task.Wait` / `.Result` / `.GetAwaiter().GetResult()` | `Workflow.DelayAsync` |
+| TMP0111 | Error | Sleep/block: `Thread.Sleep` / `Task.Delay` / `Task.Wait` / `Task.WaitAll` / `Task.WaitAny` / `.Result` / `.GetAwaiter().GetResult()` (incl. `ValueTask` and `ConfigureAwait` variants) | `Workflow.DelayAsync` |
 | TMP0121 | Error | Randomness/identity: `Random.Shared` / `new Random()` / `Guid.NewGuid()` | `Workflow.Random` / `Workflow.NewGuid()` |
 | TMP0131 | Error | I/O & env: `Environment.GetEnvironmentVariable` / `File.*` / `Directory.*` / `Console.*` / `HttpClient` / sockets / `Process.Start` | pass via activity |
 | TMP0141 | Error | Concurrency: `Task.Run` / `TaskFactory.StartNew` / `Thread.Start` / `new Thread(...)` / `ThreadPool.QueueUserWorkItem` / `Parallel.*` / `BackgroundWorker` | `Workflow.ExecuteActivityAsync` / `Workflow.DelayAsync` |

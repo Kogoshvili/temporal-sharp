@@ -74,6 +74,17 @@ internal static class DenyList
             "System.Threading.Tasks.Task.Wait",
             "System.Threading.Tasks.Task.WaitAll",
             "System.Threading.Tasks.Task.WaitAny",
+            // Synchronous waits on task results / awaiters.
+            "System.Threading.Tasks.Task<TResult>.Result",
+            "System.Threading.Tasks.ValueTask<TResult>.Result",
+            "System.Runtime.CompilerServices.TaskAwaiter.GetResult",
+            "System.Runtime.CompilerServices.TaskAwaiter<TResult>.GetResult",
+            "System.Runtime.CompilerServices.ValueTaskAwaiter.GetResult",
+            "System.Runtime.CompilerServices.ValueTaskAwaiter<TResult>.GetResult",
+            "System.Runtime.CompilerServices.ConfiguredTaskAwaitable.ConfiguredTaskAwaiter.GetResult",
+            "System.Runtime.CompilerServices.ConfiguredTaskAwaitable<TResult>.ConfiguredTaskAwaiter.GetResult",
+            "System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable.ConfiguredValueTaskAwaiter.GetResult",
+            "System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable<TResult>.ConfiguredValueTaskAwaiter.GetResult",
         })
         {
             entries.Add((name, DiagnosticDescriptors.BlockOrSleep));

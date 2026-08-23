@@ -47,6 +47,96 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task TaskResult_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var t = System.Threading.Tasks.Task.FromResult(1);
+                    var v = {|TMP0111:t.Result|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskGetAwaiterGetResult_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var t = System.Threading.Tasks.Task.FromResult(1);
+                    {|TMP0111:t.GetAwaiter().GetResult()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ValueTaskResult_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var vt = new System.Threading.Tasks.ValueTask<int>(1);
+                    var v = {|TMP0111:vt.Result|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ValueTaskGetAwaiterGetResult_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var vt = new System.Threading.Tasks.ValueTask<int>(1);
+                    {|TMP0111:vt.GetAwaiter().GetResult()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ConfiguredAwaitGetResult_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var t = System.Threading.Tasks.Task.FromResult(1);
+                    {|TMP0111:t.ConfigureAwait(false).GetAwaiter().GetResult()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task AwaitedTaskResult_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var t = System.Threading.Tasks.Task.FromResult(1);
+                    var v = await t;
+                }
+            }
+            """);
+
+    [Fact]
     public Task GuidNewGuid_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
@@ -258,7 +348,7 @@ public class DeterminismAnalyzerTests
                 public void Run()
                 {
                     var t = System.Threading.Tasks.Task.FromResult("x");
-                    {|TMP0143:t.ContinueWith(x => x.Result)|};
+                    {|TMP0143:t.ContinueWith(x => "done")|};
                 }
             }
             """);
