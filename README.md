@@ -36,6 +36,49 @@ temporal-sharp analyze <path.sln|path.csproj> [options]
   --severity <TMPxxxx=severity>          Override a rule's severity (repeatable).
 ```
 
+### GitHub Actions
+
+Run `temporal-sharp` in CI as a pull-request gate, and optionally upload SARIF
+so findings appear as GitHub code-scanning annotations:
+
+```yaml
+name: temporal-sharp
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install temporal-sharp
+        run: dotnet tool install --global Kogoshvili.Temporal.Cli
+
+      - name: Run temporal-sharp
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          temporal-sharp analyze ./MyApp.sln --fail-on warning
+
+      # Optional: emit SARIF and upload for GitHub code scanning.
+      - name: Run temporal-sharp (SARIF)
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          temporal-sharp analyze ./MyApp.sln --format sarif > temporal.sarif
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: temporal.sarif
+```
+
 ## Configuration
 
 Suppress a single finding inline with `#pragma warning disable` / `restore`, or

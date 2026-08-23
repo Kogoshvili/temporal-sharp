@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Kogoshvili.Temporal.Cli.Analysis;
+using Kogoshvili.Temporal.Cli.Docs;
 using Kogoshvili.Temporal.Cli.Reporting;
 
 namespace Kogoshvili.Temporal.Cli;
@@ -8,6 +9,11 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "docs")
+        {
+            return RunDocs(args);
+        }
+
         Options options;
         try
         {
@@ -47,6 +53,20 @@ internal static class Program
             Console.Error.WriteLine($"Error: {ex.Message}");
             return 2;
         }
+    }
+
+    private static int RunDocs(string[] args)
+    {
+        if (args.Length > 2)
+        {
+            Console.Error.WriteLine("Error: Usage: temporal-sharp docs [output-file]");
+            return 2;
+        }
+
+        var output = args.Length == 2 ? args[1] : "RULES.md";
+        File.WriteAllText(output, RulesDocGenerator.Generate());
+        Console.Out.WriteLine($"Wrote {output}");
+        return 0;
     }
 
     internal static int ComputeExitCode(

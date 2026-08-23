@@ -8,7 +8,7 @@ namespace Kogoshvili.Temporal.Cli.Analysis;
 
 internal static class AnalysisRunner
 {
-    private static readonly ImmutableArray<DiagnosticAnalyzer> Analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(
+    internal static readonly ImmutableArray<DiagnosticAnalyzer> Analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(
         new DeterminismAnalyzer(),
         new WorkflowStateAnalyzer(),
         new SdkMisuseAnalyzer(),
@@ -16,7 +16,8 @@ internal static class AnalysisRunner
         new WorkflowContractAnalyzer(),
         new ActivityStateAnalyzer(),
         new VersioningAnalyzer(),
-        new SearchAttributeAnalyzer());
+        new SearchAttributeAnalyzer(),
+        new WorkflowMessageAnalyzer());
 
     private static readonly ImmutableArray<string> RuleIds = Analyzers
         .SelectMany(a => a.SupportedDiagnostics)
