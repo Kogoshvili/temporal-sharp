@@ -4,8 +4,23 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
-## [Unreleased]
+## [1.0.0-beta.2] - 2026-08-23
 
+- Fix release workflow: commit changelog before rebase
+- Reduce analyzer false positives across the benchmark suite
+- Address review.md findings (third pass)
+- Address review.md findings (second pass)
+- Address review.md findings
+- Fix false positives found validating against real-world repos
+- Address review findings: preset severities, reachability, rule correctness
+- Fix alternative tool links and wording in README
+- Address review findings: SDK API naming, mutation detection, idempotency, property queries
+- Fix incorrect SDK API references in rules and code fixes
+- Reword TMP2132 for non-ApplicationFailure exception coverage
+- Address review findings across analyzers and code fixes
+- Add Mutex/Semaphore -> Temporalio.Workflows code fix
+- Add P4 cross-cutting features
+- Add auto-generated CHANGELOG.md and release workflow
 - Add P3 best-practice and comment rules
 - Add P2 contract, lifecycle, payload, activity, and versioning rules
 - Add P1 determinism rules
