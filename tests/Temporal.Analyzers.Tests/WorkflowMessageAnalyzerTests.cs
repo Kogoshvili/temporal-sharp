@@ -253,13 +253,13 @@ public class WorkflowMessageAnalyzerTests
             """);
 
     [Fact]
-    public Task SettablePropertyQuery_Reports()
+    public Task SettablePropertyQuery_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
             {
                 [Temporalio.Workflows.WorkflowQuery]
-                public int {|TMP3204:Progress|} { get; set; }
+                public int Progress { get; private set; }
             }
             """);
 
@@ -287,6 +287,23 @@ public class WorkflowMessageAnalyzerTests
                 {
                     get { {|TMP3206:_items.Add(1)|}; return _items.Count; }
                 }
+            }
+            """);
+
+    [Fact]
+    public Task QueryReturnsObjectInitializer_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowQuery]
+                public ProgressDto GetProgress() => new ProgressDto { Processed = 1, Failed = 2 };
+            }
+
+            public class ProgressDto
+            {
+                public int Processed { get; set; }
+                public int Failed { get; set; }
             }
             """);
 

@@ -90,7 +90,7 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var hasId = creation.Initializer is { } initializer && InitializerHasId(initializer);
+        var hasId = HasExplicitId(creation);
 
         if (creation.Parent is EqualsValueClauseSyntax { Parent: VariableDeclaratorSyntax declarator } &&
             context.SemanticModel.GetDeclaredSymbol(declarator) is { } symbol)
@@ -120,10 +120,10 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
 
             var expression = Unwrap(argument.Expression);
 
-            // Options passed inline with an Id initializer.
+            // Options passed inline with an Id initializer or id: argument.
             if (expression is BaseObjectCreationExpressionSyntax creation)
             {
-                if (creation.Initializer is { } initializer && InitializerHasId(initializer))
+                if (HasExplicitId(creation))
                 {
                     return;
                 }
@@ -172,6 +172,30 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
         initializer.Expressions
             .OfType<AssignmentExpressionSyntax>()
             .Any(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "Id");
+
+    private static bool HasExplicitId(BaseObjectCreationExpressionSyntax creation)
+    {
+        if (creation.Initializer is { } initializer && InitializerHasId(initializer))
+        {
+            return true;
+        }
+
+        // The SDK also allows WorkflowOptions to be built with a named
+        // constructor argument: new(id: "…", taskQueue: "…").
+        if (creation.ArgumentList is { } argumentList)
+        {
+            foreach (var argument in argumentList.Arguments)
+            {
+                if (argument.NameColon is { } nameColon &&
+                    nameColon.Name.Identifier.ValueText is "id" or "Id")
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     // TMP2146 — using an internal Temporalio.* namespace.
     private static void AnalyzeUsing(SyntaxNodeAnalysisContext context)

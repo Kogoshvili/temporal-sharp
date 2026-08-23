@@ -36,6 +36,14 @@ internal static class SymbolUtilities
     }
 
     /// <summary>
+    /// True if the assignment is an object-initializer member assignment
+    /// (e.g. <c>new ProgressDto { CurrentIndex = x }</c>). These initialize a new
+    /// object rather than mutate an instance member of the enclosing type.
+    /// </summary>
+    public static bool IsObjectInitializerAssignment(AssignmentExpressionSyntax assignment) =>
+        assignment.Parent is InitializerExpressionSyntax { Parent: BaseObjectCreationExpressionSyntax };
+
+    /// <summary>
     /// Resolves the instance field/property mutated by <paramref name="target"/>,
     /// walking through nested member accesses (e.g. <c>_state.Nested.Foo</c>
     /// resolves to <c>_state</c>).

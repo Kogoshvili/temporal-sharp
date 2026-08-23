@@ -51,7 +51,14 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
 
                 var location = FirstLocation(method);
 
-                if (!WorkflowDetection.IsWorkflowType(method.ContainingType))
+                // When the SDK reference is unresolved, [Workflow] on the
+                // containing type resolves to an error type; we can't determine
+                // whether it is actually a workflow, so don't report.
+                var hasUnresolvedWorkflowAttribute =
+                    method.ContainingType.GetAttributes().Any(a => a.AttributeClass is IErrorTypeSymbol);
+
+                if (!hasUnresolvedWorkflowAttribute &&
+                    !WorkflowDetection.IsWorkflowType(method.ContainingType))
                 {
                     Report(symbolContext, location, "[WorkflowRun] must be declared in a [Workflow] type");
                 }
@@ -61,7 +68,7 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
                     Report(symbolContext, location, "the entry method must be public");
                 }
 
-                if (!IsTaskReturning(method))
+                if (!IsErrorType(method.ReturnType) && !IsTaskReturning(method))
                 {
                     Report(symbolContext, location, "the entry method must return Task");
                 }
@@ -205,6 +212,8 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
 
     private static bool IsTaskReturning(IMethodSymbol method) =>
         TypeNames.FullName(method.ReturnType) == "System.Threading.Tasks.Task";
+
+    private static bool IsErrorType(ITypeSymbol type) => type is IErrorTypeSymbol;
 
     private static void Report(SymbolAnalysisContext context, Location location, string reason) =>
         Report(context, location, reason, DiagnosticDescriptors.InvalidWorkflowRun);

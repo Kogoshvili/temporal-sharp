@@ -131,6 +131,25 @@ public class ActivityStateAnalyzerTests
             """);
 
     [Fact]
+    public Task ObjectInitializerAssignment_DoesNotReport()
+        => Verify(Stubs + """
+            public class Act
+            {
+                [Temporalio.Activities.Activity]
+                public System.Threading.Tasks.Task Do()
+                {
+                    var request = new Request { Value = 5 };
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+            }
+
+            public class Request
+            {
+                public int Value { get; set; }
+            }
+            """);
+
+    [Fact]
     public Task FieldAssignmentOutsideActivity_DoesNotReport()
         => Verify(Stubs + """
             public class Act

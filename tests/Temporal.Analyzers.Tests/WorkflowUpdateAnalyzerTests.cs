@@ -152,6 +152,25 @@ public class WorkflowUpdateAnalyzerTests
             """);
 
     [Fact]
+    public Task ValidatorObjectInitializer_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowUpdateValidator]
+                public void Validate(int x)
+                {
+                    var dto = new Dto { Value = x };
+                }
+            }
+
+            public class Dto
+            {
+                public int Value { get; set; }
+            }
+            """);
+
+    [Fact]
     public Task SignalHandlerSchedulesCommand_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

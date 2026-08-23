@@ -11,7 +11,11 @@ internal static class TypeNames
 {
     public static string FullName(ITypeSymbol type)
     {
-        var ns = type.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+        // An unresolved (error) type reports the global namespace, which would
+        // otherwise render as "<global namespace>.Name"; treat it as no namespace.
+        var ns = type.ContainingNamespace is { IsGlobalNamespace: false } namespaceSymbol
+            ? namespaceSymbol.ToDisplayString()
+            : string.Empty;
         var name = type.OriginalDefinition?.Name ?? type.Name;
         return string.IsNullOrEmpty(ns) ? name : ns + "." + name;
     }

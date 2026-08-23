@@ -148,11 +148,13 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
 
         var location = FirstLocation(property);
 
-        if (property.SetMethod is not null)
+        // The SDK only requires a public getter; a setter (private or public) is
+        // a valid pattern for caching a computed query result from RunAsync.
+        if (property.GetMethod is null)
         {
-            Report(context, location, "queries must be read-only (getter only)", DiagnosticDescriptors.InvalidQuery);
+            Report(context, location, "queries must expose a getter", DiagnosticDescriptors.InvalidQuery);
         }
-        else if (IsNonValueReturn(property.Type))
+        else if (!IsErrorType(property.Type) && IsNonValueReturn(property.Type))
         {
             Report(context, location, "queries must return a value (not Task or Task<T>)", DiagnosticDescriptors.InvalidQuery);
         }
@@ -164,7 +166,7 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
         {
             Report(context, location, "queries must not be async", DiagnosticDescriptors.InvalidQuery);
         }
-        else if (IsNonValueReturn(method.ReturnType))
+        else if (!IsErrorType(method.ReturnType) && IsNonValueReturn(method.ReturnType))
         {
             Report(context, location, "queries must return a value (not void, Task, or Task<T>)", DiagnosticDescriptors.InvalidQuery);
         }
@@ -172,11 +174,18 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeSignal(SymbolAnalysisContext context, IMethodSymbol method, Location location)
     {
+        if (IsErrorType(method.ReturnType))
+        {
+            return;
+        }
+
         if (!IsVoid(method.ReturnType) && !IsNonGenericTask(method.ReturnType))
         {
             Report(context, location, "signals must return void or Task (never Task<T> or a value)", DiagnosticDescriptors.InvalidSignal);
         }
     }
+
+    private static bool IsErrorType(ITypeSymbol type) => type is IErrorTypeSymbol;
 
     private static bool IsNonValueReturn(ITypeSymbol type)
     {
@@ -197,6 +206,11 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context)
     {
         var assignment = (AssignmentExpressionSyntax)context.Node;
+        if (SymbolUtilities.IsObjectInitializerAssignment(assignment))
+        {
+            return;
+        }
+
         ReportIfQueryMutation(context, assignment, assignment.Left);
     }
 

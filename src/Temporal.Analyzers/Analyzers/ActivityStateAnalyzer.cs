@@ -60,6 +60,11 @@ public sealed class ActivityStateAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context)
     {
         var assignment = (AssignmentExpressionSyntax)context.Node;
+        if (SymbolUtilities.IsObjectInitializerAssignment(assignment))
+        {
+            return;
+        }
+
         ReportIfInstanceState(context, assignment, assignment.Left);
     }
 

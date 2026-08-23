@@ -97,6 +97,20 @@ public class SdkBoundaryAnalyzerTests
             """);
 
     [Fact]
+    public Task StartWorkflowWithConstructorId_DoesNotReport()
+        => Verify(Stubs + """
+            public class C
+            {
+                public async System.Threading.Tasks.Task Start()
+                {
+                    var client = new Temporalio.Client.WorkflowClient();
+                    await client.StartWorkflowAsync(
+                        () => new object(), new Temporalio.Client.WorkflowOptions(id: "my-id", taskQueue: "q"));
+                }
+            }
+            """);
+
+    [Fact]
     public Task StartWorkflowWithIdViaVariable_DoesNotReport()
         => Verify(Stubs + """
             public class C

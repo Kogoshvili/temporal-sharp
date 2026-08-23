@@ -72,7 +72,7 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (IsTaskOrSubtype(method.ReturnType))
+        if (IsErrorType(method.ReturnType) || IsTaskOrSubtype(method.ReturnType))
         {
             return;
         }
@@ -82,6 +82,8 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
 
     private static bool IsTaskOrSubtype(ITypeSymbol type) =>
         TypeNames.IsOrDerivesFrom(type, "System.Threading.Tasks.Task");
+
+    private static bool IsErrorType(ITypeSymbol type) => type is IErrorTypeSymbol;
 
     // TMP3217 — async handlers exist but the workflow never awaits AllHandlersFinished.
     private static void AnalyzeWorkflowType(SymbolAnalysisContext context)
@@ -135,6 +137,11 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context)
     {
         var assignment = (AssignmentExpressionSyntax)context.Node;
+        if (SymbolUtilities.IsObjectInitializerAssignment(assignment))
+        {
+            return;
+        }
+
         ReportIfValidatorMutates(context, assignment, assignment.Left);
     }
 
