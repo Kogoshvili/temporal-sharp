@@ -144,6 +144,11 @@ internal static class DenyList
         {
             "System.Environment.GetEnvironmentVariable",
             "System.Environment.GetEnvironmentVariables",
+            "System.Environment.CurrentDirectory",
+            "System.Environment.MachineName",
+            "System.Environment.UserName",
+            "System.Environment.OSVersion",
+            "System.Environment.ProcessorCount",
             "System.IO.File.ReadAllText",
             "System.IO.File.ReadAllTextAsync",
             "System.IO.File.ReadAllLines",

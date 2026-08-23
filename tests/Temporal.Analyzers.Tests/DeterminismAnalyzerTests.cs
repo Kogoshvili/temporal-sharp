@@ -293,6 +293,22 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task EnvironmentPropertyAccess_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var machine = {|TMP0131:System.Environment.MachineName|};
+                    var user = {|TMP0131:System.Environment.UserName|};
+                    var count = {|TMP0131:System.Environment.ProcessorCount|};
+                }
+            }
+            """);
+
+    [Fact]
     public Task TransitiveHelperCall_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

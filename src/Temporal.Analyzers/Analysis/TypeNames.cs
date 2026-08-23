@@ -53,4 +53,9 @@ internal static class TypeNames
 
         return false;
     }
+
+    /// <summary>True if the type implements a (generic or non-generic) collection interface.</summary>
+    public static bool IsCollection(ITypeSymbol type) =>
+        IsOrImplements(type, "System.Collections.ICollection") ||
+        IsOrImplements(type, "System.Collections.Generic.ICollection");
 }

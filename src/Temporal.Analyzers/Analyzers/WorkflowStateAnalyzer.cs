@@ -168,7 +168,7 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
         }
 
         var receiverType = (receiver as IFieldSymbol)?.Type ?? ((IPropertySymbol)receiver).Type;
-        if (receiverType is null || !IsCollection(receiverType))
+        if (receiverType is null || !TypeNames.IsCollection(receiverType))
         {
             return;
         }
@@ -181,10 +181,6 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
         var display = receiver.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.StaticCollectionMutation, invocation.GetLocation(), display));
     }
-
-    private static bool IsCollection(ITypeSymbol type) =>
-        TypeNames.IsOrImplements(type, "System.Collections.ICollection") ||
-        TypeNames.IsOrImplements(type, "System.Collections.Generic.ICollection");
 
     private static void AnalyzeStaticObjectMutation(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
@@ -228,7 +224,7 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
     private static bool IsMutableReference(ITypeSymbol type) =>
         type.IsReferenceType &&
         type.SpecialType != SpecialType.System_String &&
-        !IsCollection(type) &&
+        !TypeNames.IsCollection(type) &&
         !ImmutableBclReferenceTypes.Contains(TypeNames.FullName(type));
 
     private static bool IsSdkManagedStatic(ISymbol symbol) =>

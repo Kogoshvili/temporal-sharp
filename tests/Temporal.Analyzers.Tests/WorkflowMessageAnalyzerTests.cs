@@ -220,4 +220,73 @@ public class WorkflowMessageAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task QueryCallsPureMethod_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private Calculator _calc = new Calculator();
+
+                [Temporalio.Workflows.WorkflowQuery]
+                public int Get() => _calc.Add(1, 2);
+            }
+
+            public class Calculator
+            {
+                public int Add(int a, int b) => a + b;
+            }
+            """);
+
+    [Fact]
+    public Task PropertyQuery_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private int _progress;
+
+                [Temporalio.Workflows.WorkflowQuery]
+                public int Progress => _progress;
+            }
+            """);
+
+    [Fact]
+    public Task SettablePropertyQuery_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowQuery]
+                public int {|TMP3204:Progress|} { get; set; }
+            }
+            """);
+
+    [Fact]
+    public Task TaskReturningPropertyQuery_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowQuery]
+                public System.Threading.Tasks.Task {|TMP3204:Progress|} => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task PropertyQueryMutatesCollection_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private System.Collections.Generic.List<int> _items = new();
+
+                [Temporalio.Workflows.WorkflowQuery]
+                public int Count
+                {
+                    get { {|TMP3206:_items.Add(1)|}; return _items.Count; }
+                }
+            }
+            """);
 }

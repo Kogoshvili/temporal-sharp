@@ -32,6 +32,9 @@ internal static class WorkflowDetection
     public static bool IsWorkflowQueryMethod(IMethodSymbol method)
         => HasAttribute(method, WorkflowQueryAttributeName);
 
+    public static bool IsWorkflowQueryProperty(IPropertySymbol property)
+        => HasAttribute(property, WorkflowQueryAttributeName);
+
     public static bool IsWorkflowSignalMethod(IMethodSymbol method)
         => HasAttribute(method, WorkflowSignalAttributeName);
 

@@ -115,6 +115,27 @@ public class WorkflowUpdateAnalyzerTests
             """);
 
     [Fact]
+    public Task ValidatorCallsPureMethod_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private Calculator _calc = new Calculator();
+
+                [Temporalio.Workflows.WorkflowUpdateValidator]
+                public void Validate(int x)
+                {
+                    _ = _calc.Add(x, 1);
+                }
+            }
+
+            public class Calculator
+            {
+                public int Add(int a, int b) => a + b;
+            }
+            """);
+
+    [Fact]
     public Task SignalHandlerSchedulesCommand_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

@@ -42,6 +42,23 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         "System.Diagnostics.Trace.TraceInformation",
         "System.Diagnostics.Trace.TraceWarning");
 
+    private static readonly Regex WordPattern = new(
+        @"[A-Z]+(?![a-z])|[A-Z][a-z0-9]+|[a-z0-9]+",
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly ImmutableHashSet<string> IdempotentWords = ImmutableHashSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "get", "read", "query", "find", "lookup", "fetch", "load", "idempotent");
+
+    private static readonly ImmutableHashSet<string> MutatingWords = ImmutableHashSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "add", "append", "clear", "create", "delete", "dequeue", "enqueue",
+        "insert", "pop", "push", "put", "remove", "replace", "reset", "save",
+        "set", "sort", "reverse", "take", "update", "upsert", "write",
+        "increment", "decrement", "start", "stop", "dispose", "flush",
+        "register", "unregister", "subscribe", "unsubscribe");
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.ActivityMissingTimeout,
@@ -376,15 +393,23 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
 
     private static bool IsIdempotentName(string name)
     {
-        var normalized = name.ToLowerInvariant();
-        return normalized.Contains("get") ||
-               normalized.Contains("read") ||
-               normalized.Contains("query") ||
-               normalized.Contains("find") ||
-               normalized.Contains("lookup") ||
-               normalized.Contains("fetch") ||
-               normalized.Contains("load") ||
-               normalized.Contains("idempotent");
+        var hasIdempotentWord = false;
+
+        foreach (Match match in WordPattern.Matches(name))
+        {
+            var word = match.Value;
+            if (MutatingWords.Contains(word))
+            {
+                return false;
+            }
+
+            if (IdempotentWords.Contains(word))
+            {
+                hasIdempotentWord = true;
+            }
+        }
+
+        return hasIdempotentWord;
     }
 
     private static bool HasIdempotencyKeyParameter(IMethodSymbol method)

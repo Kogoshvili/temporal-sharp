@@ -49,6 +49,8 @@ internal static class SymbolUtilities
     /// <summary>
     /// Detects collection-style mutation via a mutating method call on an
     /// instance member (e.g. <c>_items.Add(x)</c>, <c>this._queue.Enqueue(x)</c>).
+    /// The receiver must be a collection type so that identically-named pure
+    /// methods (e.g. <c>_calc.Add(a, b)</c>) are not misclassified.
     /// </summary>
     public static bool TryGetMutatedInstanceMember(
         InvocationExpressionSyntax invocation,
@@ -63,6 +65,12 @@ internal static class SymbolUtilities
         }
 
         if (!MutatingMethodNames.Contains(memberAccess.Name.Identifier.ValueText))
+        {
+            return false;
+        }
+
+        if (model.GetTypeInfo(memberAccess.Expression).Type is not { } receiverType ||
+            !TypeNames.IsCollection(receiverType))
         {
             return false;
         }

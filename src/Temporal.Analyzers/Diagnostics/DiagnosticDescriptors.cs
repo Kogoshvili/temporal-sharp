@@ -585,9 +585,9 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor ThrowsBaseException = Create(
         "TMP2132",
         SdkMisuseCategory,
-        "Non-ApplicationFailure exception thrown from workflow code",
-        "Throwing a non-ApplicationFailure exception; throw Temporalio.Exceptions.ApplicationFailure instead",
-        "A non-ApplicationFailure exception from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailure with a typed message.",
+        "Non-ApplicationFailureException thrown from workflow code",
+        "Throwing a non-ApplicationFailureException; throw Temporalio.Exceptions.ApplicationFailureException instead",
+        "A non-ApplicationFailureException from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailureException with a typed message.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor AssertInWorkflow = Create(

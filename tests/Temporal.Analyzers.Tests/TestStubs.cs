@@ -226,6 +226,7 @@ internal static class TestStubs
             {
                 public ApplicationFailureException() { }
                 public ApplicationFailureException(string message) : base(message) { }
+                public ApplicationFailureException(string message, System.Exception innerException) : base(message, innerException) { }
             }
         }
         """;

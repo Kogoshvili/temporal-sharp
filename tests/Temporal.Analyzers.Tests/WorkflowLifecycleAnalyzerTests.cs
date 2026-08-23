@@ -79,6 +79,54 @@ public class WorkflowLifecycleAnalyzerTests
             """);
 
     [Fact]
+    public Task ThrownCatchVariable_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    catch (System.Exception ex) { throw ex; }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task WrappedIntoApplicationFailure_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    catch (System.Exception ex)
+                    {
+                        throw new Temporalio.Exceptions.ApplicationFailureException("failed", ex);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ThrownUnrelatedException_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    {|TMP2123:catch|} (System.Exception) { throw new System.Exception("else"); }
+                }
+            }
+            """);
+
+    [Fact]
     public Task CancellableCleanup_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

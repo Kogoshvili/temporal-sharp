@@ -149,7 +149,7 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (RethrowsOrChecksCancellation(catchClause))
+        if (RethrowsOrChecksCancellation(catchClause, context.SemanticModel))
         {
             return;
         }
@@ -171,8 +171,10 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
                BroadCatchTypes.Contains(TypeNames.FullName(type));
     }
 
-    private static bool RethrowsOrChecksCancellation(CatchClauseSyntax catchClause)
+    private static bool RethrowsOrChecksCancellation(CatchClauseSyntax catchClause, SemanticModel model)
     {
+        var catchVariable = catchClause.Declaration?.Identifier.ValueText;
+
         foreach (var node in catchClause.Block.DescendantNodesAndSelf())
         {
             if (node is ThrowStatementSyntax { Expression: null })
@@ -181,6 +183,26 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             }
 
             if (node is IdentifierNameSyntax { Identifier.ValueText: "IsCancellationRequested" })
+            {
+                return true;
+            }
+
+            if (node is not ThrowStatementSyntax { Expression: not null } throwStatement)
+            {
+                continue;
+            }
+
+            if (catchVariable is not null &&
+                throwStatement.Expression is IdentifierNameSyntax { Identifier.ValueText: var rethrown } &&
+                rethrown == catchVariable)
+            {
+                return true;
+            }
+
+            // Wrapping into a typed failure still surfaces the error; only a
+            // non-ApplicationFailureException (or a swallowed catch) is flagged.
+            if (model.GetTypeInfo(throwStatement.Expression).Type is { } type &&
+                TypeNames.IsOrDerivesFrom(type, "Temporalio.Exceptions.ApplicationFailureException"))
             {
                 return true;
             }

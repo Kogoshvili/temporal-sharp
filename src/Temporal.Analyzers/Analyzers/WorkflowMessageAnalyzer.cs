@@ -54,6 +54,7 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
         context.EnableConcurrentExecution();
 
         context.RegisterSymbolAction(AnalyzeMethod, SymbolKind.Method);
+        context.RegisterSymbolAction(AnalyzeProperty, SymbolKind.Property);
 
         context.RegisterSyntaxNodeAction(AnalyzeAssignment, AssignmentKinds);
         context.RegisterSyntaxNodeAction(AnalyzeIncrementDecrement, IncrementDecrementKinds);
@@ -134,6 +135,26 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
         else if (WorkflowDetection.IsWorkflowSignalMethod(method))
         {
             AnalyzeSignal(context, method, location);
+        }
+    }
+
+    private static void AnalyzeProperty(SymbolAnalysisContext context)
+    {
+        var property = (IPropertySymbol)context.Symbol;
+        if (!WorkflowDetection.IsWorkflowQueryProperty(property))
+        {
+            return;
+        }
+
+        var location = FirstLocation(property);
+
+        if (property.SetMethod is not null)
+        {
+            Report(context, location, "queries must be read-only (getter only)", DiagnosticDescriptors.InvalidQuery);
+        }
+        else if (IsNonValueReturn(property.Type))
+        {
+            Report(context, location, "queries must return a value (not Task or Task<T>)", DiagnosticDescriptors.InvalidQuery);
         }
     }
 
@@ -251,11 +272,18 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.WorkflowApiInQuery, invocation.GetLocation(), display));
     }
 
-    private static IMethodSymbol? GetEnclosingQueryMethod(SyntaxNodeAnalysisContext context, SyntaxNode node)
+    private static ISymbol? GetEnclosingQueryMethod(SyntaxNodeAnalysisContext context, SyntaxNode node)
     {
         var enclosing = context.SemanticModel.GetEnclosingSymbol(node.SpanStart);
         for (var current = enclosing; current is not null; current = current.ContainingSymbol)
         {
+            if (current is IMethodSymbol { MethodKind: MethodKind.PropertyGet } getter &&
+                getter.AssociatedSymbol is IPropertySymbol property &&
+                WorkflowDetection.IsWorkflowQueryProperty(property))
+            {
+                return property;
+            }
+
             if (current is IMethodSymbol { MethodKind: not (MethodKind.LambdaMethod or MethodKind.LocalFunction) } method)
             {
                 return WorkflowDetection.IsWorkflowQueryMethod(method) ? method : null;

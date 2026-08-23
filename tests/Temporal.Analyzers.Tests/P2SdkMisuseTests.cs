@@ -119,4 +119,34 @@ public class SdkMisuseP2Tests
                 public System.Threading.Tasks.Task GetData() => System.Threading.Tasks.Task.CompletedTask;
             }
             """);
+
+    [Fact]
+    public Task TargetNamedActivityWithoutKey_Reports()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public System.Threading.Tasks.Task {|TMP2107:Target|}() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task ForgetNamedActivityWithoutKey_Reports()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public System.Threading.Tasks.Task {|TMP2107:Forget|}() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task GetAndUpdateActivityWithoutKey_Reports()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public System.Threading.Tasks.Task {|TMP2107:GetAndUpdate|}() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
 }
