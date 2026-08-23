@@ -176,11 +176,11 @@ internal sealed class CompilationAnalysisState
             {
                 if (node is InvocationExpressionSyntax invocation)
                 {
-                    AddInvocationEdges(invocation, semanticModel, edges, implementations, delegateTargets);
+                    AddInvocationEdges(invocation, semanticModel, edges, implementations, delegateTargets, roots, workflowTypes);
                 }
                 else if (node is ObjectCreationExpressionSyntax creation)
                 {
-                    AddObjectCreationEdge(creation, semanticModel, edges);
+                    AddObjectCreationEdge(creation, semanticModel, edges, roots, workflowTypes);
                 }
             }
         }
@@ -223,17 +223,52 @@ internal sealed class CompilationAnalysisState
         SemanticModel semanticModel,
         Dictionary<IMethodSymbol, HashSet<IMethodSymbol>> edges,
         Dictionary<IMethodSymbol, List<IMethodSymbol>> implementations,
-        Dictionary<ISymbol, List<IMethodSymbol>> delegateTargets)
+        Dictionary<ISymbol, List<IMethodSymbol>> delegateTargets,
+        List<IMethodSymbol> roots,
+        HashSet<INamedTypeSymbol> workflowTypes)
     {
-        var caller = SymbolUtilities.GetEnclosingRegularMethod(semanticModel.GetEnclosingSymbol(invocation.SpanStart));
-        if (caller is null)
+        var target = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+        if (target is null || WorkflowDetection.IsActivityMethod(target))
         {
             return;
         }
 
-        var target = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-        if (target is null || WorkflowDetection.IsActivityMethod(target))
+        var caller = SymbolUtilities.GetEnclosingRegularMethod(semanticModel.GetEnclosingSymbol(invocation.SpanStart));
+
+        // A field/property initializer of a workflow type is workflow code but has
+        // no enclosing method. Seed the methods it invokes as roots so their
+        // transitive callees are still considered reachable.
+        if (caller is null)
         {
+            if (!IsInWorkflowTypeInitializer(invocation, semanticModel, workflowTypes))
+            {
+                return;
+            }
+
+            if (target.MethodKind == MethodKind.DelegateInvoke)
+            {
+                var receiver = (invocation.Expression as MemberAccessExpressionSyntax)?.Expression ?? invocation.Expression;
+                var receiverSymbol = semanticModel.GetSymbolInfo(receiver).Symbol;
+                if (receiverSymbol is not null && delegateTargets.TryGetValue(receiverSymbol, out var targets))
+                {
+                    foreach (var t in targets)
+                    {
+                        AddRoot(roots, t);
+                    }
+                }
+
+                return;
+            }
+
+            AddRoot(roots, target);
+            if (IsDispatchCandidate(target) && implementations.TryGetValue(target, out var initializerImpls))
+            {
+                foreach (var impl in initializerImpls)
+                {
+                    AddRoot(roots, impl);
+                }
+            }
+
             return;
         }
 
@@ -268,21 +303,58 @@ internal sealed class CompilationAnalysisState
     private static void AddObjectCreationEdge(
         ObjectCreationExpressionSyntax creation,
         SemanticModel semanticModel,
-        Dictionary<IMethodSymbol, HashSet<IMethodSymbol>> edges)
+        Dictionary<IMethodSymbol, HashSet<IMethodSymbol>> edges,
+        List<IMethodSymbol> roots,
+        HashSet<INamedTypeSymbol> workflowTypes)
     {
-        var caller = SymbolUtilities.GetEnclosingRegularMethod(semanticModel.GetEnclosingSymbol(creation.SpanStart));
-        if (caller is null)
-        {
-            return;
-        }
-
         var target = semanticModel.GetSymbolInfo(creation).Symbol as IMethodSymbol;
         if (target is null || WorkflowDetection.IsActivityMethod(target))
         {
             return;
         }
 
+        var caller = SymbolUtilities.GetEnclosingRegularMethod(semanticModel.GetEnclosingSymbol(creation.SpanStart));
+        if (caller is null)
+        {
+            if (!IsInWorkflowTypeInitializer(creation, semanticModel, workflowTypes))
+            {
+                return;
+            }
+
+            AddRoot(roots, target);
+            return;
+        }
+
         AddEdge(edges, caller, target);
+    }
+
+    private static bool IsInWorkflowTypeInitializer(
+        SyntaxNode node,
+        SemanticModel model,
+        HashSet<INamedTypeSymbol> workflowTypes)
+    {
+        for (var symbol = model.GetEnclosingSymbol(node.SpanStart); symbol is not null; symbol = symbol.ContainingSymbol)
+        {
+            if (symbol is IFieldSymbol { ContainingType: { } fieldType })
+            {
+                return workflowTypes.Contains(fieldType);
+            }
+
+            if (symbol is IPropertySymbol { ContainingType: { } propertyType })
+            {
+                return workflowTypes.Contains(propertyType);
+            }
+        }
+
+        return false;
+    }
+
+    private static void AddRoot(List<IMethodSymbol> roots, IMethodSymbol method)
+    {
+        if (!WorkflowDetection.IsActivityMethod(method))
+        {
+            roots.Add(method);
+        }
     }
 
     private static void AddEdge(

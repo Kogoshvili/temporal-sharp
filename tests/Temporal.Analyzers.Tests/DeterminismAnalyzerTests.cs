@@ -48,6 +48,23 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task FieldInitializerViaHelperCall_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private static System.DateTime _created = GetNow();
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                }
+
+                private static System.DateTime GetNow() => {|TMP0101:System.DateTime.UtcNow|};
+            }
+            """);
+
+    [Fact]
     public Task ActivityMethodInsideWorkflowClass_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
@@ -1282,6 +1299,22 @@ public class DeterminismAnalyzerTests
                 }
 
                 public static System.Threading.Tasks.Task<int> GetValueAsync() => System.Threading.Tasks.Task.FromResult(1);
+            }
+            """);
+
+    [Fact]
+    public Task FloatingValueTaskOfT_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0112:GetValueAsync()|};
+                }
+
+                public static System.Threading.Tasks.ValueTask<int> GetValueAsync() => new(1);
             }
             """);
 

@@ -24,6 +24,7 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
 
     private static readonly ImmutableHashSet<string> BlockingIoTypes = ImmutableHashSet.Create(
         StringComparer.Ordinal,
+        "System.Net.Http.HttpClient",
         "System.Net.Sockets.Socket",
         "System.Net.Sockets.TcpClient",
         "System.Net.Sockets.UdpClient",

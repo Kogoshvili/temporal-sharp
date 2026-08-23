@@ -317,8 +317,8 @@ internal static class DiagnosticDescriptors
         "TMP3103",
         SdkMisuseCategory,
         "Heartbeat called without HeartbeatTimeout",
-        "Activity '{0}' calls Heartbeat() but is invoked without a HeartbeatTimeout; set one so the heartbeat takes effect",
-        "Without a HeartbeatTimeout, heartbeat calls have no effect and cannot influence failure detection or cancellation.");
+        "Activity '{0}' calls Heartbeat() but is invoked without a HeartbeatTimeout; set one so a stalled activity can be detected",
+        "Heartbeats persist details and deliver cancellation even without a HeartbeatTimeout; only timeout-based failure detection requires one.");
 
     internal static readonly DiagnosticDescriptor UnnecessaryHeartbeat = Create(
         "TMP3104",
@@ -587,8 +587,8 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Non-ApplicationFailureException thrown from workflow code",
         "Throwing a non-ApplicationFailureException; throw Temporalio.Exceptions.ApplicationFailureException instead",
-        "A non-ApplicationFailureException from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailureException with a typed message.",
-        severity: DiagnosticSeverity.Error);
+        "By default only ApplicationFailureException fails a workflow; other exception types retry the task forever. Throw ApplicationFailureException, or configure WorkflowFailureExceptionTypes for the intended exception types.",
+        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor ActivityThrowsBaseException = Create(
         "TMP2134",

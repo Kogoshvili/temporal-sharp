@@ -60,8 +60,10 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Only ApplicationFailureException fails a workflow; every other
-        // exception type retries the workflow task indefinitely.
+        // By default only ApplicationFailureException fails a workflow; every
+        // other exception type retries the workflow task indefinitely. Users may
+        // opt other types into failure via WorkflowFailureExceptionTypes, so this
+        // is a Warning rather than an Error.
         if (TypeNames.IsOrDerivesFrom(type, "Temporalio.Exceptions.ApplicationFailureException"))
         {
             return;

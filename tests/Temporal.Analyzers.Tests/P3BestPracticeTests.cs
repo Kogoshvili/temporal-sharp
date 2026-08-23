@@ -243,6 +243,32 @@ public class BestPracticeAnalyzerTests
             """);
 
     [Fact]
+    public Task LocalActivity_HttpClient_Reports()
+        => Verify(Stubs + """
+            public static class A
+            {
+                [Temporalio.Activities.Activity]
+                public static async System.Threading.Tasks.Task Run()
+                {
+                    var client = new System.Net.Http.HttpClient();
+                    await {|TMP4107:client.GetAsync("https://example.com")|};
+                }
+            }
+
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task RunAsync()
+                {
+                    await Temporalio.Workflows.Workflow.ExecuteLocalActivityAsync(
+                        () => A.Run(),
+                        new Temporalio.Workflows.LocalActivityOptions { StartToCloseTimeout = System.TimeSpan.FromMinutes(1) });
+                }
+            }
+            """);
+
+    [Fact]
     public Task RegularActivity_BlockingIo_DoesNotReport()
         => Verify(Stubs + """
             public static class A

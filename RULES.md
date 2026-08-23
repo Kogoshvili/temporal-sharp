@@ -67,7 +67,7 @@ rules that users must enable explicitly.
 | TMP2124 | Warning | Cleanup after cancellation is not in a non-cancellable scope | Cleanup that runs after cancellation should not itself be cancelled; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work so it always completes. |
 | TMP2125 | Warning | Unbounded loop without a continue-as-new check | An unbounded loop that never checks Workflow.ContinueAsNewSuggested grows the workflow history until it hits the size limit. Break the loop and continue as new. |
 | TMP2131 | Warning | Non-replay-aware logging in workflow code | Standard loggers write on every replay. Use Workflow.Logger, which suppresses output during replay. |
-| TMP2132 | Error | Non-ApplicationFailureException thrown from workflow code | A non-ApplicationFailureException from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailureException with a typed message. |
+| TMP2132 | Warning | Non-ApplicationFailureException thrown from workflow code | By default only ApplicationFailureException fails a workflow; other exception types retry the task forever. Throw ApplicationFailureException, or configure WorkflowFailureExceptionTypes for the intended exception types. |
 | TMP2133 | Warning | Debug/Trace assert in workflow code | Debug.Assert and Trace.Assert are compiled out in release builds and have no place in production workflow code. |
 | TMP2134 | Warning | Base exception thrown from an activity | Throwing a bare Exception or SystemException from an activity loses failure semantics. Prefer ApplicationFailureException or a domain exception. |
 | TMP2141 | Error | Non-serializable type in workflow/activity signature | Workflow and activity arguments and return values are serialized; delegates, streams, channels, and async enumerables cannot round-trip. |
@@ -89,7 +89,7 @@ rules that users must enable explicitly.
 |---|---|---|---|
 | TMP3101 | Warning | Long-running activity does not heartbeat | Long-running activities should heartbeat so Temporal can detect failures and deliver cancellations. |
 | TMP3102 | Error | HeartbeatTimeout set but activity never heartbeats | HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. |
-| TMP3103 | Warning | Heartbeat called without HeartbeatTimeout | Without a HeartbeatTimeout, heartbeat calls have no effect and cannot influence failure detection or cancellation. |
+| TMP3103 | Warning | Heartbeat called without HeartbeatTimeout | Heartbeats persist details and deliver cancellation even without a HeartbeatTimeout; only timeout-based failure detection requires one. |
 | TMP3104 | Warning | Heartbeat called unnecessarily | Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection. |
 | TMP3105 | Warning | ActivityExecutionContext captured across an await | ActivityExecutionContext is async-local to the activity. Prefer accessing Current fresh, or store the specific values you need (logger, info, cancellation token) instead of holding the context itself. |
 | TMP3106 | Warning | Non-SDK logger used in an activity | Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Logger. |
