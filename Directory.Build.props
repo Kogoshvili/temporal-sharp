@@ -14,7 +14,18 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Kogoshvili/temporal-sharp</RepositoryUrl>
     <PackageProjectUrl>https://github.com/Kogoshvili/temporal-sharp</PackageProjectUrl>
-    <Copyright>© Andrian Kogoshvili</Copyright>
+    <Copyright>Copyright (c) Andrian Kogoshvili 2026</Copyright>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <DebugType>portable</DebugType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
 
 </Project>

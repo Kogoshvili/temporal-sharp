@@ -9,7 +9,8 @@
     <RootNamespace>Kogoshvili.Temporal.Cli</RootNamespace>
     <PackageId>Kogoshvili.Temporal.Cli</PackageId>
     <Description>Part of the Kogoshvili.Temporal tool suite — standalone CLI for running the Kogoshvili.Temporal analyzer in CI. Not affiliated with or endorsed by Temporal Technologies.</Description>
-    <PackageTags>temporal;roslyn;analyzer;workflows;cli</PackageTags>
+    <PackageTags>temporal;temporalio;roslyn;analyzer;workflows;cli;static-analysis;csharp;dotnet</PackageTags>
+    <PackageReleaseNotes>Initial beta release: standalone temporal-sharp CLI for running the Kogoshvili.Temporal analyzer.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
