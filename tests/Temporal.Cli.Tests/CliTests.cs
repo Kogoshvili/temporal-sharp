@@ -136,6 +136,13 @@ public class CliTests
     }
 
     [Fact]
+    public void OptionsParse_SeverityOverrideNone()
+    {
+        var options = Options.Parse(new[] { "x.csproj", "--severity", "TMP0101=none" });
+        Assert.Equal(DiagnosticSeverity.Hidden, options.SeverityOverrides["TMP0101"]);
+    }
+
+    [Fact]
     public void OptionsParse_AnalyzeSubcommand()
     {
         var options = Options.Parse(new[] { "analyze", "x.csproj" });

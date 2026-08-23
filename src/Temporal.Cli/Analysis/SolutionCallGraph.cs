@@ -35,22 +35,30 @@ internal static class SolutionCallGraph
                 continue;
             }
 
+            var analyzerConfigOptions = project.AnalyzerOptions.AnalyzerConfigOptionsProvider;
+
             foreach (var syntaxTree in compilation.SyntaxTrees)
             {
                 var semanticModel = compilation.GetSemanticModel(syntaxTree);
                 var root = syntaxTree.GetRoot();
 
+                var workflowGlobs = CompilationAnalysisState.ReadWorkflowPathGlobs(
+                    analyzerConfigOptions.GetOptions(syntaxTree));
+                var isWorkflowPath = workflowGlobs.Count > 0 &&
+                                     workflowGlobs.Any(g => PathGlob.IsMatch(g, syntaxTree.FilePath));
+
                 foreach (var typeDeclaration in root.DescendantNodes().OfType<TypeDeclarationSyntax>())
                 {
                     var typeSymbol = semanticModel.GetDeclaredSymbol(typeDeclaration);
-                    if (typeSymbol is null || !WorkflowDetection.IsWorkflowType(typeSymbol))
+                    if (typeSymbol is null ||
+                        (!WorkflowDetection.IsWorkflowType(typeSymbol) && !isWorkflowPath))
                     {
                         continue;
                     }
 
                     foreach (var member in typeSymbol.GetMembers())
                     {
-                        if (member is IMethodSymbol method)
+                        if (member is IMethodSymbol method && !WorkflowDetection.IsActivityMethod(method))
                         {
                             roots.Add(ReachabilityKey.Method(method));
                         }

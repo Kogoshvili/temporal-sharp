@@ -33,6 +33,37 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
+    public Task FieldInitializerWithWallClockTime_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                private System.DateTime _created = {|TMP0101:System.DateTime.UtcNow|};
+
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ActivityMethodInsideWorkflowClass_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                }
+
+                [Temporalio.Activities.Activity]
+                public System.Guid MakeGuid() => System.Guid.NewGuid();
+            }
+            """);
+
+    [Fact]
     public Task TaskDelay_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
@@ -727,7 +758,7 @@ public class DeterminismAnalyzerTests
             [Temporalio.Workflows.Workflow]
             public class MyWorkflow
             {
-                private readonly System.Threading.AsyncLocal<int> _state = new System.Threading.AsyncLocal<int>();
+                private readonly System.Threading.AsyncLocal<int> _state = {|TMP1106:new System.Threading.AsyncLocal<int>()|};
 
                 [Temporalio.Workflows.WorkflowRun]
                 public void Run()

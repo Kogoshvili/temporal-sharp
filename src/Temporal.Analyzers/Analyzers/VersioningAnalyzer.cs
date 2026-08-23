@@ -22,8 +22,7 @@ public sealed class VersioningAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.PatchLeftover,
             DiagnosticDescriptors.NonConstantPatchId,
             DiagnosticDescriptors.DuplicatePatchId,
-            DiagnosticDescriptors.PatchWithoutGuard,
-            DiagnosticDescriptors.PatchWithoutDeprecation);
+            DiagnosticDescriptors.PatchWithoutGuard);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -114,12 +113,6 @@ public sealed class VersioningAnalyzer : DiagnosticAnalyzer
             }
 
             AddId(versioningState.Patched, enclosing, id, invocation.GetLocation());
-
-            // TMP3307 — Patched guarding an if-without-else (fallback removed).
-            if (IsIfConditionWithoutElse(invocation))
-            {
-                AddId(versioningState.GuardedWithoutElse, enclosing, id, invocation.GetLocation());
-            }
         }
         else
         {
@@ -130,25 +123,6 @@ public sealed class VersioningAnalyzer : DiagnosticAnalyzer
     private static bool IsDiscarded(InvocationExpressionSyntax invocation) =>
         invocation.Parent is ExpressionStatementSyntax ||
         invocation.Parent is AssignmentExpressionSyntax { Left: IdentifierNameSyntax { Identifier.ValueText: "_" } };
-
-    private static bool IsIfConditionWithoutElse(InvocationExpressionSyntax invocation)
-    {
-        for (var current = invocation.Parent; current is not null; current = current.Parent)
-        {
-            if (current is not IfStatementSyntax ifStatement)
-            {
-                continue;
-            }
-
-            if (ifStatement.Condition.DescendantNodesAndSelf().Contains(invocation) &&
-                ifStatement.Else is null)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static bool ContainsId(
         ConcurrentDictionary<IMethodSymbol, ConcurrentDictionary<string, Location>> map,
@@ -211,26 +185,6 @@ public sealed class VersioningAnalyzer : DiagnosticAnalyzer
                     idEntry.Key));
             }
         }
-
-        // TMP3307 — a patch whose fallback branch was removed but never deprecated.
-        foreach (var entry in state.GuardedWithoutElse)
-        {
-            var method = entry.Key;
-            var hasDeprecation = state.Deprecated.TryGetValue(method, out var deprecatedIds);
-
-            foreach (var idEntry in entry.Value)
-            {
-                if (hasDeprecation && deprecatedIds.ContainsKey(idEntry.Key))
-                {
-                    continue;
-                }
-
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.PatchWithoutDeprecation,
-                    idEntry.Value,
-                    idEntry.Key));
-            }
-        }
     }
 
     private sealed class VersioningState
@@ -239,9 +193,6 @@ public sealed class VersioningAnalyzer : DiagnosticAnalyzer
             new(SymbolEqualityComparer.Default);
 
         public ConcurrentDictionary<IMethodSymbol, ConcurrentDictionary<string, Location>> Deprecated { get; } =
-            new(SymbolEqualityComparer.Default);
-
-        public ConcurrentDictionary<IMethodSymbol, ConcurrentDictionary<string, Location>> GuardedWithoutElse { get; } =
             new(SymbolEqualityComparer.Default);
     }
 }

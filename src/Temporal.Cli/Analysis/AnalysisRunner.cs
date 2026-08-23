@@ -8,24 +8,14 @@ namespace Kogoshvili.Temporal.Cli.Analysis;
 
 internal static class AnalysisRunner
 {
-    internal static readonly ImmutableArray<DiagnosticAnalyzer> Analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(
-        new DeterminismAnalyzer(),
-        new WorkflowStateAnalyzer(),
-        new SdkMisuseAnalyzer(),
-        new ActivityHeartbeatAnalyzer(),
-        new WorkflowContractAnalyzer(),
-        new ActivityStateAnalyzer(),
-        new VersioningAnalyzer(),
-        new SearchAttributeAnalyzer(),
-        new WorkflowMessageAnalyzer(),
-        new WorkflowUpdateAnalyzer(),
-        new WorkflowLifecycleAnalyzer(),
-        new ErrorHandlingAnalyzer(),
-        new ActivityContextAnalyzer(),
-        new SdkBoundaryAnalyzer(),
-        new BestPracticeAnalyzer(),
-        new CommentRuleAnalyzer(),
-        new PackageDenyListAnalyzer());
+    // Discover every analyzer in the Temporal.Analyzers assembly so a newly-added
+    // analyzer is picked up automatically instead of silently never running.
+    internal static readonly ImmutableArray<DiagnosticAnalyzer> Analyzers = typeof(DeterminismAnalyzer).Assembly
+        .GetTypes()
+        .Where(t => typeof(DiagnosticAnalyzer).IsAssignableFrom(t) && t is { IsAbstract: false, IsClass: true })
+        .OrderBy(t => t.FullName, StringComparer.Ordinal)
+        .Select(t => (DiagnosticAnalyzer)Activator.CreateInstance(t)!)
+        .ToImmutableArray();
 
     private static readonly ImmutableArray<string> RuleIds = Analyzers
         .SelectMany(a => a.SupportedDiagnostics)
@@ -161,6 +151,7 @@ internal static class AnalysisRunner
 
     private static ReportDiagnostic ToReportDiagnostic(DiagnosticSeverity severity) => severity switch
     {
+        DiagnosticSeverity.Hidden => ReportDiagnostic.Suppress,
         DiagnosticSeverity.Info => ReportDiagnostic.Info,
         DiagnosticSeverity.Warning => ReportDiagnostic.Warn,
         DiagnosticSeverity.Error => ReportDiagnostic.Error,

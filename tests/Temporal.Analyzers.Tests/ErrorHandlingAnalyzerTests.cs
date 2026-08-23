@@ -61,6 +61,32 @@ public class ErrorHandlingAnalyzerTests
             """);
 
     [Fact]
+    public Task ActivityThrowsBaseException_Reports()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public System.Threading.Tasks.Task Run()
+                {
+                    {|TMP2134:throw|} new System.Exception("boom");
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ActivityThrowsDomainException_DoesNotReport()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public System.Threading.Tasks.Task Run()
+                {
+                    throw new System.InvalidOperationException("boom");
+                }
+            }
+            """);
+
+    [Fact]
     public Task DebugAssertInWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

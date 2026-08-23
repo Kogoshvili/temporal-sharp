@@ -289,4 +289,21 @@ public class WorkflowMessageAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task QueryMutatesIndexer_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private System.Collections.Generic.Dictionary<string, int> _dict = new();
+
+                [Temporalio.Workflows.WorkflowQuery]
+                public int Get()
+                {
+                    {|TMP3206:_dict["k"] = 1|};
+                    return _dict.Count;
+                }
+            }
+            """);
 }

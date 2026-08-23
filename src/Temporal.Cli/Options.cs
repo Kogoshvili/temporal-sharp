@@ -98,13 +98,16 @@ internal sealed class Options
             throw new ArgumentException($"Invalid --severity value '{value}'. Expected RULEID=severity.");
         }
 
-        var severity = ParseSeverity(parts[1]);
-        if (severity is null)
+        // "none" disables a rule; DiagnosticSeverity.Hidden is the closest
+        // Roslyn severity and is mapped to ReportDiagnostic.Suppress downstream.
+        overrides[parts[0]] = parts[1] switch
         {
-            throw new ArgumentException($"Invalid --severity value '{value}'. Expected a severity of info, warning, or error.");
-        }
-
-        overrides[parts[0]] = severity.Value;
+            "none" => DiagnosticSeverity.Hidden,
+            "info" => DiagnosticSeverity.Info,
+            "warning" => DiagnosticSeverity.Warning,
+            "error" => DiagnosticSeverity.Error,
+            _ => throw new ArgumentException($"Invalid --severity value '{value}'. Expected a severity of none, info, warning, or error."),
+        };
     }
 
     private static string RequireValue(string[] args, ref int i, string option)

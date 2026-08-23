@@ -136,6 +136,22 @@ public class WorkflowUpdateAnalyzerTests
             """);
 
     [Fact]
+    public Task ValidatorMutatesIndexer_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                private System.Collections.Generic.Dictionary<string, int> _dict = new();
+
+                [Temporalio.Workflows.WorkflowUpdateValidator]
+                public void Validate(int x)
+                {
+                    {|TMP3215:_dict["k"] = x|};
+                }
+            }
+            """);
+
+    [Fact]
     public Task SignalHandlerSchedulesCommand_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

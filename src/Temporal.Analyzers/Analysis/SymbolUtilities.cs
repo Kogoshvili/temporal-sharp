@@ -81,15 +81,27 @@ internal static class SymbolUtilities
     private static ISymbol? ResolveRoot(ExpressionSyntax target, SemanticModel model)
     {
         var current = target;
-        while (current is MemberAccessExpressionSyntax memberAccess)
+        while (true)
         {
-            var receiver = memberAccess.Expression;
-            if (receiver is ThisExpressionSyntax or BaseExpressionSyntax)
+            if (current is MemberAccessExpressionSyntax memberAccess)
             {
-                return model.GetSymbolInfo(memberAccess).Symbol;
+                var receiver = memberAccess.Expression;
+                if (receiver is ThisExpressionSyntax or BaseExpressionSyntax)
+                {
+                    return model.GetSymbolInfo(memberAccess).Symbol;
+                }
+
+                current = receiver;
+                continue;
             }
 
-            current = receiver;
+            if (current is ElementAccessExpressionSyntax elementAccess)
+            {
+                current = elementAccess.Expression;
+                continue;
+            }
+
+            break;
         }
 
         if (current is IdentifierNameSyntax or ThisExpressionSyntax or BaseExpressionSyntax)

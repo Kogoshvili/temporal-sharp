@@ -27,13 +27,16 @@ internal sealed class CompilationAnalysisState
     private static readonly ConditionalWeakTable<Compilation, CompilationAnalysisState> Cache = new();
 
     private readonly ImmutableHashSet<IMethodSymbol> _workflowReachable;
+    private readonly ImmutableHashSet<INamedTypeSymbol> _workflowTypes;
     private readonly ImmutableHashSet<string>? _solutionReachableKeys;
 
     private CompilationAnalysisState(
         ImmutableHashSet<IMethodSymbol> workflowReachable,
+        ImmutableHashSet<INamedTypeSymbol> workflowTypes,
         ImmutableHashSet<string>? solutionReachableKeys)
     {
         _workflowReachable = workflowReachable;
+        _workflowTypes = workflowTypes;
         _solutionReachableKeys = solutionReachableKeys;
     }
 
@@ -93,18 +96,39 @@ internal sealed class CompilationAnalysisState
     public bool IsWorkflowReachable(SyntaxNode node, SemanticModel model)
     {
         var regularMethod = SymbolUtilities.GetEnclosingRegularMethod(model.GetEnclosingSymbol(node.SpanStart));
-        if (regularMethod is null)
+        if (regularMethod is not null)
         {
-            return false;
+            if (_workflowReachable.Contains(regularMethod))
+            {
+                return true;
+            }
+
+            return _solutionReachableKeys is not null &&
+                   _solutionReachableKeys.Contains(ReachabilityKey.Method(regularMethod));
         }
 
-        if (_workflowReachable.Contains(regularMethod))
+        // Field/property initializers of a workflow type run during workflow
+        // construction, so they are workflow code even though they are not inside
+        // a method.
+        return IsInWorkflowTypeInitializer(node, model);
+    }
+
+    private bool IsInWorkflowTypeInitializer(SyntaxNode node, SemanticModel model)
+    {
+        for (var symbol = model.GetEnclosingSymbol(node.SpanStart); symbol is not null; symbol = symbol.ContainingSymbol)
         {
-            return true;
+            if (symbol is IFieldSymbol { ContainingType: { } fieldType })
+            {
+                return _workflowTypes.Contains(fieldType);
+            }
+
+            if (symbol is IPropertySymbol { ContainingType: { } propertyType })
+            {
+                return _workflowTypes.Contains(propertyType);
+            }
         }
 
-        return _solutionReachableKeys is not null &&
-               _solutionReachableKeys.Contains(ReachabilityKey.Method(regularMethod));
+        return false;
     }
 
     private static CompilationAnalysisState Create(
@@ -113,6 +137,7 @@ internal sealed class CompilationAnalysisState
         AnalyzerConfigOptionsProvider analyzerConfigOptions)
     {
         var roots = new List<IMethodSymbol>();
+        var workflowTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         var edges = new Dictionary<IMethodSymbol, HashSet<IMethodSymbol>>(SymbolEqualityComparer.Default);
         var implementations = BuildOverrideMap(compilation);
         var delegateTargets = new Dictionary<ISymbol, List<IMethodSymbol>>(SymbolEqualityComparer.Default);
@@ -134,9 +159,11 @@ internal sealed class CompilationAnalysisState
                     continue;
                 }
 
+                workflowTypes.Add(typeSymbol);
+
                 foreach (var member in typeSymbol.GetMembers())
                 {
-                    if (member is IMethodSymbol method)
+                    if (member is IMethodSymbol method && !WorkflowDetection.IsActivityMethod(method))
                     {
                         roots.Add(method);
                     }
@@ -187,6 +214,7 @@ internal sealed class CompilationAnalysisState
 
         return new CompilationAnalysisState(
             ImmutableHashSet.CreateRange<IMethodSymbol>(SymbolEqualityComparer.Default, reachable),
+            ImmutableHashSet.CreateRange<INamedTypeSymbol>(SymbolEqualityComparer.Default, workflowTypes),
             solutionReachableKeys);
     }
 

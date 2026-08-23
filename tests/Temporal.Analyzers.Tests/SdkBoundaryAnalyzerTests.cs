@@ -42,6 +42,33 @@ public class SdkBoundaryAnalyzerTests
             """);
 
     [Fact]
+    public Task WorkflowHandleInWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Client.{|TMP3212:WorkflowHandle|} handle = null;
+                }
+            }
+            """);
+
+    [Fact]
+    public Task StartWorkflowWithParameterOptions_DoesNotReport()
+        => Verify(Stubs + """
+            public class C
+            {
+                public async System.Threading.Tasks.Task Start(Temporalio.Client.WorkflowOptions options)
+                {
+                    var client = new Temporalio.Client.WorkflowClient();
+                    await client.StartWorkflowAsync(() => new object(), options);
+                }
+            }
+            """);
+
+    [Fact]
     public Task StartWorkflowWithoutId_Reports()
         => Verify(Stubs + """
             public class C
@@ -131,6 +158,23 @@ public class SdkBoundaryAnalyzerTests
                 namespace Temporalio.Worker.Interceptors { }
                 namespace Temporalio.Runtime { }
                 namespace Temporalio.Converters { }
+
+                public class C { }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        return test.RunAsync();
+    }
+
+    [Fact]
+    public Task BridgePrefixedNamespace_DoesNotReport()
+    {
+        var test = new CSharpAnalyzerTest<SdkBoundaryAnalyzer, DefaultVerifier>
+        {
+            TestCode = """
+                using Temporalio.BridgeSomething;
+
+                namespace Temporalio.BridgeSomething { }
 
                 public class C { }
                 """,

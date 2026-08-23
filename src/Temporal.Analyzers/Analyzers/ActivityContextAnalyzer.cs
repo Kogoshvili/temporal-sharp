@@ -37,8 +37,10 @@ public sealed class ActivityContextAnalyzer : DiagnosticAnalyzer
         StringComparer.Ordinal,
         "System.Console.WriteLine",
         "System.Console.Write",
-        "System.Console.Error.WriteLine",
-        "System.Console.Error.Write",
+        // Console.Error is a TextWriter, so Console.Error.WriteLine binds to
+        // TextWriter.WriteLine (not a System.Console member).
+        "System.IO.TextWriter.WriteLine",
+        "System.IO.TextWriter.Write",
         "System.Diagnostics.Debug.WriteLine",
         "System.Diagnostics.Debug.Write",
         "System.Diagnostics.Trace.WriteLine",

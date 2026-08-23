@@ -78,6 +78,20 @@ public class ActivityContextAnalyzerTests
             """);
 
     [Fact]
+    public Task ConsoleErrorLogInActivity_Reports()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public System.Threading.Tasks.Task Work()
+                {
+                    {|TMP3106:System.Console.Error.WriteLine("x")|};
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+            }
+            """);
+
+    [Fact]
     public Task ConsoleLogOutsideActivity_DoesNotReport()
         => Verify(Stubs + """
             public static class Helper

@@ -49,6 +49,58 @@ public class WorkflowLifecycleAnalyzerTests
             """);
 
     [Fact]
+    public Task ContinueAsNewWithStateAndEmptyOptions_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Workflows.Workflow.CreateContinueAsNewException(
+                        "wf", new object[] { 1 }, new Temporalio.Workflows.ContinueAsNewOptions { });
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ContinueAsNewLambdaWithState_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Workflows.Workflow.CreateContinueAsNewException(
+                        () => Next(1), null);
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+
+                private System.Threading.Tasks.Task Next(int x) => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task ContinueAsNewLambdaWithoutState_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run()
+                {
+                    {|TMP2122:Temporalio.Workflows.Workflow.CreateContinueAsNewException(
+                        () => Next(), null)|};
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+
+                private System.Threading.Tasks.Task Next() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
     public Task SwallowedCancellation_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

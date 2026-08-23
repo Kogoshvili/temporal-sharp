@@ -25,9 +25,11 @@ internal static class TestStubs
 
         namespace Temporalio.Client
         {
-            public sealed class WorkflowOptions { public string? Id { get; set; } }
+            public sealed class WorkflowOptions { public string? Id { get; set; } public string? TaskQueue { get; set; } }
             public interface ITemporalClient { }
             public sealed class TemporalClient : ITemporalClient { }
+            public sealed class WorkflowHandle { }
+            public sealed class ScheduleHandle { }
             public sealed class WorkflowClient
             {
                 public System.Threading.Tasks.Task<string> StartWorkflowAsync(

@@ -79,4 +79,38 @@ public class SearchAttributeAnalyzerTests
                     => System.Threading.Tasks.Task.CompletedTask;
             }
             """).RunAsync();
+
+    [Fact]
+    public Task UpsertInOneWorkflow_DoesNotSuppressAnother()
+        => CreateTest(Stubs + """
+            public class Input1
+            {
+                public string UserId { get; set; }
+            }
+
+            public class Input2
+            {
+                public string {|TMP2161:UserId|} { get; set; }
+            }
+
+            [Temporalio.Workflows.Workflow]
+            public class W1
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run(Input1 input)
+                {
+                    Temporalio.Workflows.Workflow.UpsertTypedSearchAttributes(
+                        Temporalio.Workflows.SearchAttributeKey.ForKeyword("user_id").ValueSet("user_id"));
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+            }
+
+            [Temporalio.Workflows.Workflow]
+            public class W2
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run(Input2 input)
+                    => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """).RunAsync();
 }

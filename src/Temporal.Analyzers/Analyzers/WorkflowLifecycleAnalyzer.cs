@@ -73,8 +73,7 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var target = LambdaTargetResolver.ResolveTypedLambdaTarget(context, invocation);
-        if (HasNoStateArgument(invocation, target))
+        if (HasNoStateArgument(invocation, context.SemanticModel, method))
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 DiagnosticDescriptors.ContinueAsNewWithoutState,
@@ -82,29 +81,93 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool HasNoStateArgument(InvocationExpressionSyntax invocation, IMethodSymbol? target)
+    private static bool HasNoStateArgument(
+        InvocationExpressionSyntax invocation,
+        SemanticModel model,
+        IMethodSymbol method)
     {
-        if (target is not null && target.Parameters.Length == 0)
+        // Lambda overload: the state is whatever the lambda passes to the
+        // workflow run method; the options argument is irrelevant.
+        var lambda = invocation.ArgumentList.Arguments
+            .Select(a => Unwrap(a.Expression))
+            .OfType<LambdaExpressionSyntax>()
+            .FirstOrDefault();
+
+        if (lambda is not null)
+        {
+            return LambdaPassesNoState(lambda, model);
+        }
+
+        // String overload: the state is the args collection argument; a null or
+        // empty *options* argument must not count as "no state".
+        var state = FindStateArgument(invocation, method);
+        return state is not null && (IsNullLiteral(state) || IsEmptyCollection(state));
+    }
+
+    private static bool LambdaPassesNoState(LambdaExpressionSyntax lambda, SemanticModel model)
+    {
+        var body = lambda.Body;
+        while (body is ParenthesizedExpressionSyntax parens)
+        {
+            body = parens.Expression;
+        }
+
+        if (body is not InvocationExpressionSyntax invocation)
+        {
+            return false;
+        }
+
+        var target = model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+        if (target is null || target.Parameters.Length == 0)
         {
             return true;
         }
 
         foreach (var argument in invocation.ArgumentList.Arguments)
         {
-            var expression = argument.Expression;
-
-            if (IsNullLiteral(expression))
-            {
-                return true;
-            }
-
-            if (IsEmptyCollection(expression))
+            if (IsNullLiteral(argument.Expression) || IsEmptyCollection(argument.Expression))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static ExpressionSyntax? FindStateArgument(InvocationExpressionSyntax invocation, IMethodSymbol method)
+    {
+        // The state is the args collection; skip the workflow name (string) and
+        // the trailing options argument. Note string itself implements
+        // IEnumerable<char>, so a plain "is IEnumerable" check would mis-select
+        // the workflow name.
+        for (var i = 0; i < invocation.ArgumentList.Arguments.Count && i < method.Parameters.Length; i++)
+        {
+            var typeName = TypeNames.FullName(method.Parameters[i].Type);
+            if (typeName is "System.String" or "Temporalio.Workflows.ContinueAsNewOptions")
+            {
+                continue;
+            }
+
+            return invocation.ArgumentList.Arguments[i].Expression;
+        }
+
+        return null;
+    }
+
+    private static ExpressionSyntax Unwrap(ExpressionSyntax expression)
+    {
+        var current = expression;
+        while (current is CastExpressionSyntax cast)
+        {
+            current = cast.Expression;
+        }
+
+        while (current is ParenthesizedExpressionSyntax parens)
+        {
+            current = parens.Expression;
+        }
+
+        return current;
     }
 
     private static bool IsNullLiteral(ExpressionSyntax expression)

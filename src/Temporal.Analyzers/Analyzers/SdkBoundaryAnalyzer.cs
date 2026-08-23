@@ -142,9 +142,8 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            context.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.StartWorkflowWithoutId,
-                invocation.GetLocation()));
+            // Unknown origin (member access, method call, etc.) — cannot tell
+            // whether an Id was set, so do not report.
             return;
         }
     }
@@ -153,7 +152,12 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
     {
         foreach (var (location, symbol) in state.Pending)
         {
-            if (state.OptionsHasId.TryGetValue(symbol, out var hasId) && hasId)
+            if (!state.OptionsHasId.TryGetValue(symbol, out var hasId))
+            {
+                continue;
+            }
+
+            if (hasId)
             {
                 continue;
             }
@@ -181,7 +185,7 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
         var name = usingDirective.Name?.ToString() ?? string.Empty;
         foreach (var prefix in InternalNamespacePrefixes)
         {
-            if (name.StartsWith(prefix, System.StringComparison.Ordinal))
+            if (name == prefix || name.StartsWith(prefix + ".", System.StringComparison.Ordinal))
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.InternalTemporalNamespace,

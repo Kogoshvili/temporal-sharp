@@ -293,7 +293,7 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor SensitiveArgument = Create(
         "TMP2151",
         SdkMisuseCategory,
-        "Workflow/activity parameter or property may contain sensitive data",
+        "Workflow/activity parameter may contain sensitive data",
         "'{0}' matches the sensitive-data pattern",
         "Workflow inputs are recorded in event history; avoid passing sensitive values directly.",
         isEnabledByDefault: false);
@@ -588,6 +588,14 @@ internal static class DiagnosticDescriptors
         "Non-ApplicationFailureException thrown from workflow code",
         "Throwing a non-ApplicationFailureException; throw Temporalio.Exceptions.ApplicationFailureException instead",
         "A non-ApplicationFailureException from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailureException with a typed message.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor ActivityThrowsBaseException = Create(
+        "TMP2134",
+        SdkMisuseCategory,
+        "Base exception thrown from an activity",
+        "Activity throws a base exception; prefer Temporalio.Exceptions.ApplicationFailureException for a typed failure",
+        "Throwing a bare Exception or SystemException from an activity loses failure semantics. Prefer ApplicationFailureException or a domain exception.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor AssertInWorkflow = Create(
@@ -716,14 +724,6 @@ internal static class DiagnosticDescriptors
         "Patched call does not guard a behavior change",
         "Workflow.Patched result is discarded; the patch does not guard a behavior change",
         "Workflow.Patched is meant to guard an incompatible behavior change; discarding its result means the patch has no effect.",
-        severity: DiagnosticSeverity.Warning);
-
-    internal static readonly DiagnosticDescriptor PatchWithoutDeprecation = Create(
-        "TMP3307",
-        SdkMisuseCategory,
-        "Patch fallback removed without deprecation",
-        "patch '{0}' removed its fallback branch but never calls DeprecatePatch",
-        "Once the old behavior is removed, the patch branch should be simplified and Workflow.DeprecatePatch called so the version marker is preserved for old replays.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor MultipleParameters = Create(

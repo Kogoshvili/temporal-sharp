@@ -24,6 +24,7 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.ThrowsBaseException,
+            DiagnosticDescriptors.ActivityThrowsBaseException,
             DiagnosticDescriptors.AssertInWorkflow);
 
     public override void Initialize(AnalysisContext context)
@@ -80,7 +81,7 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
             TypeNames.FullName(type) is "System.Exception" or "System.SystemException")
         {
             context.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.ThrowsBaseException,
+                DiagnosticDescriptors.ActivityThrowsBaseException,
                 throwStatement.ThrowKeyword.GetLocation()));
         }
     }

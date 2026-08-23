@@ -167,6 +167,18 @@ public class BestPracticeAnalyzerTests
             """);
 
     [Fact]
+    public Task TaskQueue_ClientSideWorkflowOptions_DoesNotReport()
+        => Verify(Stubs + """
+            public class C
+            {
+                public void Start()
+                {
+                    var options = new Temporalio.Client.WorkflowOptions { TaskQueue = "my-queue" };
+                }
+            }
+            """);
+
+    [Fact]
     public Task ConsecutiveLocalActivities_Reports()
         => Verify(Stubs + OptionsStub + """
             [Temporalio.Workflows.Workflow]

@@ -67,15 +67,16 @@ rules that users must enable explicitly.
 | TMP2124 | Warning | Cleanup after cancellation is not in a non-cancellable scope | Cleanup that runs after cancellation should not itself be cancelled; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work so it always completes. |
 | TMP2125 | Warning | Unbounded loop without a continue-as-new check | An unbounded loop that never checks Workflow.ContinueAsNewSuggested grows the workflow history until it hits the size limit. Break the loop and continue as new. |
 | TMP2131 | Warning | Non-replay-aware logging in workflow code | Standard loggers write on every replay. Use Workflow.Logger, which suppresses output during replay. |
-| TMP2132 | Warning | Non-ApplicationFailureException thrown from workflow code | A non-ApplicationFailureException from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailureException with a typed message. |
+| TMP2132 | Error | Non-ApplicationFailureException thrown from workflow code | A non-ApplicationFailureException from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailureException with a typed message. |
 | TMP2133 | Warning | Debug/Trace assert in workflow code | Debug.Assert and Trace.Assert are compiled out in release builds and have no place in production workflow code. |
+| TMP2134 | Warning | Base exception thrown from an activity | Throwing a bare Exception or SystemException from an activity loses failure semantics. Prefer ApplicationFailureException or a domain exception. |
 | TMP2141 | Error | Non-serializable type in workflow/activity signature | Workflow and activity arguments and return values are serialized; delegates, streams, channels, and async enumerables cannot round-trip. |
 | TMP2142 | Warning | BigInteger in a payload without a converter | System.Numerics.BigInteger is not supported by the default JSON payload converter. Register a custom converter or use a supported type. |
 | TMP2143 | Warning | Exception used as a payload | Serializing an Exception as a payload is lossy and couples the workflow contract to the .NET exception hierarchy. Use ApplicationFailure or a plain error model. |
 | TMP2144 | Warning | Oversized inline payload | Large literals or collection initializers passed to activities or persisted to state bloat event history. Move them to a field, an activity, or external storage. |
 | TMP2146 | Error | Use of internal Temporal namespace | Temporalio.Bridge is not part of the public API and can change without notice. |
 | TMP2147 | off | Unsafe namespace imported in workflow code | Importing namespaces that provide I/O, networking, or other non-deterministic APIs into workflow code invites replay bugs. Configure kogoshvili.temporal.unsafe_namespaces with a list of namespace prefixes that workflow code must not import. |
-| TMP2151 | off | Workflow/activity parameter or property may contain sensitive data | Workflow inputs are recorded in event history; avoid passing sensitive values directly. |
+| TMP2151 | off | Workflow/activity parameter may contain sensitive data | Workflow inputs are recorded in event history; avoid passing sensitive values directly. |
 | TMP2161 | off | Search attribute is never upserted | A search attribute set at workflow start is only indexed then. Upsert it with Workflow.UpsertTypedSearchAttributes when its value changes. |
 | TMP2162 | Warning | Search attributes upserted inside a loop | Upserting search attributes on every loop iteration writes a command to history each time. Upsert once after the loop, or only when the value changes. |
 | TMP2163 | Warning | Search attribute removal uses the wrong shape | Removing a search attribute requires SearchAttributeKey<T>.ValueUnset(); ValueSet(null) does not remove the attribute. |
@@ -117,7 +118,6 @@ rules that users must enable explicitly.
 | TMP3302 | Warning | Non-constant patch id | Workflow.Patched and Workflow.DeprecatePatch ids must be constant strings so version markers are stable across replays. |
 | TMP3303 | Error | Patch id applied more than once | Applying the same patch id more than once in a workflow method is redundant and usually indicates a merge error. |
 | TMP3305 | Warning | Patched call does not guard a behavior change | Workflow.Patched is meant to guard an incompatible behavior change; discarding its result means the patch has no effect. |
-| TMP3307 | Warning | Patch fallback removed without deprecation | Once the old behavior is removed, the patch branch should be simplified and Workflow.DeprecatePatch called so the version marker is preserved for old replays. |
 
 ## Best practice
 

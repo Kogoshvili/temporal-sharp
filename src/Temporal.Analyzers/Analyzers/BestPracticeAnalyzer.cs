@@ -71,7 +71,7 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.ForEachStatement);
 
             startContext.RegisterSyntaxNodeAction(
-                AnalyzeTaskQueue,
+                c => AnalyzeTaskQueue(c, state),
                 SyntaxKind.ObjectCreationExpression);
 
             startContext.RegisterSyntaxNodeAction(
@@ -187,9 +187,14 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
     }
 
     // TMP4105 — hard-coded task-queue name on a Temporal options type.
-    private static void AnalyzeTaskQueue(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeTaskQueue(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
         var creation = (ObjectCreationExpressionSyntax)context.Node;
+        if (!state.IsWorkflowReachable(creation, context.SemanticModel))
+        {
+            return;
+        }
+
         if (creation.Initializer is not { } initializer)
         {
             return;

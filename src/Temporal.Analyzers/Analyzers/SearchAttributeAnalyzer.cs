@@ -33,8 +33,8 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
             var config = TemporalConfig.From(startContext.Options.AnalyzerConfigOptionsProvider);
             var state = CompilationAnalysisState.Get(startContext.Compilation, startContext.Options);
 
-            var required = new ConcurrentBag<(Location Location, string Field, string Attribute)>();
-            var upserted = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+            var required = new ConcurrentBag<(IMethodSymbol Method, Location Location, string Field, string Attribute)>();
+            var upserted = new ConcurrentDictionary<IMethodSymbol, ConcurrentDictionary<string, byte>>(SymbolEqualityComparer.Default);
 
             startContext.RegisterSymbolAction(
                 c => AnalyzeWorkflowRun(c, config, required),
@@ -127,7 +127,7 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeWorkflowRun(
         SymbolAnalysisContext context,
         TemporalConfig config,
-        ConcurrentBag<(Location Location, string Field, string Attribute)> required)
+        ConcurrentBag<(IMethodSymbol Method, Location Location, string Field, string Attribute)> required)
     {
         var method = (IMethodSymbol)context.Symbol;
         if (!WorkflowDetection.IsWorkflowRunMethod(method))
@@ -166,7 +166,7 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
                 }
 
                 var location = property.Locations.Length > 0 ? property.Locations[0] : method.Locations[0];
-                required.Add((location, property.Name, attribute));
+                required.Add((method, location, property.Name, attribute));
             }
         }
     }
@@ -174,7 +174,7 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
     private static void CollectUpsert(
         SyntaxNodeAnalysisContext context,
         CompilationAnalysisState state,
-        ConcurrentDictionary<string, byte> upserted)
+        ConcurrentDictionary<IMethodSymbol, ConcurrentDictionary<string, byte>> upserted)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method)
@@ -193,13 +193,23 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        var runMethod = GetOwningRunMethod(invocation, context.SemanticModel);
+        if (runMethod is null)
+        {
+            return;
+        }
+
+        var perMethod = upserted.GetOrAdd(
+            runMethod,
+            _ => new ConcurrentDictionary<string, byte>(StringComparer.Ordinal));
+
         foreach (var argument in invocation.ArgumentList.Arguments)
         {
             foreach (var literal in argument.Expression.DescendantNodesAndSelf().OfType<LiteralExpressionSyntax>())
             {
                 if (literal.IsKind(SyntaxKind.StringLiteralExpression))
                 {
-                    upserted.TryAdd(literal.Token.ValueText, 0);
+                    perMethod.TryAdd(literal.Token.ValueText, 0);
                 }
             }
         }
@@ -207,12 +217,12 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
 
     private static void Report(
         CompilationAnalysisContext context,
-        ConcurrentBag<(Location Location, string Field, string Attribute)> required,
-        ConcurrentDictionary<string, byte> upserted)
+        ConcurrentBag<(IMethodSymbol Method, Location Location, string Field, string Attribute)> required,
+        ConcurrentDictionary<IMethodSymbol, ConcurrentDictionary<string, byte>> upserted)
     {
-        foreach (var (location, field, attribute) in required)
+        foreach (var (method, location, field, attribute) in required)
         {
-            if (upserted.ContainsKey(attribute))
+            if (upserted.TryGetValue(method, out var perMethod) && perMethod.ContainsKey(attribute))
             {
                 continue;
             }
@@ -223,5 +233,39 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
                 field,
                 attribute));
         }
+    }
+
+    /// <summary>
+    /// Maps an upsert call to the workflow run method that owns it, so the
+    /// "never upserted" check is scoped per workflow instead of compilation-wide.
+    /// </summary>
+    private static IMethodSymbol? GetOwningRunMethod(InvocationExpressionSyntax invocation, SemanticModel model)
+    {
+        var enclosing = SymbolUtilities.GetEnclosingRegularMethod(model.GetEnclosingSymbol(invocation.SpanStart));
+        if (enclosing is null)
+        {
+            return null;
+        }
+
+        if (WorkflowDetection.IsWorkflowRunMethod(enclosing))
+        {
+            return enclosing;
+        }
+
+        var type = enclosing.ContainingType;
+        if (type is null || !WorkflowDetection.IsWorkflowType(type))
+        {
+            return null;
+        }
+
+        foreach (var member in type.GetMembers())
+        {
+            if (member is IMethodSymbol candidate && WorkflowDetection.IsWorkflowRunMethod(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 }

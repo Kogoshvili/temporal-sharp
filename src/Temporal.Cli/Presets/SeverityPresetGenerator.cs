@@ -45,8 +45,19 @@ internal static class SeverityPresetGenerator
             return "error";
         }
 
-        return descriptor.IsEnabledByDefault
-            ? descriptor.DefaultSeverity.ToString().ToLowerInvariant()
-            : "none";
+        if (!descriptor.IsEnabledByDefault)
+        {
+            return "none";
+        }
+
+        return descriptor.DefaultSeverity switch
+        {
+            // .editorconfig has no "info" value; Roslyn maps DiagnosticSeverity.Info
+            // to "suggestion".
+            DiagnosticSeverity.Info => "suggestion",
+            DiagnosticSeverity.Warning => "warning",
+            DiagnosticSeverity.Error => "error",
+            _ => "warning",
+        };
     }
 }

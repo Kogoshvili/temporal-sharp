@@ -111,22 +111,6 @@ public class VersioningP2Tests
             """);
 
     [Fact]
-    public Task PatchWithoutDeprecation_Reports()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class W
-            {
-                [Temporalio.Workflows.WorkflowRun]
-                public async System.Threading.Tasks.Task Run()
-                {
-                    if ({|TMP3307:Temporalio.Workflows.Workflow.Patched("p")|}) { New(); }
-                }
-
-                private void New() { }
-            }
-            """);
-
-    [Fact]
     public Task PatchWithElse_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
