@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   release:
@@ -36,3 +37,8 @@ jobs:
           git pull --rebase origin main
           git tag "v${{ github.event.inputs.version }}"
           git push origin main "v${{ github.event.inputs.version }}"
+
+      - name: Trigger publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run publish.yml --ref "v${{ github.event.inputs.version }}"
