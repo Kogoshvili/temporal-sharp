@@ -105,8 +105,7 @@ public class WorkflowLifecycleAnalyzerTests
                     try { await System.Threading.Tasks.Task.Delay(1); }
                     finally
                     {
-                        await Temporalio.Workflows.Workflow.NonCancellableAsync(
-                            async () => { await System.Threading.Tasks.Task.Delay(1); });
+                        await System.Threading.Tasks.Task.Delay(1, System.Threading.CancellationToken.None);
                     }
                 }
             }

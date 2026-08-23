@@ -451,7 +451,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Invalid workflow update return type",
         "Invalid [WorkflowUpdate] method: {0}",
-        "An update handler must return a concrete Task<T>; returning void, a plain value, or a non-generic Task makes the update result unusable by callers.",
+        "An update handler must return a Task (or Task<T> for a result); returning void or a non-task value is invalid.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor ContinueAsNewInUpdate = Create(
@@ -546,8 +546,8 @@ internal static class DiagnosticDescriptors
         "TMP2124",
         SdkMisuseCategory,
         "Cleanup after cancellation is not in a non-cancellable scope",
-        "cleanup awaits a task outside a non-cancellable scope; wrap it in Workflow.NonCancellableAsync",
-        "Cleanup that runs after cancellation should not itself be cancelled; wrap the cleanup work in Workflow.NonCancellableAsync so it always completes.",
+        "cleanup awaits a task outside a non-cancellable scope; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work",
+        "Cleanup that runs after cancellation should not itself be cancelled; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work so it always completes.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor RetryOnNonIdempotent = Create(
@@ -651,15 +651,15 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "ActivityExecutionContext captured across an await",
         "ActivityExecutionContext is captured across an await boundary",
-        "ActivityExecutionContext.Current is only valid until the next await. Store the values you need (cancellation token, logger, info) instead of the context itself.",
-        severity: DiagnosticSeverity.Error);
+        "ActivityExecutionContext is async-local to the activity. Prefer accessing Current fresh, or store the specific values you need (logger, info, cancellation token) instead of holding the context itself.",
+        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor NonSdkActivityLog = Create(
         "TMP3106",
         SdkMisuseCategory,
         "Non-SDK logger used in an activity",
-        "'{0}' writes to a non-SDK logger; use ActivityExecutionContext.Current.Log instead",
-        "Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Log.",
+        "'{0}' writes to a non-SDK logger; use ActivityExecutionContext.Current.Logger instead",
+        "Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Logger.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor HttpClientWithoutCancellation = Create(
@@ -698,8 +698,8 @@ internal static class DiagnosticDescriptors
         "TMP2163",
         SdkMisuseCategory,
         "Search attribute removal uses the wrong shape",
-        "Search-attribute removal should use the unset shape, not ValueSet(null)",
-        "Removing a search attribute requires the unset/[] shape; ValueSet(null) does not remove the attribute.",
+        "Search-attribute removal should use ValueUnset(), not ValueSet(null)",
+        "Removing a search attribute requires SearchAttributeKey<T>.ValueUnset(); ValueSet(null) does not remove the attribute.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor DuplicatePatchId = Create(

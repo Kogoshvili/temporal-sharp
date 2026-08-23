@@ -63,7 +63,7 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
         context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
     }
 
-    // TMP3208 — [WorkflowUpdate] must return a concrete Task<T>.
+    // TMP3208 — [WorkflowUpdate] must return a Task (or Task<T> for a result).
     private static void AnalyzeUpdateMethod(SymbolAnalysisContext context)
     {
         var method = (IMethodSymbol)context.Symbol;
@@ -72,18 +72,16 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (IsConcreteTaskOfT(method.ReturnType))
+        if (IsTaskOrSubtype(method.ReturnType))
         {
             return;
         }
 
-        Report(context, FirstLocation(method), "the update handler must return a concrete Task<T>");
+        Report(context, FirstLocation(method), "the update handler must return Task or Task<T>");
     }
 
-    private static bool IsConcreteTaskOfT(ITypeSymbol type) =>
-        type is INamedTypeSymbol named &&
-        TypeNames.FullName(named) == "System.Threading.Tasks.Task" &&
-        named.TypeArguments.Length == 1;
+    private static bool IsTaskOrSubtype(ITypeSymbol type) =>
+        TypeNames.IsOrDerivesFrom(type, "System.Threading.Tasks.Task");
 
     // TMP3217 — async handlers exist but the workflow never awaits AllHandlersFinished.
     private static void AnalyzeWorkflowType(SymbolAnalysisContext context)

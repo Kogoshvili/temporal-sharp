@@ -30,13 +30,13 @@ public class WorkflowUpdateAnalyzerTests
             """);
 
     [Fact]
-    public Task UpdateReturningNonGenericTask_Reports()
+    public Task UpdateReturningNonGenericTask_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
             {
                 [Temporalio.Workflows.WorkflowUpdate]
-                public System.Threading.Tasks.Task {|TMP3208:Update|}(int x)
+                public System.Threading.Tasks.Task Update(int x)
                     => System.Threading.Tasks.Task.CompletedTask;
             }
             """);

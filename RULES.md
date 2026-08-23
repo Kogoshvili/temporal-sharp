@@ -64,7 +64,7 @@ rules that users must enable explicitly.
 | TMP2121 | Error | Continue-as-new exception is not thrown | CreateContinueAsNewException returns an exception that must be thrown to trigger continue-as-new. |
 | TMP2122 | Warning | Continue-as-new without passing current workflow state | Continue-as-new starts a fresh execution; any state needed by the new run must be passed as arguments or it is lost. |
 | TMP2123 | Warning | Cancellation is swallowed | Catching a cancellation without rethrowing or checking Workflow.IsCancellationRequested hides a workflow/activity cancellation and can leave work running after cancellation. |
-| TMP2124 | Warning | Cleanup after cancellation is not in a non-cancellable scope | Cleanup that runs after cancellation should not itself be cancelled; wrap the cleanup work in Workflow.NonCancellableAsync so it always completes. |
+| TMP2124 | Warning | Cleanup after cancellation is not in a non-cancellable scope | Cleanup that runs after cancellation should not itself be cancelled; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work so it always completes. |
 | TMP2125 | Warning | Unbounded loop without a continue-as-new check | An unbounded loop that never checks Workflow.ContinueAsNewSuggested grows the workflow history until it hits the size limit. Break the loop and continue as new. |
 | TMP2131 | Warning | Non-replay-aware logging in workflow code | Standard loggers write on every replay. Use Workflow.Logger, which suppresses output during replay. |
 | TMP2132 | Warning | Non-ApplicationFailure exception thrown from workflow code | A non-ApplicationFailure exception from a workflow silently retries the task forever. Throw Temporalio.Exceptions.ApplicationFailure with a typed message. |
@@ -78,7 +78,7 @@ rules that users must enable explicitly.
 | TMP2151 | off | Workflow/activity parameter or property may contain sensitive data | Workflow inputs are recorded in event history; avoid passing sensitive values directly. |
 | TMP2161 | off | Search attribute is never upserted | A search attribute set at workflow start is only indexed then. Upsert it with Workflow.UpsertTypedSearchAttributes when its value changes. |
 | TMP2162 | Warning | Search attributes upserted inside a loop | Upserting search attributes on every loop iteration writes a command to history each time. Upsert once after the loop, or only when the value changes. |
-| TMP2163 | Warning | Search attribute removal uses the wrong shape | Removing a search attribute requires the unset/[] shape; ValueSet(null) does not remove the attribute. |
+| TMP2163 | Warning | Search attribute removal uses the wrong shape | Removing a search attribute requires SearchAttributeKey<T>.ValueUnset(); ValueSet(null) does not remove the attribute. |
 | TMP2171 | off | Lossy-number parameter in workflow/activity signature | object/dynamic values decode to JsonElement, and large integers may lose precision. Declare a concrete parameter type. |
 | TMP2172 | Warning | Lossy-number member in a workflow/activity payload type | object/dynamic/JsonElement members decode to JsonElement and may lose precision. Declare a concrete member type on the payload DTO. |
 
@@ -90,8 +90,8 @@ rules that users must enable explicitly.
 | TMP3102 | Error | HeartbeatTimeout set but activity never heartbeats | HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. |
 | TMP3103 | Warning | Heartbeat called without HeartbeatTimeout | Without a HeartbeatTimeout, heartbeat calls have no effect and cannot influence failure detection or cancellation. |
 | TMP3104 | Warning | Heartbeat called unnecessarily | Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection. |
-| TMP3105 | Error | ActivityExecutionContext captured across an await | ActivityExecutionContext.Current is only valid until the next await. Store the values you need (cancellation token, logger, info) instead of the context itself. |
-| TMP3106 | Warning | Non-SDK logger used in an activity | Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Log. |
+| TMP3105 | Warning | ActivityExecutionContext captured across an await | ActivityExecutionContext is async-local to the activity. Prefer accessing Current fresh, or store the specific values you need (logger, info, cancellation token) instead of holding the context itself. |
+| TMP3106 | Warning | Non-SDK logger used in an activity | Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Logger. |
 | TMP3107 | Warning | HttpClient call without a CancellationToken | HTTP calls should honor the activity's CancellationToken so a cancelled activity stops its network I/O immediately. |
 | TMP3108 | Warning | HeartbeatTimeout much shorter than StartToCloseTimeout | A HeartbeatTimeout far shorter than StartToCloseTimeout causes the activity to be marked failed on the first missed heartbeat. |
 | TMP3109 | Warning | Activity heartbeats in a loop but never checks the CancellationToken | Heartbeating without checking the cancellation token defeats cancellation: the activity keeps running after the heartbeat times out. |
@@ -102,7 +102,7 @@ rules that users must enable explicitly.
 | TMP3205 | Error | Invalid workflow signal method | A signal handler must return void or Task; returning Task<T> or a value is not allowed. |
 | TMP3206 | Error | Workflow query mutates workflow state | Query handlers must not mutate workflow state; writing to instance fields or properties makes query results non-deterministic. |
 | TMP3207 | Error | Workflow API called inside a query | Query handlers run synchronously and must not schedule workflow commands or mutate state; avoid calling Workflow APIs such as DelayAsync, WaitConditionAsync, or ExecuteActivityAsync from a query. |
-| TMP3208 | Error | Invalid workflow update return type | An update handler must return a concrete Task<T>; returning void, a plain value, or a non-generic Task makes the update result unusable by callers. |
+| TMP3208 | Error | Invalid workflow update return type | An update handler must return a Task (or Task<T> for a result); returning void or a non-task value is invalid. |
 | TMP3209 | Error | Continue-as-new invoked inside an update handler | Continue-as-new replaces the workflow execution and is only valid from the main workflow method. Raising it from an update handler is rejected at run time. |
 | TMP3211 | Warning | Workflow message name is not a string literal | Query, signal, and update names are part of the workflow's public contract. A computed name makes the contract unstable and breaks clients that reference the literal name. |
 | TMP3212 | Error | Client/worker types used from workflow code | Workflow code runs on the replay-deterministic workflow thread; referencing client or worker types pulls the worker process into the workflow and breaks determinism. |

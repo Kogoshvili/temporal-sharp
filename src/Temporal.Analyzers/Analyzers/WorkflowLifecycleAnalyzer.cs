@@ -203,9 +203,7 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (finallyClause.Block.DescendantNodes()
-            .OfType<IdentifierNameSyntax>()
-            .Any(id => id.Identifier.ValueText == "NonCancellableAsync"))
+        if (UsesNonCancellableToken(finallyClause, context.SemanticModel))
         {
             return;
         }
@@ -213,6 +211,22 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(Diagnostic.Create(
             DiagnosticDescriptors.CleanupNotNonCancellable,
             finallyClause.FinallyKeyword.GetLocation()));
+    }
+
+    private static bool UsesNonCancellableToken(FinallyClauseSyntax finallyClause, SemanticModel model)
+    {
+        foreach (var node in finallyClause.Block.DescendantNodes())
+        {
+            if (node is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "None" } access &&
+                model.GetSymbolInfo(access).Symbol is { Name: "None" } symbol &&
+                symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
+                SdkNames.CancellationTokenType)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // TMP2125 — unbounded loop in [WorkflowRun] that never checks continue-as-new.

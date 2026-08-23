@@ -40,21 +40,6 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
         SyntaxKind.PreDecrementExpression,
     };
 
-    // Workflow command/async APIs that a query handler must not invoke.
-    private static readonly ImmutableHashSet<string> WorkflowCommandMethods = ImmutableHashSet.Create(
-        StringComparer.Ordinal,
-        "DelayAsync",
-        "WaitConditionAsync",
-        "ExecuteActivityAsync",
-        "ExecuteLocalActivityAsync",
-        "ExecuteChildWorkflowAsync",
-        "StartChildWorkflowAsync",
-        "CreateContinueAsNewException",
-        "UpsertTypedSearchAttributes",
-        "Patched",
-        "DeprecatePatch",
-        "SignalExternalWorkflowAsync");
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.InvalidQuery,
@@ -252,8 +237,7 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (method.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) != SdkNames.WorkflowType ||
-            !WorkflowCommandMethods.Contains(method.Name))
+        if (!SdkNames.IsWorkflowCommand(method))
         {
             return;
         }

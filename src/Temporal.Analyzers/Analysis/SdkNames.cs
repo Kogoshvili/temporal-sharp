@@ -33,9 +33,7 @@ internal static class SdkNames
         "CreateContinueAsNewException",
         "UpsertTypedSearchAttributes",
         "Patched",
-        "DeprecatePatch",
-        "SignalExternalWorkflowAsync",
-        "ExecuteUpdateAsync");
+        "DeprecatePatch");
 
     /// <summary>
     /// Temporal client and worker types that must never be referenced from

@@ -137,9 +137,6 @@ internal static class TestStubs
 
                 public static System.Threading.Tasks.Task AllHandlersFinished => System.Threading.Tasks.Task.CompletedTask;
 
-                public static System.Threading.Tasks.Task NonCancellableAsync(System.Func<System.Threading.Tasks.Task> work)
-                    => System.Threading.Tasks.Task.CompletedTask;
-
                 public static System.Threading.Tasks.Task DelayAsync(int millisecondsDelay)
                     => System.Threading.Tasks.Task.CompletedTask;
 
@@ -219,7 +216,7 @@ internal static class TestStubs
                 public static ActivityExecutionContext Current => new ActivityExecutionContext();
                 public void Heartbeat(params object?[] details) { }
                 public System.Threading.CancellationToken CancellationToken => default;
-                public Temporalio.Workflows.WorkflowLogger Log => new Temporalio.Workflows.WorkflowLogger();
+                public Temporalio.Workflows.WorkflowLogger Logger => new Temporalio.Workflows.WorkflowLogger();
             }
         }
 

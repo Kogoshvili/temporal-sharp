@@ -16,7 +16,7 @@ namespace Kogoshvili.Temporal.Analyzers.CodeFixes;
 /// Rewrites non-replay-aware logging into the SDK logger:
 /// <list type="bullet">
 /// <item>TMP2131 (workflow): <c>Console/Debug/Trace.*</c> → <c>Workflow.Logger.*</c></item>
-/// <item>TMP3106 (activity): <c>Console/Debug/Trace.*</c> → <c>ActivityExecutionContext.Current.Log.*</c></item>
+/// <item>TMP3106 (activity): <c>Console/Debug/Trace.*</c> → <c>ActivityExecutionContext.Current.Logger.*</c></item>
 /// </list>
 /// The target method name is mapped by receiver kind (Write/WriteLine →
 /// LogInformation, Console.Error → LogError, Debug → LogDebug, Trace →
@@ -64,7 +64,7 @@ public sealed class LoggingCodeFixProvider : CodeFixProvider
         }
 
         var receiver = diagnostic.Id == "TMP3106"
-            ? CodeFixHelpers.QualifiedName("Temporalio", "Activities", "ActivityExecutionContext", "Current", "Log")
+            ? CodeFixHelpers.QualifiedName("Temporalio", "Activities", "ActivityExecutionContext", "Current", "Logger")
             : CodeFixHelpers.QualifiedName("Temporalio", "Workflows", "Workflow", "Logger");
 
         var newCallee = SyntaxFactory.MemberAccessExpression(
@@ -72,7 +72,7 @@ public sealed class LoggingCodeFixProvider : CodeFixProvider
             receiver,
             SyntaxFactory.IdentifierName(logMethod));
 
-        var title = diagnostic.Id == "TMP3106" ? "Use ActivityExecutionContext.Current.Log" : "Use Workflow.Logger";
+        var title = diagnostic.Id == "TMP3106" ? "Use ActivityExecutionContext.Current.Logger" : "Use Workflow.Logger";
 
         context.RegisterCodeFix(
             CodeAction.Create(

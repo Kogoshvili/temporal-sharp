@@ -312,7 +312,7 @@ public class LoggingCodeFixTests
                 [Temporalio.Activities.Activity]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    Temporalio.Activities.ActivityExecutionContext.Current.Log.LogInformation("x");
+                    Temporalio.Activities.ActivityExecutionContext.Current.Logger.LogInformation("x");
                 }
             }
             """);

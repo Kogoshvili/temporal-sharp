@@ -21,7 +21,7 @@ TMP0177 | Determinism | Error | Static constructor / static field initializer / 
 TMP0175 | Determinism | Warning | Control flow depending on non-deterministic time or randomness
 TMP0104 | Determinism | Warning | Workflow.UtcNow compared to a persisted timestamp
 TMP0123 | Determinism | Warning | Workflow.Random / Workflow.NewGuid used for a persisted id or payload
-TMP3208 | SdkMisuse | Error | [WorkflowUpdate] must return a concrete Task<T>
+TMP3208 | SdkMisuse | Error | [WorkflowUpdate] must return Task or Task<T>
 TMP3209 | SdkMisuse | Error | Continue-as-new invoked inside a [WorkflowUpdate]
 TMP3211 | SdkMisuse | Warning | Query/signal/update Name must be a constant string literal
 TMP3212 | SdkMisuse | Error | Temporalio.Client / worker types referenced from workflow code
@@ -45,13 +45,13 @@ TMP2142 | SdkMisuse | Warning | BigInteger in a payload without a converter
 TMP2143 | SdkMisuse | Warning | Exception used as a param/return payload
 TMP2144 | SdkMisuse | Warning | Oversized inline literal/collection payload
 TMP2172 | SdkMisuse | Warning | object/dynamic/JsonElement in nested payload members
-TMP3105 | SdkMisuse | Error | ActivityExecutionContext captured across an await
+TMP3105 | SdkMisuse | Warning | ActivityExecutionContext captured across an await
 TMP3106 | SdkMisuse | Warning | Console.* / non-SDK logger in an activity
 TMP3107 | SdkMisuse | Warning | HttpClient call without a CancellationToken
 TMP3108 | SdkMisuse | Warning | HeartbeatTimeout much shorter than StartToCloseTimeout
 TMP3109 | SdkMisuse | Warning | Activity heartbeats in a loop but never checks the CancellationToken
 TMP2162 | SdkMisuse | Warning | Workflow.UpsertTypedSearchAttributes inside a loop
-TMP2163 | SdkMisuse | Warning | Search-attribute removal not using the unset shape
+TMP2163 | SdkMisuse | Warning | Search-attribute removal not using ValueUnset()
 TMP3303 | SdkMisuse | Error | Same patch id Patched more than once
 TMP3305 | SdkMisuse | Warning | Patched result discarded (does not guard a change)
 TMP3307 | SdkMisuse | Warning | Patch fallback removed without DeprecatePatch
