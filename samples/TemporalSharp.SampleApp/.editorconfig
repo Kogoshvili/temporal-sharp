@@ -1,12 +1,50 @@
-# BadWorkflow.cs intentionally violates rules that are Error by default.
-# Downgrade them to warning here so the smoke-test build still succeeds while
-# demonstrating the analyzer's diagnostics.
+# The sample intentionally violates rules that are Error by default.
+# Downgrade every TemporalSharp rule to warning here so the smoke-test build
+# still succeeds while demonstrating the analyzer's diagnostics. Opt-in rules
+# are also enabled so they show up in the sample.
 [*.cs]
 dotnet_diagnostic.TMP0101.severity = warning
+dotnet_diagnostic.TMP0102.severity = warning
 dotnet_diagnostic.TMP0111.severity = warning
 dotnet_diagnostic.TMP0121.severity = warning
+dotnet_diagnostic.TMP0131.severity = warning
 dotnet_diagnostic.TMP0141.severity = warning
 dotnet_diagnostic.TMP0142.severity = warning
+dotnet_diagnostic.TMP0143.severity = warning
+dotnet_diagnostic.TMP0144.severity = warning
+dotnet_diagnostic.TMP0145.severity = warning
 dotnet_diagnostic.TMP0151.severity = warning
+dotnet_diagnostic.TMP0161.severity = warning
+
 dotnet_diagnostic.TMP1101.severity = warning
+dotnet_diagnostic.TMP1102.severity = warning
+dotnet_diagnostic.TMP1103.severity = warning
+dotnet_diagnostic.TMP1104.severity = warning
+dotnet_diagnostic.TMP1105.severity = warning
+dotnet_diagnostic.TMP1106.severity = warning
+
 dotnet_diagnostic.TMP2101.severity = warning
+dotnet_diagnostic.TMP2102.severity = warning
+dotnet_diagnostic.TMP2103.severity = warning
+dotnet_diagnostic.TMP2104.severity = warning
+dotnet_diagnostic.TMP2111.severity = warning
+dotnet_diagnostic.TMP2121.severity = warning
+dotnet_diagnostic.TMP2131.severity = warning
+dotnet_diagnostic.TMP2141.severity = warning
+dotnet_diagnostic.TMP2151.severity = warning
+dotnet_diagnostic.TMP2161.severity = warning
+dotnet_diagnostic.TMP2171.severity = warning
+
+dotnet_diagnostic.TMP3101.severity = warning
+dotnet_diagnostic.TMP3102.severity = warning
+dotnet_diagnostic.TMP3103.severity = warning
+dotnet_diagnostic.TMP3104.severity = warning
+dotnet_diagnostic.TMP3201.severity = warning
+dotnet_diagnostic.TMP3202.severity = warning
+dotnet_diagnostic.TMP3203.severity = warning
+dotnet_diagnostic.TMP3301.severity = warning
+dotnet_diagnostic.TMP3302.severity = warning
+
+# Maps the CustomerInput.CustomerId field to the CustomerId search attribute,
+# used by the TMP2161 demonstration.
+temporalsharp.search_attributes = customerid=CustomerId
