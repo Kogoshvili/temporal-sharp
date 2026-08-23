@@ -21,6 +21,7 @@ internal static class DenyList
         new Dictionary<string, DiagnosticDescriptor>(StringComparer.Ordinal)
         {
             ["System.Random..ctor"] = DiagnosticDescriptors.NonDeterministicRandomness,
+            ["System.Security.Cryptography.RNGCryptoServiceProvider..ctor"] = DiagnosticDescriptors.CryptoRandomness,
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
     // Constructors matched regardless of argument count (e.g. new Thread(...)
@@ -35,6 +36,12 @@ internal static class DenyList
             ["System.Threading.Tasks.TaskCompletionSource..ctor"] = DiagnosticDescriptors.ManualTaskCoordination,
             ["System.Threading.AsyncLocal<T>..ctor"] = DiagnosticDescriptors.AmbientState,
             ["System.Threading.ThreadLocal<T>..ctor"] = DiagnosticDescriptors.AmbientState,
+            ["System.Threading.Timer..ctor"] = DiagnosticDescriptors.TimerScheduling,
+            ["System.Threading.PeriodicTimer..ctor"] = DiagnosticDescriptors.TimerScheduling,
+            ["System.Timers.Timer..ctor"] = DiagnosticDescriptors.TimerScheduling,
+            ["System.WeakReference..ctor"] = DiagnosticDescriptors.WeakReference,
+            ["System.WeakReference<T>..ctor"] = DiagnosticDescriptors.WeakReference,
+            ["System.Runtime.CompilerServices.ConditionalWeakTable<TKey, TValue>..ctor"] = DiagnosticDescriptors.WeakReference,
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
     public static bool TryGetMember(string key, out DiagnosticDescriptor? descriptor)
@@ -250,6 +257,53 @@ internal static class DenyList
         })
         {
             entries.Add((name, DiagnosticDescriptors.AmbientState));
+        }
+
+        // TMP0122 — cryptographic randomness
+        foreach (var name in new[]
+        {
+            "System.Security.Cryptography.RandomNumberGenerator.Create",
+            "System.Security.Cryptography.RandomNumberGenerator.GetBytes",
+            "System.Security.Cryptography.RandomNumberGenerator.GetInt32",
+            "System.Security.Cryptography.RandomNumberGenerator.GetInt64",
+            "System.Security.Cryptography.RandomNumberGenerator.GetNonZeroBytes",
+            "System.Security.Cryptography.RandomNumberGenerator.GetString",
+            "System.Security.Cryptography.RandomNumberGenerator.GetHexString",
+            "System.Security.Cryptography.RandomNumberGenerator.Fill",
+            "System.Security.Cryptography.RNGCryptoServiceProvider.GetBytes",
+            "System.Security.Cryptography.RNGCryptoServiceProvider.GetNonZeroBytes",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.CryptoRandomness));
+        }
+
+        // TMP0172 — wall-clock timer scheduling
+        foreach (var name in new[]
+        {
+            "System.Threading.Timer.Change",
+            "System.Threading.Timer.ChangeAsync",
+            "System.Threading.PeriodicTimer.WaitForNextTickAsync",
+            "System.Timers.Timer.Start",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.TimerScheduling));
+        }
+
+        // TMP0174 — weak references / GC-timing dependence
+        foreach (var name in new[]
+        {
+            "System.WeakReference.Target",
+            "System.WeakReference.IsAlive",
+            "System.WeakReference<T>.TryGetTarget",
+            "System.WeakReference<T>.SetTarget",
+            "System.Runtime.CompilerServices.ConditionalWeakTable<TKey, TValue>.Add",
+            "System.Runtime.CompilerServices.ConditionalWeakTable<TKey, TValue>.TryGetValue",
+            "System.Runtime.CompilerServices.ConditionalWeakTable<TKey, TValue>.GetValue",
+            "System.Runtime.CompilerServices.ConditionalWeakTable<TKey, TValue>.GetOrCreateValue",
+            "System.Runtime.CompilerServices.ConditionalWeakTable<TKey, TValue>.Remove",
+        })
+        {
+            entries.Add((name, DiagnosticDescriptors.WeakReference));
         }
 
         return entries.ToImmutableDictionary(e => e.Key, e => e.Descriptor, StringComparer.Ordinal);

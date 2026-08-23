@@ -171,6 +171,78 @@ internal static class DiagnosticDescriptors
         "'{0}' is culture-sensitive in workflow code; pass System.Globalization.CultureInfo.InvariantCulture",
         "Parsing or formatting numbers, dates, and times with the ambient culture diverges across workers and replays. Pass CultureInfo.InvariantCulture (or another explicit IFormatProvider).");
 
+    internal static readonly DiagnosticDescriptor CryptoRandomness = Create(
+        "TMP0122",
+        DeterminismCategory,
+        "Workflow code generates cryptographic randomness",
+        "'{0}' generates cryptographic randomness in workflow code; move it into an activity",
+        "Cryptographic RNG reads from OS entropy, which differs on replay. Move crypto-random generation into an activity, or use Workflow.Random for non-cryptographic randomness.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor Finalizer = Create(
+        "TMP0171",
+        DeterminismCategory,
+        "Workflow type declares a finalizer",
+        "'{0}' declares a finalizer; GC timing is non-deterministic in workflow code",
+        "Finalizers run on GC timing, which is non-deterministic and can run during replay. Move cleanup to an activity or a deterministic shutdown path.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor TimerScheduling = Create(
+        "TMP0172",
+        DeterminismCategory,
+        "Workflow code schedules a wall-clock timer",
+        "'{0}' schedules work on wall-clock time; use Workflow.DelayAsync or move it into an activity",
+        "System timers fire on wall-clock intervals and do not integrate with the deterministic workflow scheduler. Use Workflow.DelayAsync, or run timer-driven work in an activity.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor WeakReference = Create(
+        "TMP0174",
+        DeterminismCategory,
+        "Workflow code uses a weak reference",
+        "'{0}' depends on GC timing; weak references are non-deterministic in workflow code",
+        "WeakReference and ConditionalWeakTable depend on GC timing, which is non-deterministic during replay. Avoid weak references in workflow code.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor ModuleSideEffect = Create(
+        "TMP0177",
+        DeterminismCategory,
+        "Workflow module performs side effects at load",
+        "'{0}' runs at module load and schedules workflow commands; move it into a workflow method or activity",
+        "Static constructors, static field initializers, and module initializers run at type/module load, which is not deterministic or journaled. Avoid scheduling workflow commands from them.",
+        severity: DiagnosticSeverity.Error);
+
+    internal static readonly DiagnosticDescriptor NondeterministicControlFlow = Create(
+        "TMP0175",
+        DeterminismCategory,
+        "Workflow control flow depends on time or randomness",
+        "'{0}' branches or loops on a non-deterministic time or randomness source; use Workflow.UtcNow / Workflow.Random",
+        "Control flow that depends on wall-clock time or non-deterministic randomness can diverge on replay. Use the deterministic SDK sources, or make the decision in an activity.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor WallClockComparison = Create(
+        "TMP0104",
+        DeterminismCategory,
+        "Workflow time compared to a persisted value",
+        "'{0}' compares workflow time to a persisted timestamp; wall-clock assumptions break replay",
+        "Comparing Workflow.UtcNow against an externally persisted timestamp or expiry makes the branch replay-dependent. Use a workflow timer, or persist the comparison time as workflow state.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor PersistedIdRandomness = Create(
+        "TMP0123",
+        DeterminismCategory,
+        "Workflow randomness used for a persisted id or payload",
+        "'{0}' uses workflow randomness for a persisted id or payload; generate it in an activity or on the client",
+        "Workflow.Random and Workflow.NewGuid are deterministic across replays, which makes them unsuitable for identifiers or payloads that must be unique across executions. Generate them in an activity or on the client.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor BusyWait = Create(
+        "TMP0181",
+        DeterminismCategory,
+        "Workflow busy-waits in a polling loop",
+        "'{0}' busy-waits; use Workflow.WaitConditionAsync instead of polling with a delay",
+        "A polling loop that awaits a fixed delay burns history and slows replay. Use Workflow.WaitConditionAsync or a signal-driven approach.",
+        severity: DiagnosticSeverity.Warning);
+
     internal static readonly DiagnosticDescriptor ThreadStaticMutation = Create(
         "TMP1102",
         WorkflowStateCategory,

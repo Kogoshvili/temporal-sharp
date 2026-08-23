@@ -54,6 +54,12 @@ internal static class TestStubs
 
             public static class Workflow
             {
+                public static System.DateTime UtcNow => default;
+
+                public static System.Guid NewGuid() => default;
+
+                public static System.Random Random => new System.Random(0);
+
                 public static bool Patched(string patchId) => false;
 
                 public static void DeprecatePatch(string patchId) { }

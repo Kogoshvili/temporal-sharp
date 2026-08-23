@@ -70,7 +70,41 @@ public class DeterminismViolations
         _ = long.Parse("42");
         _ = DateTimeOffset.Parse("2026-01-01");
         _ = string.Format("value={0}", 1);
+
+        // TMP0122 — cryptographic randomness
+        _ = System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 100);
+
+        // TMP0172 — wall-clock timer scheduling
+        _ = new System.Threading.Timer(_ => { }, null, 0, 1000);
+
+        // TMP0174 — weak references depend on GC timing
+        _ = new System.WeakReference(new object());
+
+        // TMP0175 — control flow depending on non-deterministic time
+        if (System.DateTime.Now.Hour > 5) { }
+
+        // TMP0104 — Workflow.UtcNow compared to a persisted timestamp
+        var expiry = System.DateTime.UtcNow;
+        if (Workflow.UtcNow > expiry) { }
+
+        // TMP0123 — workflow randomness used for a persisted payload
+        _ = Workflow.ExecuteActivityAsync(
+            "act",
+            new object[] { Workflow.NewGuid() },
+            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
+
+        // TMP0181 — busy-wait polling loop
+        while (true)
+        {
+            await Workflow.DelayAsync(100);
+        }
     }
+
+    // TMP0177 — static field initializer scheduling a workflow command at load.
+    private static readonly System.Threading.Tasks.Task _startup = Workflow.DelayAsync(100);
+
+    // TMP0171 — finalizer on a workflow type (GC timing is non-deterministic).
+    ~DeterminismViolations() { }
 
     // Helper returning a Task so the TMP0112 floating-task example above has a
     // task-returning method to discard.

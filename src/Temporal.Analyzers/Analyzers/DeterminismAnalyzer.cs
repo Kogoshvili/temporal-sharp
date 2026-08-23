@@ -33,7 +33,16 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.ReflectionInvocation,
             DiagnosticDescriptors.AmbientState,
             DiagnosticDescriptors.UnorderedEnumeration,
-            DiagnosticDescriptors.CultureSensitiveParse);
+            DiagnosticDescriptors.CultureSensitiveParse,
+            DiagnosticDescriptors.CryptoRandomness,
+            DiagnosticDescriptors.Finalizer,
+            DiagnosticDescriptors.TimerScheduling,
+            DiagnosticDescriptors.WeakReference,
+            DiagnosticDescriptors.ModuleSideEffect,
+            DiagnosticDescriptors.NondeterministicControlFlow,
+            DiagnosticDescriptors.WallClockComparison,
+            DiagnosticDescriptors.PersistedIdRandomness,
+            DiagnosticDescriptors.BusyWait);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => Supported;
 
@@ -69,6 +78,16 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
     private static readonly ImmutableHashSet<string> ParseMethodNames = ImmutableHashSet.Create(
         StringComparer.Ordinal,
         "Parse", "ParseExact", "TryParse", "TryParseExact");
+
+    private static readonly SyntaxKind[] ComparisonKinds =
+    {
+        SyntaxKind.EqualsExpression,
+        SyntaxKind.NotEqualsExpression,
+        SyntaxKind.LessThanExpression,
+        SyntaxKind.LessThanOrEqualExpression,
+        SyntaxKind.GreaterThanExpression,
+        SyntaxKind.GreaterThanOrEqualExpression,
+    };
 
     public override void Initialize(AnalysisContext context)
     {
@@ -106,6 +125,44 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzeCultureSensitiveCall(nodeContext, state),
                 SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeFinalizer(nodeContext, state),
+                SyntaxKind.DestructorDeclaration);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeStaticConstructor(nodeContext, state),
+                SyntaxKind.ConstructorDeclaration);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeStaticFieldInitializer(nodeContext, state),
+                SyntaxKind.VariableDeclarator);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeModuleInitializer(nodeContext, state),
+                SyntaxKind.MethodDeclaration);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeWallClockComparison(nodeContext, state),
+                ComparisonKinds);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeControlFlow(nodeContext, state),
+                SyntaxKind.IfStatement,
+                SyntaxKind.WhileStatement,
+                SyntaxKind.ForStatement,
+                SyntaxKind.DoStatement,
+                SyntaxKind.SwitchStatement,
+                SyntaxKind.ConditionalExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzePersistedId(nodeContext, state),
+                SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeBusyWait(nodeContext, state),
+                SyntaxKind.WhileStatement,
+                SyntaxKind.ForStatement);
         });
     }
 
@@ -427,6 +484,398 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
     private static bool HasProviderParameter(IMethodSymbol symbol)
         => symbol.Parameters.Any(p => TypeNames.FullName(p.Type) == "System.IFormatProvider");
+
+    // TMP0171 — finalizer on a [Workflow] type (GC timing is non-deterministic).
+    private static void AnalyzeFinalizer(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = (DestructorDeclarationSyntax)context.Node;
+        var type = context.SemanticModel.GetDeclaredSymbol(node)?.ContainingType;
+        if (type is null || !WorkflowDetection.IsWorkflowType(type))
+        {
+            return;
+        }
+
+        var display = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.Finalizer, node.Identifier.GetLocation(), display));
+    }
+
+    // TMP0177 — static constructor that schedules workflow commands.
+    private static void AnalyzeStaticConstructor(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = (ConstructorDeclarationSyntax)context.Node;
+        if (!node.Modifiers.Any(SyntaxKind.StaticKeyword))
+        {
+            return;
+        }
+
+        var type = context.SemanticModel.GetDeclaredSymbol(node)?.ContainingType;
+        if (type is null || !WorkflowDetection.IsWorkflowType(type))
+        {
+            return;
+        }
+
+        if (!ContainsWorkflowCommand(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.ModuleSideEffect,
+            node.Identifier.GetLocation(),
+            "static constructor"));
+    }
+
+    // TMP0177 — static field initializer that schedules workflow commands.
+    private static void AnalyzeStaticFieldInitializer(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var declarator = (VariableDeclaratorSyntax)context.Node;
+        if (declarator.Initializer is null ||
+            declarator.Parent?.Parent is not FieldDeclarationSyntax field ||
+            !field.Modifiers.Any(SyntaxKind.StaticKeyword))
+        {
+            return;
+        }
+
+        var fieldSymbol = context.SemanticModel.GetDeclaredSymbol(declarator) as IFieldSymbol;
+        var type = fieldSymbol?.ContainingType;
+        if (type is null || !WorkflowDetection.IsWorkflowType(type))
+        {
+            return;
+        }
+
+        if (!ContainsWorkflowCommand(declarator.Initializer.Value, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.ModuleSideEffect,
+            declarator.GetLocation(),
+            "static field initializer"));
+    }
+
+    // TMP0177 — [ModuleInitializer] method that schedules workflow commands.
+    private static void AnalyzeModuleInitializer(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = (MethodDeclarationSyntax)context.Node;
+        var method = context.SemanticModel.GetDeclaredSymbol(node);
+        if (method is null || !HasModuleInitializerAttribute(method))
+        {
+            return;
+        }
+
+        if (!ContainsWorkflowCommand(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.ModuleSideEffect,
+            node.Identifier.GetLocation(),
+            "module initializer"));
+    }
+
+    private static bool HasModuleInitializerAttribute(IMethodSymbol method)
+    {
+        foreach (var attribute in method.GetAttributes())
+        {
+            if (attribute.AttributeClass?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
+                "System.Runtime.CompilerServices.ModuleInitializerAttribute")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsWorkflowCommand(SyntaxNode node, SemanticModel model)
+    {
+        foreach (var descendant in node.DescendantNodesAndSelf())
+        {
+            if (descendant is InvocationExpressionSyntax invocation &&
+                model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+                SdkNames.IsWorkflowCommand(method))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // TMP0104 — Workflow.UtcNow compared to a persisted (non-UtcNow) value.
+    private static void AnalyzeWallClockComparison(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = (BinaryExpressionSyntax)context.Node;
+        if (!state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        var leftIsClock = IsWorkflowUtcNow(node.Left, context.SemanticModel);
+        var rightIsClock = IsWorkflowUtcNow(node.Right, context.SemanticModel);
+        if (leftIsClock == rightIsClock)
+        {
+            return;
+        }
+
+        var clockOperand = leftIsClock ? node.Left : node.Right;
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.WallClockComparison,
+            clockOperand.GetLocation(),
+            clockOperand.ToString()));
+    }
+
+    private static bool IsWorkflowUtcNow(ExpressionSyntax expression, SemanticModel model)
+    {
+        if (expression is MemberAccessExpressionSyntax memberAccess &&
+            model.GetSymbolInfo(memberAccess).Symbol is IPropertySymbol property &&
+            property.Name == "UtcNow" &&
+            property.ContainingType is not null &&
+            SdkNames.IsWorkflowType(property.ContainingType))
+        {
+            return true;
+        }
+
+        return expression is InvocationExpressionSyntax invocation &&
+               model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+               method.Name == "UtcNow" &&
+               method.ContainingType is not null &&
+               SdkNames.IsWorkflowType(method.ContainingType);
+    }
+
+    // TMP0175 — control flow that branches/loops on non-deterministic time or randomness.
+    private static void AnalyzeControlFlow(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = context.Node;
+        if (!state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        var condition = node switch
+        {
+            IfStatementSyntax ifStatement => ifStatement.Condition,
+            WhileStatementSyntax whileStatement => whileStatement.Condition,
+            ForStatementSyntax forStatement => forStatement.Condition,
+            DoStatementSyntax doStatement => doStatement.Condition,
+            SwitchStatementSyntax switchStatement => switchStatement.Expression,
+            ConditionalExpressionSyntax conditional => conditional.Condition,
+            _ => null,
+        };
+
+        if (condition is null || !ContainsNondeterministicSource(condition, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.NondeterministicControlFlow,
+            condition.GetLocation(),
+            "control flow"));
+    }
+
+    private static bool ContainsNondeterministicSource(ExpressionSyntax expression, SemanticModel model)
+    {
+        foreach (var node in expression.DescendantNodesAndSelf())
+        {
+            ISymbol? symbol = node switch
+            {
+                InvocationExpressionSyntax invocation => model.GetSymbolInfo(invocation).Symbol,
+                MemberAccessExpressionSyntax memberAccess => model.GetSymbolInfo(memberAccess).Symbol,
+                ObjectCreationExpressionSyntax creation => model.GetSymbolInfo(creation).Symbol,
+                _ => null,
+            };
+
+            if (symbol is not null && IsNondeterministicSource(symbol))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsNondeterministicSource(ISymbol symbol)
+    {
+        var key = SymbolKeys.Member(symbol);
+        DiagnosticDescriptor? descriptor = null;
+        if (DenyList.TryGetMember(key, out var memberDescriptor))
+        {
+            descriptor = memberDescriptor;
+        }
+        else if (DenyList.TryGetConstructor(key, out var constructorDescriptor))
+        {
+            descriptor = constructorDescriptor;
+        }
+        else if (DenyList.TryGetAnyArgConstructor(key, out var anyArgDescriptor))
+        {
+            descriptor = anyArgDescriptor;
+        }
+
+        return descriptor == DiagnosticDescriptors.WallClockTime ||
+               descriptor == DiagnosticDescriptors.NonDeterministicRandomness ||
+               descriptor == DiagnosticDescriptors.StopwatchUsage ||
+               descriptor == DiagnosticDescriptors.CryptoRandomness;
+    }
+
+    // TMP0123 — Workflow.Random / Workflow.NewGuid passed into a workflow command
+    // (i.e. leaving the workflow as a persisted id or payload).
+    private static void AnalyzePersistedId(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
+            !SdkNames.IsWorkflowCommand(method))
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (invocation.ArgumentList is not { } argumentList)
+        {
+            return;
+        }
+
+        foreach (var argument in argumentList.Arguments)
+        {
+            if (FindWorkflowRandomness(argument.Expression, context.SemanticModel) is not { } randomness)
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.PersistedIdRandomness,
+                randomness.GetLocation(),
+                randomness.ToString()));
+            return;
+        }
+    }
+
+    private static ExpressionSyntax? FindWorkflowRandomness(ExpressionSyntax expression, SemanticModel model)
+    {
+        foreach (var node in expression.DescendantNodesAndSelf())
+        {
+            if (node is InvocationExpressionSyntax invocation &&
+                model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method)
+            {
+                if (SdkNames.IsWorkflowType(method.ContainingType) && method.Name == "NewGuid")
+                {
+                    return invocation;
+                }
+
+                if (TypeNames.FullName(method.ContainingType) == "System.Random" &&
+                    invocation.Expression is MemberAccessExpressionSyntax receiverAccess &&
+                    IsWorkflowRandomProperty(receiverAccess.Expression, model))
+                {
+                    return invocation;
+                }
+            }
+            else if (node is MemberAccessExpressionSyntax access &&
+                     model.GetSymbolInfo(access).Symbol is IPropertySymbol or IFieldSymbol &&
+                     IsWorkflowRandomProperty(access, model))
+            {
+                return access;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsWorkflowRandomProperty(ExpressionSyntax expression, SemanticModel model)
+    {
+        if (expression is not MemberAccessExpressionSyntax access)
+        {
+            return false;
+        }
+
+        var symbol = model.GetSymbolInfo(access).Symbol;
+        if (symbol is null || (symbol is not IPropertySymbol && symbol is not IFieldSymbol))
+        {
+            return false;
+        }
+
+        return symbol.Name == "Random" &&
+               symbol.ContainingType is not null &&
+               SdkNames.IsWorkflowType(symbol.ContainingType);
+    }
+
+    // TMP0181 — polling loop that awaits a constant Workflow.DelayAsync.
+    private static void AnalyzeBusyWait(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = context.Node;
+        if (!state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        var body = node switch
+        {
+            WhileStatementSyntax whileStatement => whileStatement.Statement,
+            ForStatementSyntax forStatement => forStatement.Statement,
+            _ => node,
+        };
+
+        if (!ContainsConstantDelayAwait(body, context.SemanticModel))
+        {
+            return;
+        }
+
+        var keyword = node switch
+        {
+            WhileStatementSyntax whileStatement => whileStatement.WhileKeyword,
+            ForStatementSyntax forStatement => forStatement.ForKeyword,
+            _ => default,
+        };
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.BusyWait,
+            keyword.GetLocation(),
+            "loop"));
+    }
+
+    private static bool ContainsConstantDelayAwait(SyntaxNode body, SemanticModel model)
+    {
+        foreach (var node in body.DescendantNodesAndSelf())
+        {
+            if (node is not AwaitExpressionSyntax { Expression: InvocationExpressionSyntax invocation })
+            {
+                continue;
+            }
+
+            if (model.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
+                !SdkNames.IsWorkflowType(method.ContainingType) ||
+                method.Name != "DelayAsync")
+            {
+                continue;
+            }
+
+            var argument = invocation.ArgumentList?.Arguments.FirstOrDefault()?.Expression;
+            if (argument is not null && IsConstantDuration(argument))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsConstantDuration(ExpressionSyntax expression)
+    {
+        if (expression is LiteralExpressionSyntax)
+        {
+            return true;
+        }
+
+        return expression is InvocationExpressionSyntax
+        {
+            Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: { } name },
+        } && name is "FromMilliseconds" or "FromSeconds" or "FromMinutes" or "FromHours" or "FromDays" or "FromTicks";
+    }
 
     private static void ReportIfReachable(
         SyntaxNodeAnalysisContext context,

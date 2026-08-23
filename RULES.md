@@ -12,10 +12,13 @@ default and enabled via `.editorconfig` severity.
 |---|---|---|---|
 | TMP0101 | Error | Workflow code depends on wall-clock time | Workflow code is replayed by re-execution; reading wall-clock time during replay produces different results. Use Workflow.UtcNow. |
 | TMP0102 | Error | Workflow code measures elapsed wall-clock time | A Stopwatch reads elapsed wall-clock time, which differs on replay. Use Workflow.UtcNow to read deterministic time. |
+| TMP0104 | Warning | Workflow time compared to a persisted value | Comparing Workflow.UtcNow against an externally persisted timestamp or expiry makes the branch replay-dependent. Use a workflow timer, or persist the comparison time as workflow state. |
 | TMP0111 | Error | Workflow code blocks the workflow thread | Sleeping on wall-clock time or synchronously waiting on a task breaks replay determinism and deadlocks the single-threaded workflow runtime. Await asynchronously, and use Workflow.DelayAsync for delays. |
 | TMP0112 | Error | Workflow code discards an un-awaited task | Fire-and-forget task calls in workflow code are not tracked by the deterministic scheduler, so their completion is not journaled and replays diverge. Await the task, assign it, or discard it explicitly. |
 | TMP0113 | Error | Workflow code uses ConfigureAwait(false) | ConfigureAwait(false) abandons the workflow's synchronization context, so continuations run on the default task scheduler rather than the deterministic workflow scheduler. Omit the call or pass true. |
 | TMP0121 | Error | Workflow code uses non-deterministic randomness | Random values generated in workflow code differ on replay. Use Workflow.Random or Workflow.NewGuid. |
+| TMP0122 | Error | Workflow code generates cryptographic randomness | Cryptographic RNG reads from OS entropy, which differs on replay. Move crypto-random generation into an activity, or use Workflow.Random for non-cryptographic randomness. |
+| TMP0123 | Warning | Workflow randomness used for a persisted id or payload | Workflow.Random and Workflow.NewGuid are deterministic across replays, which makes them unsuitable for identifiers or payloads that must be unique across executions. Generate them in an activity or on the client. |
 | TMP0131 | Error | Workflow code performs I/O or reads the environment | I/O and environment access break replay determinism. Perform I/O in an activity. |
 | TMP0141 | Error | Workflow code starts concurrent work | Starting threads or parallel work in workflow code breaks replay determinism and has no Workflow.* replacement. Delegate the work to an activity. |
 | TMP0142 | Error | Workflow code uses a blocking synchronization primitive | Blocking on locks, channels, or other synchronization primitives can deadlock the single-threaded workflow runtime and break determinism. |
@@ -26,6 +29,12 @@ default and enabled via `.editorconfig` severity.
 | TMP0147 | Error | Workflow code uses a blocking synchronization primitive with a deterministic replacement | System.Threading.Mutex, Semaphore, and SemaphoreSlim block the single-threaded workflow runtime. Use the SDK's Temporalio.Workflows.Mutex / Temporalio.Workflows.Semaphore, which integrate with the deterministic scheduler. |
 | TMP0151 | Error | Workflow code iterates a collection in non-deterministic order | Dictionary and HashSet iteration order is not deterministic across runs and replays. Sort the collection first. |
 | TMP0161 | Warning | Workflow code parses or formats using the ambient culture | Parsing or formatting numbers, dates, and times with the ambient culture diverges across workers and replays. Pass CultureInfo.InvariantCulture (or another explicit IFormatProvider). |
+| TMP0171 | Error | Workflow type declares a finalizer | Finalizers run on GC timing, which is non-deterministic and can run during replay. Move cleanup to an activity or a deterministic shutdown path. |
+| TMP0172 | Error | Workflow code schedules a wall-clock timer | System timers fire on wall-clock intervals and do not integrate with the deterministic workflow scheduler. Use Workflow.DelayAsync, or run timer-driven work in an activity. |
+| TMP0174 | Error | Workflow code uses a weak reference | WeakReference and ConditionalWeakTable depend on GC timing, which is non-deterministic during replay. Avoid weak references in workflow code. |
+| TMP0175 | Warning | Workflow control flow depends on time or randomness | Control flow that depends on wall-clock time or non-deterministic randomness can diverge on replay. Use the deterministic SDK sources, or make the decision in an activity. |
+| TMP0177 | Error | Workflow module performs side effects at load | Static constructors, static field initializers, and module initializers run at type/module load, which is not deterministic or journaled. Avoid scheduling workflow commands from them. |
+| TMP0181 | Warning | Workflow busy-waits in a polling loop | A polling loop that awaits a fixed delay burns history and slows replay. Use Workflow.WaitConditionAsync or a signal-driven approach. |
 
 ## Shared-state mutation
 

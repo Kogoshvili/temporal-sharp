@@ -5,10 +5,13 @@
 [*.cs]
 dotnet_diagnostic.TMP0101.severity = warning
 dotnet_diagnostic.TMP0102.severity = warning
+dotnet_diagnostic.TMP0104.severity = warning
 dotnet_diagnostic.TMP0111.severity = warning
 dotnet_diagnostic.TMP0112.severity = warning
 dotnet_diagnostic.TMP0113.severity = warning
 dotnet_diagnostic.TMP0121.severity = warning
+dotnet_diagnostic.TMP0122.severity = warning
+dotnet_diagnostic.TMP0123.severity = warning
 dotnet_diagnostic.TMP0131.severity = warning
 dotnet_diagnostic.TMP0141.severity = warning
 dotnet_diagnostic.TMP0142.severity = warning
@@ -19,6 +22,12 @@ dotnet_diagnostic.TMP0146.severity = warning
 dotnet_diagnostic.TMP0147.severity = warning
 dotnet_diagnostic.TMP0151.severity = warning
 dotnet_diagnostic.TMP0161.severity = warning
+dotnet_diagnostic.TMP0171.severity = warning
+dotnet_diagnostic.TMP0172.severity = warning
+dotnet_diagnostic.TMP0174.severity = warning
+dotnet_diagnostic.TMP0175.severity = warning
+dotnet_diagnostic.TMP0177.severity = warning
+dotnet_diagnostic.TMP0181.severity = warning
 
 dotnet_diagnostic.TMP1101.severity = warning
 dotnet_diagnostic.TMP1102.severity = warning
