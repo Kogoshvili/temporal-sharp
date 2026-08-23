@@ -142,7 +142,9 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
         if (map.Count == 0)
         {
             return;
-        }        foreach (var parameter in method.Parameters)
+        }
+
+        foreach (var parameter in method.Parameters)
         {
             // Only user-defined DTOs carry search-attribute-mapped fields.
             if (parameter.Type is not INamedTypeSymbol named ||

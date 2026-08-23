@@ -138,7 +138,8 @@ internal static class DiagnosticDescriptors
         DeterminismCategory,
         "Workflow code uses raw task scheduling",
         "'{0}' runs on the non-deterministic task scheduler; use Workflow.WhenAllAsync / Workflow.WhenAnyAsync instead",
-        "Raw Task combinators (WhenAll/WhenAny/ContinueWith) schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAllAsync / Workflow.WhenAnyAsync, and use .Cancel() instead of CancellationTokenSource.CancelAsync().");
+        "Raw Task combinators (WhenAll/WhenAny/ContinueWith) schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAllAsync / Workflow.WhenAnyAsync, and use .Cancel() instead of CancellationTokenSource.CancelAsync().",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor TaskWhenAll = Create(
         "TMP0148",
@@ -481,8 +482,8 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor StartWorkflowWithoutId = Create(
         "TMP3213",
         SdkMisuseCategory,
-        "StartWorkflowAsync called without an explicit workflow id",
-        "StartWorkflowAsync does not set an explicit workflow id; provide one so the start is idempotent",
+        "Start/execute workflow without an explicit workflow id",
+        "The workflow is started without an explicit workflow id; provide one so the start is idempotent",
         "Without an explicit workflow id, Temporal generates one per call and a retry can start a duplicate workflow. Set workflowId for idempotent starts.",
         severity: DiagnosticSeverity.Warning);
 

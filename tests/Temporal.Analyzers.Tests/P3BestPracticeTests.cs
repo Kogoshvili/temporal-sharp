@@ -167,13 +167,51 @@ public class BestPracticeAnalyzerTests
             """);
 
     [Fact]
-    public Task TaskQueue_ClientSideWorkflowOptions_DoesNotReport()
+    public Task TaskQueue_ClientSideWorkflowOptions_Reports()
         => Verify(Stubs + """
             public class C
             {
                 public void Start()
                 {
-                    var options = new Temporalio.Client.WorkflowOptions { TaskQueue = "my-queue" };
+                    var options = new Temporalio.Client.WorkflowOptions { {|TMP4105:TaskQueue = "my-queue"|} };
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskQueue_WorkerOptionsConstructor_Reports()
+        => Verify(Stubs + """
+            public class C
+            {
+                public void Start()
+                {
+                    var options = new Temporalio.Worker.TemporalWorkerOptions({|TMP4105:"my-queue"|});
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskQueue_WorkflowOptionsNamedCtorArg_Reports()
+        => Verify(Stubs + """
+            public class C
+            {
+                public void Start()
+                {
+                    var options = new Temporalio.Client.WorkflowOptions({|TMP4105:taskQueue: "my-queue"|});
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskQueue_ImplicitNew_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Workflows.ActivityOptions options = new() { {|TMP4105:TaskQueue = "my-queue"|} };
                 }
             }
             """);

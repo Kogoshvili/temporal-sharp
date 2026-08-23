@@ -79,7 +79,7 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
             type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
     }
 
-    // TMP3213 — StartWorkflowAsync without an explicit workflow id.
+    // TMP3213 — StartWorkflowAsync/ExecuteWorkflowAsync without an explicit workflow id.
     private static void CollectWorkflowOptions(SyntaxNodeAnalysisContext context, StartWorkflowState state)
     {
         var creation = (BaseObjectCreationExpressionSyntax)context.Node;
@@ -103,7 +103,7 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
-            method.Name != "StartWorkflowAsync" ||
+            method.Name is not ("StartWorkflowAsync" or "ExecuteWorkflowAsync") ||
             method.ContainingType?.ContainingNamespace.ToDisplayString() != SdkNames.ClientNamespace)
         {
             return;

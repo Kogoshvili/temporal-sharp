@@ -11,7 +11,7 @@
     <PackageId>Kogoshvili.Temporal.Analyzers</PackageId>
     <Description>Part of the Kogoshvili.Temporal tool suite — Roslyn analyzer for determinism and SDK feature-misuse checks in the Temporal .NET SDK. Not affiliated with or endorsed by Temporal Technologies.</Description>
     <PackageTags>temporal;temporalio;roslyn;analyzer;workflows;determinism;static-analysis;csharp;dotnet</PackageTags>
-    <PackageReleaseNotes>Initial beta release: 38 rules across determinism, shared-state, and SDK feature-misuse categories.</PackageReleaseNotes>
+    <PackageReleaseNotes>Initial beta release: 98 rules across determinism, shared-state, and SDK feature-misuse categories.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

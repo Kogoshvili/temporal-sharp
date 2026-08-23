@@ -25,7 +25,7 @@ TMP3208 | SdkMisuse | Error | [WorkflowUpdate] must return Task or Task<T>
 TMP3209 | SdkMisuse | Error | Continue-as-new invoked inside a [WorkflowUpdate]
 TMP3211 | SdkMisuse | Warning | Query/signal/update Name must be a constant string literal
 TMP3212 | SdkMisuse | Error | Temporalio.Client / worker types referenced from workflow code
-TMP3213 | SdkMisuse | Warning | StartWorkflowAsync without an explicit workflow id
+TMP3213 | SdkMisuse | Warning | StartWorkflowAsync/ExecuteWorkflowAsync without an explicit workflow id
 TMP3214 | SdkMisuse | Warning | Workflow and activity methods mixed in one class
 TMP3215 | SdkMisuse | Error | [WorkflowUpdateValidator] mutates state or blocks
 TMP3216 | SdkMisuse | Warning | Signal/update handler schedules activities/child workflows/delays
@@ -78,3 +78,4 @@ TMP2102 | SdkMisuse | Disabled | ScheduleToCloseTimeout set without StartToClose
 Rule ID | New Category | New Severity | Old Category | Old Severity | Notes
 --------|--------------|--------------|--------------|--------------|-------
 TMP3203 | SdkMisuse | Warning | SdkMisuse | Error | Activity instance-state mutation is a race risk, not a determinism error
+TMP0143 | Determinism | Error | Determinism | Warning | Raw task scheduling (WhenAny/ContinueWith/CancelAsync) is replay-breaking; escalate to Error

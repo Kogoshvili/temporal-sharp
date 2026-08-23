@@ -72,8 +72,9 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.ForEachStatement);
 
             startContext.RegisterSyntaxNodeAction(
-                c => AnalyzeTaskQueue(c, state),
-                SyntaxKind.ObjectCreationExpression);
+                c => AnalyzeTaskQueue(c),
+                SyntaxKind.ObjectCreationExpression,
+                SyntaxKind.ImplicitObjectCreationExpression);
 
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeConsecutiveLocalActivities(c, state),
@@ -187,39 +188,71 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
             "loop"));
     }
 
-    // TMP4105 — hard-coded task-queue name on a Temporal options type.
-    private static void AnalyzeTaskQueue(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    // TMP4105 — hard-coded task-queue name on a Temporal options type. Applies to
+    // any Temporalio.*Options construction (worker, starter, or activity options),
+    // not just workflow-reachable code, since task-queue strings typically live in
+    // worker/starter setup.
+    private static void AnalyzeTaskQueue(SyntaxNodeAnalysisContext context)
     {
-        var creation = (ObjectCreationExpressionSyntax)context.Node;
-        if (!state.IsWorkflowReachable(creation, context.SemanticModel))
-        {
-            return;
-        }
-
-        if (creation.Initializer is not { } initializer)
-        {
-            return;
-        }
-
+        var creation = (BaseObjectCreationExpressionSyntax)context.Node;
         var type = context.SemanticModel.GetTypeInfo(creation).Type;
         if (type is null || !IsTemporalOptionType(type))
         {
             return;
         }
 
-        foreach (var expression in initializer.Expressions)
+        // Object initializer: TaskQueue = "literal".
+        if (creation.Initializer is { } initializer)
         {
-            if (expression is not AssignmentExpressionSyntax { Left: IdentifierNameSyntax { Identifier.ValueText: "TaskQueue" } } assignment ||
-                assignment.Right is not LiteralExpressionSyntax literal ||
-                !literal.IsKind(SyntaxKind.StringLiteralExpression))
+            foreach (var expression in initializer.Expressions)
             {
-                continue;
+                if (expression is not AssignmentExpressionSyntax
+                    {
+                        Left: IdentifierNameSyntax { Identifier.ValueText: "TaskQueue" },
+                        Right: LiteralExpressionSyntax literal,
+                    } assignment ||
+                    !literal.IsKind(SyntaxKind.StringLiteralExpression))
+                {
+                    continue;
+                }
+
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.HardcodedTaskQueue,
+                    assignment.GetLocation(),
+                    literal.Token.ValueText));
+            }
+        }
+
+        // Constructor argument: WorkflowOptions(taskQueue: "…") or the
+        // TemporalWorkerOptions(string taskQueue) positional overload.
+        if (creation.ArgumentList is not { } argumentList)
+        {
+            return;
+        }
+
+        var arguments = argumentList.Arguments;
+        for (var i = 0; i < arguments.Count; i++)
+        {
+            var argument = arguments[i];
+
+            var isTaskQueue = argument.NameColon?.Name.Identifier.ValueText is "TaskQueue" or "taskQueue";
+            if (!isTaskQueue &&
+                argument.NameColon is null &&
+                i == 0 &&
+                TypeNames.FullName(type) == "Temporalio.Worker.TemporalWorkerOptions")
+            {
+                isTaskQueue = true;
             }
 
-            context.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.HardcodedTaskQueue,
-                assignment.GetLocation(),
-                literal.Token.ValueText));
+            if (isTaskQueue &&
+                argument.Expression is LiteralExpressionSyntax literal &&
+                literal.IsKind(SyntaxKind.StringLiteralExpression))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.HardcodedTaskQueue,
+                    argument.GetLocation(),
+                    literal.Token.ValueText));
+            }
         }
     }
 

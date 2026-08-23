@@ -38,6 +38,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         context.RegisterCompilationStartAction(startContext =>
         {
             var state = new HeartbeatState();
+            var compilationState = CompilationAnalysisState.Get(startContext.Compilation, startContext.Options);
 
             startContext.RegisterSymbolAction(
                 symbolContext => CollectLongRunningActivity(symbolContext, state),
@@ -52,7 +53,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.ObjectCreationExpression);
 
             startContext.RegisterSyntaxNodeAction(
-                nodeContext => AnalyzeTimeoutRatio(nodeContext, state),
+                nodeContext => AnalyzeTimeoutRatio(nodeContext, state, compilationState),
                 SyntaxKind.ObjectCreationExpression);
 
             startContext.RegisterSyntaxNodeAction(
@@ -73,7 +74,10 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
     }
 
     // TMP3108 — HeartbeatTimeout much shorter than StartToCloseTimeout.
-    private static void AnalyzeTimeoutRatio(SyntaxNodeAnalysisContext context, HeartbeatState state)
+    private static void AnalyzeTimeoutRatio(
+        SyntaxNodeAnalysisContext context,
+        HeartbeatState state,
+        CompilationAnalysisState compilationState)
     {
         var creation = (ObjectCreationExpressionSyntax)context.Node;
         var type = context.SemanticModel.GetTypeInfo(creation).Type;
@@ -84,6 +88,11 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
 
         var typeName = type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
         if (typeName != SdkNames.ActivityOptionsType && typeName != SdkNames.LocalActivityOptionsType)
+        {
+            return;
+        }
+
+        if (!compilationState.IsWorkflowReachable(creation, context.SemanticModel))
         {
             return;
         }

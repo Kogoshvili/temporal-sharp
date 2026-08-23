@@ -42,7 +42,7 @@ public class SdkBoundaryAnalyzerTests
             """);
 
     [Fact]
-    public Task WorkflowHandleInWorkflow_Reports()
+    public Task WorkflowHandleInWorkflow_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -50,7 +50,7 @@ public class SdkBoundaryAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    Temporalio.Client.{|TMP3212:WorkflowHandle|} handle = null;
+                    Temporalio.Client.WorkflowHandle handle = null;
                 }
             }
             """);
@@ -91,6 +91,34 @@ public class SdkBoundaryAnalyzerTests
                 {
                     var client = new Temporalio.Client.WorkflowClient();
                     await client.StartWorkflowAsync(
+                        () => new object(), new Temporalio.Client.WorkflowOptions { Id = "my-id" });
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ExecuteWorkflowWithoutId_Reports()
+        => Verify(Stubs + """
+            public class C
+            {
+                public async System.Threading.Tasks.Task Start()
+                {
+                    var client = new Temporalio.Client.WorkflowClient();
+                    await {|TMP3213:client.ExecuteWorkflowAsync(
+                        () => new object(), new Temporalio.Client.WorkflowOptions())|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ExecuteWorkflowWithId_DoesNotReport()
+        => Verify(Stubs + """
+            public class C
+            {
+                public async System.Threading.Tasks.Task Start()
+                {
+                    var client = new Temporalio.Client.WorkflowClient();
+                    await client.ExecuteWorkflowAsync(
                         () => new object(), new Temporalio.Client.WorkflowOptions { Id = "my-id" });
                 }
             }

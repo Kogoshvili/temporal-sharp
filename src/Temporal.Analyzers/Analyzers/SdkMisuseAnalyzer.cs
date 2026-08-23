@@ -30,6 +30,8 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         StringComparer.Ordinal,
         "System.Console.WriteLine",
         "System.Console.Write",
+        "System.IO.TextWriter.WriteLine",
+        "System.IO.TextWriter.Write",
         "System.Diagnostics.Debug.WriteLine",
         "System.Diagnostics.Debug.Write",
         "System.Diagnostics.Debug.WriteLineIf",
@@ -88,7 +90,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             var config = TemporalConfig.From(startContext.Options.AnalyzerConfigOptionsProvider);
 
             startContext.RegisterSyntaxNodeAction(
-                AnalyzeObjectCreation,
+                c => AnalyzeObjectCreation(c, state),
                 SyntaxKind.ObjectCreationExpression,
                 SyntaxKind.ImplicitObjectCreationExpression);
 
@@ -259,7 +261,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             initializer.GetLocation()));
     }
 
-    private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
         var creation = (BaseObjectCreationExpressionSyntax)context.Node;
         var type = context.SemanticModel.GetTypeInfo(creation).Type;
@@ -270,6 +272,11 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
 
         var typeName = type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
         if (typeName != SdkNames.ActivityOptionsType && typeName != SdkNames.LocalActivityOptionsType)
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(creation, context.SemanticModel))
         {
             return;
         }
@@ -525,7 +532,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
 
         if (method.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == SdkNames.WorkflowType)
         {
-            AnalyzeWorkflowApiInvocation(context, invocation, method);
+            AnalyzeWorkflowApiInvocation(context, state, invocation, method);
         }
 
         AnalyzeLogging(context, state, invocation, method);
@@ -533,9 +540,15 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeWorkflowApiInvocation(
         SyntaxNodeAnalysisContext context,
+        CompilationAnalysisState state,
         InvocationExpressionSyntax invocation,
         IMethodSymbol method)
     {
+        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
+        {
+            return;
+        }
+
         if (StringTargetMethods.Contains(method.Name) &&
             method.Parameters.Length > 0 &&
             method.Parameters[0].Type.SpecialType == SpecialType.System_String)

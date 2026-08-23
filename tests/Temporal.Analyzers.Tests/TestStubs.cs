@@ -46,6 +46,11 @@ internal static class TestStubs
                     System.Linq.Expressions.Expression<System.Func<object?>> workflowRunCall,
                     WorkflowOptions options)
                     => System.Threading.Tasks.Task.FromResult("");
+
+                public System.Threading.Tasks.Task<string> ExecuteWorkflowAsync(
+                    System.Linq.Expressions.Expression<System.Func<object?>> workflowRunCall,
+                    WorkflowOptions options)
+                    => System.Threading.Tasks.Task.FromResult("");
             }
         }
         """;
@@ -229,6 +234,15 @@ internal static class TestStubs
                 public void Heartbeat(params object?[] details) { }
                 public System.Threading.CancellationToken CancellationToken => default;
                 public Temporalio.Workflows.WorkflowLogger Logger => new Temporalio.Workflows.WorkflowLogger();
+            }
+        }
+
+        namespace Temporalio.Worker
+        {
+            public sealed class TemporalWorkerOptions
+            {
+                public TemporalWorkerOptions(string taskQueue) { TaskQueue = taskQueue; }
+                public string TaskQueue { get; set; }
             }
         }
 

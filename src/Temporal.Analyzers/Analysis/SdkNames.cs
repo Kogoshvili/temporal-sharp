@@ -44,7 +44,6 @@ internal static class SdkNames
         "Temporalio.Client.ITemporalClient",
         "Temporalio.Client.TemporalClient",
         "Temporalio.Client.AsyncActivityHandle",
-        "Temporalio.Client.WorkflowHandle",
         "Temporalio.Client.ScheduleHandle",
         "Temporalio.Client.ScheduleClient",
         "Temporalio.Client.TemporalConnection",

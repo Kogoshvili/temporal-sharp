@@ -94,7 +94,20 @@ public class WorkflowMessageP2Tests
             [Temporalio.Workflows.Workflow]
             public class W
             {
-                [Temporalio.Workflows.WorkflowQuery(Name = {|TMP3211:nameof(W)|})]
+                public const string QUERY_NAME = "my-query";
+
+                [Temporalio.Workflows.WorkflowQuery(Name = {|TMP3211:QUERY_NAME|})]
+                public string Get() => "ok";
+            }
+            """);
+
+    [Fact]
+    public Task MessageNameNameof_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowQuery(Name = nameof(W))]
                 public string Get() => "ok";
             }
             """);

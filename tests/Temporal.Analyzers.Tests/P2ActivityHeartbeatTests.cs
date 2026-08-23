@@ -55,6 +55,22 @@ public class ActivityHeartbeatP2Tests
             """);
 
     [Fact]
+    public Task HeartbeatTimeoutMismatch_OutsideWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            public class C
+            {
+                public void M()
+                {
+                    var opts = new Temporalio.Workflows.ActivityOptions
+                    {
+                        StartToCloseTimeout = System.TimeSpan.FromMinutes(10),
+                        HeartbeatTimeout = System.TimeSpan.FromSeconds(1),
+                    };
+                }
+            }
+            """);
+
+    [Fact]
     public Task HeartbeatTimeoutSkillGoodExample_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

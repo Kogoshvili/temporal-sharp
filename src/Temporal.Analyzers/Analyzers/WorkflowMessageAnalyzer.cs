@@ -77,7 +77,7 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
         }
 
         var name = NameExpression(attribute);
-        if (name is null || name.IsKind(SyntaxKind.StringLiteralExpression))
+        if (name is null || name.IsKind(SyntaxKind.StringLiteralExpression) || IsNameof(name))
         {
             return;
         }
@@ -87,6 +87,9 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
             name.GetLocation(),
             kind));
     }
+
+    private static bool IsNameof(ExpressionSyntax expression) =>
+        expression is InvocationExpressionSyntax { Expression: IdentifierNameSyntax { Identifier.ValueText: "nameof" } };
 
     private static string? MessageKind(INamedTypeSymbol? attributeClass)
     {

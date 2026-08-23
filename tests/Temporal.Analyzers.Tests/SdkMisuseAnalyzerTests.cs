@@ -21,11 +21,25 @@ public class SdkMisuseAnalyzerTests
     [Fact]
     public Task ActivityOptionsMissingTimeout_Reports()
         => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var opts = {|TMP2101:new Temporalio.Workflows.ActivityOptions { TaskQueue = "x" }|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ActivityOptionsMissingTimeout_OutsideWorkflow_DoesNotReport()
+        => Verify(Stubs + """
             public class C
             {
                 public void M()
                 {
-                    var opts = {|TMP2101:new Temporalio.Workflows.ActivityOptions { TaskQueue = "x" }|};
+                    var opts = new Temporalio.Workflows.ActivityOptions { TaskQueue = "x" };
                 }
             }
             """);
@@ -63,9 +77,11 @@ public class SdkMisuseAnalyzerTests
         var test = new CSharpAnalyzerTest<SdkMisuseAnalyzer, DefaultVerifier>
         {
             TestCode = Stubs + """
-                public class C
+                [Temporalio.Workflows.Workflow]
+                public class W
                 {
-                    public void M()
+                    [Temporalio.Workflows.WorkflowRun]
+                    public async System.Threading.Tasks.Task Run()
                     {
                         var opts = new Temporalio.Workflows.ActivityOptions();
                         var t = {|TMP2111:Temporalio.Workflows.Workflow.ExecuteActivityAsync("Greet", null, opts)|};
@@ -84,9 +100,11 @@ public class SdkMisuseAnalyzerTests
     [Fact]
     public Task TypedLambdaTarget_DoesNotReport()
         => Verify(Stubs + """
-            public class C
+            [Temporalio.Workflows.Workflow]
+            public class W
             {
-                public void M()
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
                 {
                     var opts = new Temporalio.Workflows.ActivityOptions();
                     var t = Temporalio.Workflows.Workflow.ExecuteActivityAsync(() => null, opts);
@@ -97,9 +115,11 @@ public class SdkMisuseAnalyzerTests
     [Fact]
     public Task ContinueAsNewDiscarded_Reports()
         => Verify(Stubs + """
-            public class C
+            [Temporalio.Workflows.Workflow]
+            public class W
             {
-                public void M()
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
                 {
                     var opts = new Temporalio.Workflows.ContinueAsNewOptions();
                     {|TMP2121:Temporalio.Workflows.Workflow.CreateContinueAsNewException(() => null, opts)|};
@@ -110,9 +130,11 @@ public class SdkMisuseAnalyzerTests
     [Fact]
     public Task ContinueAsNewThrown_DoesNotReport()
         => Verify(Stubs + """
-            public class C
+            [Temporalio.Workflows.Workflow]
+            public class W
             {
-                public void M()
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
                 {
                     var opts = new Temporalio.Workflows.ContinueAsNewOptions();
                     throw Temporalio.Workflows.Workflow.CreateContinueAsNewException(() => null, opts);
@@ -130,6 +152,20 @@ public class SdkMisuseAnalyzerTests
                 public void Run()
                 {
                     {|TMP2131:System.Console.WriteLine("x")|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ConsoleError_InWorkflow_Reports()
+        => Verify(TestStubs.Attributes + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP2131:System.Console.Error.WriteLine("x")|};
                 }
             }
             """);
