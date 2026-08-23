@@ -113,4 +113,40 @@ public class SearchAttributeAnalyzerTests
                     => System.Threading.Tasks.Task.CompletedTask;
             }
             """).RunAsync();
+
+    [Fact]
+    public Task UpsertValueMatchingAnotherAttribute_DoesNotSuppress()
+    {
+        var test = new CSharpAnalyzerTest<SearchAttributeAnalyzer, DefaultVerifier>
+        {
+            TestCode = Stubs + """
+                public class MyInput
+                {
+                    public string UserId { get; set; }
+                    public string {|TMP2161:Status|} { get; set; }
+                }
+
+                [Temporalio.Workflows.Workflow]
+                public class W
+                {
+                    [Temporalio.Workflows.WorkflowRun]
+                    public System.Threading.Tasks.Task Run(MyInput input)
+                    {
+                        Temporalio.Workflows.Workflow.UpsertTypedSearchAttributes(
+                            Temporalio.Workflows.SearchAttributeKey.ForKeyword("user_id").ValueSet("status"));
+                        return System.Threading.Tasks.Task.CompletedTask;
+                    }
+                }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", """
+            root = true
+
+            [*.cs]
+            dotnet_diagnostic.TMP2161.severity = warning
+            kogoshvili.temporal.search_attributes = user_id=user_id, status=status
+            """));
+        return test.RunAsync();
+    }
 }

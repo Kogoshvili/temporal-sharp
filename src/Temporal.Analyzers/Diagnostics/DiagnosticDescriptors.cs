@@ -539,8 +539,8 @@ internal static class DiagnosticDescriptors
         "TMP2123",
         SdkMisuseCategory,
         "Cancellation is swallowed",
-        "catch block neither rethrows nor checks Workflow.IsCancellationRequested",
-        "Catching a cancellation without rethrowing or checking Workflow.IsCancellationRequested hides a workflow/activity cancellation and can leave work running after cancellation.",
+        "catch block neither rethrows nor checks Workflow.CancellationToken.IsCancellationRequested",
+        "Catching a cancellation without rethrowing or checking Workflow.CancellationToken.IsCancellationRequested hides a workflow/activity cancellation and can leave work running after cancellation.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor CleanupNotNonCancellable = Create(

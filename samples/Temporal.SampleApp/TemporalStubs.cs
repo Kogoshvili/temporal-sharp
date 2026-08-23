@@ -70,16 +70,20 @@ namespace Temporalio.Workflows
         public void LogWarning(string message) { }
     }
 
+    public sealed class DeterministicRandom : System.Random
+    {
+    }
+
     public static class Workflow
     {
         public static System.DateTime UtcNow => default;
         public static System.Guid NewGuid() => default;
-        public static System.Random Random => new();
+        public static DeterministicRandom Random => new();
         public static WorkflowLogger Logger => new();
 
-        public static bool IsCancellationRequested => false;
+        public static System.Threading.CancellationToken CancellationToken => default;
         public static bool ContinueAsNewSuggested => false;
-        public static System.Threading.Tasks.Task AllHandlersFinished => System.Threading.Tasks.Task.CompletedTask;
+        public static bool AllHandlersFinished => false;
 
         public static System.Threading.Tasks.Task NonCancellableAsync(System.Func<System.Threading.Tasks.Task> work)
             => System.Threading.Tasks.Task.CompletedTask;

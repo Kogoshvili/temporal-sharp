@@ -131,6 +131,24 @@ public class WorkflowLifecycleAnalyzerTests
             """);
 
     [Fact]
+    public Task CancellationTokenChecked_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    catch (System.Exception)
+                    {
+                        if (Temporalio.Workflows.Workflow.CancellationToken.IsCancellationRequested) { return; }
+                    }
+                }
+            }
+            """);
+
+    [Fact]
     public Task ThrownCatchVariable_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

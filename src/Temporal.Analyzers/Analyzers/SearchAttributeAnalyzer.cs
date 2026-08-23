@@ -207,9 +207,22 @@ public sealed class SearchAttributeAnalyzer : DiagnosticAnalyzer
 
         foreach (var argument in invocation.ArgumentList.Arguments)
         {
-            foreach (var literal in argument.Expression.DescendantNodesAndSelf().OfType<LiteralExpressionSyntax>())
+            foreach (var keywordCall in argument.Expression.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
             {
-                if (literal.IsKind(SyntaxKind.StringLiteralExpression))
+                // Only the attribute name passed to ForKeyword marks an upsert;
+                // value strings (e.g. ValueSet("...")) must not count, otherwise a
+                // value equal to a mapped attribute name could suppress a report.
+                if (keywordCall.Expression is not MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.ValueText: "ForKeyword",
+                    })
+                {
+                    continue;
+                }
+
+                var nameArgument = keywordCall.ArgumentList?.Arguments.FirstOrDefault()?.Expression;
+                if (nameArgument is LiteralExpressionSyntax literal &&
+                    literal.IsKind(SyntaxKind.StringLiteralExpression))
                 {
                     perMethod.TryAdd(literal.Token.ValueText, 0);
                 }

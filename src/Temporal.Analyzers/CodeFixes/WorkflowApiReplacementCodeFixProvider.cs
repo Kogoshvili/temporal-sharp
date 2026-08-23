@@ -151,8 +151,17 @@ public sealed class WorkflowApiReplacementCodeFixProvider : CodeFixProvider
                 break;
 
             case "TMP0146":
-                if (node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Run" or "StartNew" } })
+                if (node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Run" or "StartNew" } } invocation)
                 {
+                    // Workflow.RunTaskAsync only accepts Func<Task>/Func<Task<T>>;
+                    // Task.Run(Action) (a void lambda) has no equivalent, so bail out
+                    // rather than emit non-compiling code.
+                    if (model.GetSymbolInfo(invocation).Symbol is IMethodSymbol m &&
+                        !HasTaskReturningDelegate(m))
+                    {
+                        return null;
+                    }
+
                     return new Replacement(
                         "Use Workflow.RunTaskAsync",
                         CodeFixHelpers.QualifiedName("Temporalio", "Workflows", "Workflow", "RunTaskAsync"),
@@ -169,7 +178,15 @@ public sealed class WorkflowApiReplacementCodeFixProvider : CodeFixProvider
 
     private static bool IsGuid(ITypeSymbol? type) => type is not null && TypeNames.FullName(type) == "System.Guid";
 
-    private static bool IsRandom(ITypeSymbol? type) => type is not null && TypeNames.FullName(type) == "System.Random";
+    private static bool IsRandom(ITypeSymbol? type) => type is not null && TypeNames.IsOrDerivesFrom(type, "System.Random");
+
+    private static bool HasTaskReturningDelegate(IMethodSymbol method)
+    {
+        var parameter = method.Parameters.FirstOrDefault();
+        var returnType = (parameter?.Type as INamedTypeSymbol)?.DelegateInvokeMethod?.ReturnType;
+        return returnType is not null &&
+               TypeNames.FullName(returnType) == "System.Threading.Tasks.Task";
+    }
 
     private static async Task<Document> ReplaceAsync(
         Document document,

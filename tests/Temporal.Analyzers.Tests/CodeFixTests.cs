@@ -185,6 +185,29 @@ public class WorkflowApiReplacementCodeFixTests
                 private static async System.Threading.Tasks.Task DoAsync() { }
             }
             """);
+
+    [Fact]
+    public Task TaskRunWithVoidLambda_NoFixOffered()
+    {
+        var test = new CSharpCodeFixTest<DeterminismAnalyzer, WorkflowApiReplacementCodeFixProvider, DefaultVerifier>
+        {
+            TestCode = TestStubs.Attributes + TestStubs.Sdk + """
+                [Temporalio.Workflows.Workflow]
+                public class W
+                {
+                    [Temporalio.Workflows.WorkflowRun]
+                    public async System.Threading.Tasks.Task Run()
+                    {
+                        await {|TMP0146:System.Threading.Tasks.Task.Run(() => DoSync())|};
+                    }
+
+                    private static void DoSync() { }
+                }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        return test.RunAsync();
+    }
 }
 
 public class LoggingCodeFixTests

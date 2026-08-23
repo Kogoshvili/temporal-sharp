@@ -234,7 +234,7 @@ public class WorkflowUpdateAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    await Temporalio.Workflows.Workflow.AllHandlersFinished;
+                    await Temporalio.Workflows.Workflow.WaitConditionAsync(() => Temporalio.Workflows.Workflow.AllHandlersFinished);
                 }
             }
             """);

@@ -134,6 +134,10 @@ internal static class TestStubs
                 public void Release() { }
             }
 
+            public sealed class DeterministicRandom : System.Random
+            {
+            }
+
             public static class Workflow
             {
                 public static WorkflowLogger Logger => new WorkflowLogger();
@@ -142,17 +146,17 @@ internal static class TestStubs
 
                 public static System.Guid NewGuid() => default;
 
-                public static System.Random Random => new System.Random(0);
+                public static DeterministicRandom Random => new DeterministicRandom();
 
                 public static bool Patched(string patchId) => false;
 
                 public static void DeprecatePatch(string patchId) { }
 
-                public static bool IsCancellationRequested => false;
+                public static System.Threading.CancellationToken CancellationToken => default;
 
                 public static bool ContinueAsNewSuggested => false;
 
-                public static System.Threading.Tasks.Task AllHandlersFinished => System.Threading.Tasks.Task.CompletedTask;
+                public static bool AllHandlersFinished => false;
 
                 public static System.Threading.Tasks.Task DelayAsync(int millisecondsDelay)
                     => System.Threading.Tasks.Task.CompletedTask;

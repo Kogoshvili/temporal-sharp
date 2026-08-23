@@ -773,7 +773,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
                     return invocation;
                 }
 
-                if (TypeNames.FullName(method.ContainingType) == "System.Random" &&
+                if (TypeNames.IsOrDerivesFrom(method.ContainingType, "System.Random") &&
                     invocation.Expression is MemberAccessExpressionSyntax receiverAccess &&
                     IsWorkflowRandomProperty(receiverAccess.Expression, model))
                 {

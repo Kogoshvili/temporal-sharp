@@ -63,7 +63,7 @@ rules that users must enable explicitly.
 | TMP2111 | off | Workflow target named by string | String-named targets cannot be resolved statically and bypass compile-time type checking. This overload is legitimate for dynamic workflows, so the rule is opt-in. |
 | TMP2121 | Error | Continue-as-new exception is not thrown | CreateContinueAsNewException returns an exception that must be thrown to trigger continue-as-new. |
 | TMP2122 | Warning | Continue-as-new without passing current workflow state | Continue-as-new starts a fresh execution; any state needed by the new run must be passed as arguments or it is lost. |
-| TMP2123 | Warning | Cancellation is swallowed | Catching a cancellation without rethrowing or checking Workflow.IsCancellationRequested hides a workflow/activity cancellation and can leave work running after cancellation. |
+| TMP2123 | Warning | Cancellation is swallowed | Catching a cancellation without rethrowing or checking Workflow.CancellationToken.IsCancellationRequested hides a workflow/activity cancellation and can leave work running after cancellation. |
 | TMP2124 | Warning | Cleanup after cancellation is not in a non-cancellable scope | Cleanup that runs after cancellation should not itself be cancelled; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work so it always completes. |
 | TMP2125 | Warning | Unbounded loop without a continue-as-new check | An unbounded loop that never checks Workflow.ContinueAsNewSuggested grows the workflow history until it hits the size limit. Break the loop and continue as new. |
 | TMP2131 | Warning | Non-replay-aware logging in workflow code | Standard loggers write on every replay. Use Workflow.Logger, which suppresses output during replay. |
