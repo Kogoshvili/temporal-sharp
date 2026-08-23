@@ -21,7 +21,6 @@ TMP0177 | Determinism | Error | Static constructor / static field initializer / 
 TMP0175 | Determinism | Warning | Control flow depending on non-deterministic time or randomness
 TMP0104 | Determinism | Warning | Workflow.UtcNow compared to a persisted timestamp
 TMP0123 | Determinism | Warning | Workflow.Random / Workflow.NewGuid used for a persisted id or payload
-TMP0181 | Determinism | Warning | Busy-wait polling loop with a constant Workflow.DelayAsync
 TMP3208 | SdkMisuse | Warning | [WorkflowUpdate] must return a concrete Task<T>
 TMP3209 | SdkMisuse | Error | Continue-as-new invoked inside a [WorkflowUpdate]
 TMP3211 | SdkMisuse | Warning | Query/signal/update Name must be a constant string literal
@@ -56,6 +55,15 @@ TMP2163 | SdkMisuse | Warning | Search-attribute removal not using the unset sha
 TMP3303 | SdkMisuse | Error | Same patch id Patched more than once
 TMP3305 | SdkMisuse | Warning | Patched result discarded (does not guard a change)
 TMP3307 | SdkMisuse | Warning | Patch fallback removed without DeprecatePatch
+TMP4101 | BestPractice | Warning | Multiple positional parameters on a workflow/activity method (prefer a single object)
+TMP4103 | BestPractice | Warning | Polling loop with a constant Workflow.DelayAsync (use Workflow.WaitConditionAsync)
+TMP4104 | BestPractice | Disabled | CPU-heavy loop with no await in workflow code
+TMP4105 | BestPractice | Warning | Hard-coded task-queue name instead of a shared constant
+TMP4106 | BestPractice | Warning | Consecutive ExecuteLocalActivityAsync calls with no intervening workflow command
+TMP4107 | BestPractice | Warning | Local activity performs blocking or network I/O
+TMP4201 | BestPractice | Disabled | Workflow.NewGuid without a determinism comment
+TMP4202 | BestPractice | Disabled | Workflow.DeprecatePatch without an explanatory comment
+TMP4203 | BestPractice | Disabled | Versioning change without a replay-tested comment
 
 ### Removed Rules
 

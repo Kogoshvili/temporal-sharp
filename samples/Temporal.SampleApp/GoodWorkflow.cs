@@ -12,9 +12,13 @@ public class GoodWorkflow
     [WorkflowRun]
     public async Task RunAsync()
     {
-        // Deterministic time, identity, and delays.
+        // Deterministic time.
         var now = Workflow.UtcNow;
+
+        // Deterministic (not secure) identity.
         var id = Workflow.NewGuid();
+
+        // Deterministic delay.
         await Workflow.DelayAsync(100);
 
         // Replay-aware logging.

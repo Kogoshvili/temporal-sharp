@@ -93,7 +93,7 @@ public class DeterminismViolations
             new object[] { Workflow.NewGuid() },
             new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
 
-        // TMP0181 — busy-wait polling loop
+        // TMP4103 — polling loop instead of Workflow.WaitConditionAsync
         while (true)
         {
             await Workflow.DelayAsync(100);

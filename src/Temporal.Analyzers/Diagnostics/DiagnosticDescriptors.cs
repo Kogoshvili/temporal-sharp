@@ -235,12 +235,12 @@ internal static class DiagnosticDescriptors
         "Workflow.Random and Workflow.NewGuid are deterministic across replays, which makes them unsuitable for identifiers or payloads that must be unique across executions. Generate them in an activity or on the client.",
         severity: DiagnosticSeverity.Warning);
 
-    internal static readonly DiagnosticDescriptor BusyWait = Create(
-        "TMP0181",
-        DeterminismCategory,
-        "Workflow busy-waits in a polling loop",
-        "'{0}' busy-waits; use Workflow.WaitConditionAsync instead of polling with a delay",
-        "A polling loop that awaits a fixed delay burns history and slows replay. Use Workflow.WaitConditionAsync or a signal-driven approach.",
+    internal static readonly DiagnosticDescriptor PollingLoop = Create(
+        "TMP4103",
+        BestPracticeCategory,
+        "Polling loop instead of Workflow.WaitConditionAsync",
+        "'{0}' polls with a delay; use Workflow.WaitConditionAsync instead",
+        "A loop that awaits a fixed delay to poll some state burns history and slows replay. Use Workflow.WaitConditionAsync or a signal-driven approach.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor ThreadStaticMutation = Create(
@@ -709,6 +709,70 @@ internal static class DiagnosticDescriptors
         "patch '{0}' removed its fallback branch but never calls DeprecatePatch",
         "Once the old behavior is removed, the patch branch should be simplified and Workflow.DeprecatePatch called so the version marker is preserved for old replays.",
         severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor MultipleParameters = Create(
+        "TMP4101",
+        BestPracticeCategory,
+        "Prefer a single object parameter",
+        "'{0}' takes {1} parameters; prefer a single object parameter",
+        "Passing many positional parameters to a workflow or activity couples the contract to argument order and makes it hard to evolve. Prefer a single object (DTO) parameter.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor HeavyCpuLoop = Create(
+        "TMP4104",
+        BestPracticeCategory,
+        "CPU-heavy loop in workflow code",
+        "'{0}' is a loop with no await; move CPU-heavy work into an activity",
+        "A loop in workflow code that never awaits blocks the single-threaded workflow and inflates replay time. Move CPU-heavy computation into an activity.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor HardcodedTaskQueue = Create(
+        "TMP4105",
+        BestPracticeCategory,
+        "Hard-coded task-queue name",
+        "Task queue '{0}' is hard-coded; use a shared constant",
+        "Hard-coding a task queue name inline scatters the string across call sites and makes renaming error-prone. Extract it to a shared constant.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor ConsecutiveLocalActivities = Create(
+        "TMP4106",
+        BestPracticeCategory,
+        "Consecutive local activities",
+        "Consecutive ExecuteLocalActivityAsync calls with no intervening workflow command",
+        "Running several local activities back-to-back in a workflow adds latency and history events. Combine the work into fewer activities, or batch the calls.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor LocalActivityBlockingIo = Create(
+        "TMP4107",
+        BestPracticeCategory,
+        "Local activity performs blocking or network I/O",
+        "'{0}' runs in a local activity; local activities must be short and lightweight",
+        "Local activities run on the worker's task queue and block a worker slot. Blocking or network I/O such as Task.Delay, sockets, or file I/O makes them long-running; use a regular activity instead.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor NewGuidRequiresComment = Create(
+        "TMP4201",
+        BestPracticeCategory,
+        "Workflow.NewGuid without a determinism comment",
+        "Workflow.NewGuid is deterministic (not secure); add a comment noting it is not for security use",
+        "Workflow.NewGuid produces a deterministic, replay-stable GUID, not a cryptographically secure identifier. Document this so it is not mistaken for a security token.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor DeprecatePatchRequiresComment = Create(
+        "TMP4202",
+        BestPracticeCategory,
+        "DeprecatePatch without an explanatory comment",
+        "Workflow.DeprecatePatch should be accompanied by a comment explaining the versioning change",
+        "Deprecating a patch changes how old workflows replay. Document the change so future readers understand the versioning history.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor VersioningChangeRequiresReplayComment = Create(
+        "TMP4203",
+        BestPracticeCategory,
+        "Versioning change without a replay-tested comment",
+        "This versioning change should note that it was replay-tested",
+        "Behavior changes guarded by Workflow.Patched affect how old histories replay. Note that the change was replay-tested against existing workflow executions.",
+        isEnabledByDefault: false);
 
     private static DiagnosticDescriptor Create(
         string id,

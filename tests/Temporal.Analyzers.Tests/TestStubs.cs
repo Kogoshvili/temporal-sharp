@@ -116,6 +116,17 @@ internal static class TestStubs
                     ActivityOptions options)
                     => System.Threading.Tasks.Task.CompletedTask;
 
+                public static System.Threading.Tasks.Task ExecuteLocalActivityAsync(
+                    string activity,
+                    System.Collections.Generic.IReadOnlyCollection<object?>? args,
+                    LocalActivityOptions options)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public static System.Threading.Tasks.Task ExecuteLocalActivityAsync(
+                    System.Linq.Expressions.Expression<System.Func<object?>> activityCall,
+                    LocalActivityOptions options)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
                 public static System.Threading.Tasks.Task WaitConditionAsync(
                     System.Func<bool> conditionCheck,
                     System.Threading.CancellationToken? cancellationToken = null)

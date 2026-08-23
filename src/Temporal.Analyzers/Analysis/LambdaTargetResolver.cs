@@ -14,6 +14,11 @@ internal static class LambdaTargetResolver
     public static IMethodSymbol? ResolveTypedLambdaTarget(
         SyntaxNodeAnalysisContext context,
         InvocationExpressionSyntax invocation)
+        => ResolveTypedLambdaTarget(context.SemanticModel, invocation);
+
+    public static IMethodSymbol? ResolveTypedLambdaTarget(
+        SemanticModel model,
+        InvocationExpressionSyntax invocation)
     {
         foreach (var argument in invocation.ArgumentList.Arguments)
         {
@@ -36,7 +41,7 @@ internal static class LambdaTargetResolver
 
             if (body is InvocationExpressionSyntax bodyInvocation)
             {
-                return context.SemanticModel.GetSymbolInfo(bodyInvocation).Symbol as IMethodSymbol;
+                return model.GetSymbolInfo(bodyInvocation).Symbol as IMethodSymbol;
             }
         }
 

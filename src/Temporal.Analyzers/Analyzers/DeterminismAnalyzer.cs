@@ -41,8 +41,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.ModuleSideEffect,
             DiagnosticDescriptors.NondeterministicControlFlow,
             DiagnosticDescriptors.WallClockComparison,
-            DiagnosticDescriptors.PersistedIdRandomness,
-            DiagnosticDescriptors.BusyWait);
+            DiagnosticDescriptors.PersistedIdRandomness);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => Supported;
 
@@ -158,11 +157,6 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzePersistedId(nodeContext, state),
                 SyntaxKind.InvocationExpression);
-
-            startContext.RegisterSyntaxNodeAction(
-                nodeContext => AnalyzeBusyWait(nodeContext, state),
-                SyntaxKind.WhileStatement,
-                SyntaxKind.ForStatement);
         });
     }
 
@@ -802,79 +796,6 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
         return symbol.Name == "Random" &&
                symbol.ContainingType is not null &&
                SdkNames.IsWorkflowType(symbol.ContainingType);
-    }
-
-    // TMP0181 — polling loop that awaits a constant Workflow.DelayAsync.
-    private static void AnalyzeBusyWait(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
-    {
-        var node = context.Node;
-        if (!state.IsWorkflowReachable(node, context.SemanticModel))
-        {
-            return;
-        }
-
-        var body = node switch
-        {
-            WhileStatementSyntax whileStatement => whileStatement.Statement,
-            ForStatementSyntax forStatement => forStatement.Statement,
-            _ => node,
-        };
-
-        if (!ContainsConstantDelayAwait(body, context.SemanticModel))
-        {
-            return;
-        }
-
-        var keyword = node switch
-        {
-            WhileStatementSyntax whileStatement => whileStatement.WhileKeyword,
-            ForStatementSyntax forStatement => forStatement.ForKeyword,
-            _ => default,
-        };
-
-        context.ReportDiagnostic(Diagnostic.Create(
-            DiagnosticDescriptors.BusyWait,
-            keyword.GetLocation(),
-            "loop"));
-    }
-
-    private static bool ContainsConstantDelayAwait(SyntaxNode body, SemanticModel model)
-    {
-        foreach (var node in body.DescendantNodesAndSelf())
-        {
-            if (node is not AwaitExpressionSyntax { Expression: InvocationExpressionSyntax invocation })
-            {
-                continue;
-            }
-
-            if (model.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
-                !SdkNames.IsWorkflowType(method.ContainingType) ||
-                method.Name != "DelayAsync")
-            {
-                continue;
-            }
-
-            var argument = invocation.ArgumentList?.Arguments.FirstOrDefault()?.Expression;
-            if (argument is not null && IsConstantDuration(argument))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool IsConstantDuration(ExpressionSyntax expression)
-    {
-        if (expression is LiteralExpressionSyntax)
-        {
-            return true;
-        }
-
-        return expression is InvocationExpressionSyntax
-        {
-            Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: { } name },
-        } && name is "FromMilliseconds" or "FromSeconds" or "FromMinutes" or "FromHours" or "FromDays" or "FromTicks";
     }
 
     private static void ReportIfReachable(

@@ -22,7 +22,9 @@ internal static class AnalysisRunner
         new WorkflowLifecycleAnalyzer(),
         new ErrorHandlingAnalyzer(),
         new ActivityContextAnalyzer(),
-        new SdkBoundaryAnalyzer());
+        new SdkBoundaryAnalyzer(),
+        new BestPracticeAnalyzer(),
+        new CommentRuleAnalyzer());
 
     private static readonly ImmutableArray<string> RuleIds = Analyzers
         .SelectMany(a => a.SupportedDiagnostics)

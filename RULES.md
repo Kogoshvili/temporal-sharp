@@ -34,7 +34,6 @@ default and enabled via `.editorconfig` severity.
 | TMP0174 | Error | Workflow code uses a weak reference | WeakReference and ConditionalWeakTable depend on GC timing, which is non-deterministic during replay. Avoid weak references in workflow code. |
 | TMP0175 | Warning | Workflow control flow depends on time or randomness | Control flow that depends on wall-clock time or non-deterministic randomness can diverge on replay. Use the deterministic SDK sources, or make the decision in an activity. |
 | TMP0177 | Error | Workflow module performs side effects at load | Static constructors, static field initializers, and module initializers run at type/module load, which is not deterministic or journaled. Avoid scheduling workflow commands from them. |
-| TMP0181 | Warning | Workflow busy-waits in a polling loop | A polling loop that awaits a fixed delay burns history and slows replay. Use Workflow.WaitConditionAsync or a signal-driven approach. |
 
 ## Shared-state mutation
 
@@ -113,3 +112,17 @@ default and enabled via `.editorconfig` severity.
 | TMP3303 | Error | Patch id applied more than once | Applying the same patch id more than once in a workflow method is redundant and usually indicates a merge error. |
 | TMP3305 | Warning | Patched call does not guard a behavior change | Workflow.Patched is meant to guard an incompatible behavior change; discarding its result means the patch has no effect. |
 | TMP3307 | Warning | Patch fallback removed without deprecation | Once the old behavior is removed, the patch branch should be simplified and Workflow.DeprecatePatch called so the version marker is preserved for old replays. |
+
+## Best practice
+
+| ID | Default | Rule | Description |
+|---|---|---|---|
+| TMP4101 | Warning | Prefer a single object parameter | Passing many positional parameters to a workflow or activity couples the contract to argument order and makes it hard to evolve. Prefer a single object (DTO) parameter. |
+| TMP4103 | Warning | Polling loop instead of Workflow.WaitConditionAsync | A loop that awaits a fixed delay to poll some state burns history and slows replay. Use Workflow.WaitConditionAsync or a signal-driven approach. |
+| TMP4104 | off | CPU-heavy loop in workflow code | A loop in workflow code that never awaits blocks the single-threaded workflow and inflates replay time. Move CPU-heavy computation into an activity. |
+| TMP4105 | Warning | Hard-coded task-queue name | Hard-coding a task queue name inline scatters the string across call sites and makes renaming error-prone. Extract it to a shared constant. |
+| TMP4106 | Warning | Consecutive local activities | Running several local activities back-to-back in a workflow adds latency and history events. Combine the work into fewer activities, or batch the calls. |
+| TMP4107 | Warning | Local activity performs blocking or network I/O | Local activities run on the worker's task queue and block a worker slot. Blocking or network I/O such as Task.Delay, sockets, or file I/O makes them long-running; use a regular activity instead. |
+| TMP4201 | off | Workflow.NewGuid without a determinism comment | Workflow.NewGuid produces a deterministic, replay-stable GUID, not a cryptographically secure identifier. Document this so it is not mistaken for a security token. |
+| TMP4202 | off | DeprecatePatch without an explanatory comment | Deprecating a patch changes how old workflows replay. Document the change so future readers understand the versioning history. |
+| TMP4203 | off | Versioning change without a replay-tested comment | Behavior changes guarded by Workflow.Patched affect how old histories replay. Note that the change was replay-tested against existing workflow executions. |

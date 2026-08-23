@@ -27,8 +27,7 @@ dotnet_diagnostic.TMP0172.severity = warning
 dotnet_diagnostic.TMP0174.severity = warning
 dotnet_diagnostic.TMP0175.severity = warning
 dotnet_diagnostic.TMP0177.severity = warning
-dotnet_diagnostic.TMP0181.severity = warning
-
+dotnet_diagnostic.TMP4103.severity = warning
 dotnet_diagnostic.TMP1101.severity = warning
 dotnet_diagnostic.TMP1102.severity = warning
 dotnet_diagnostic.TMP1103.severity = warning
@@ -94,6 +93,15 @@ dotnet_diagnostic.TMP3302.severity = warning
 dotnet_diagnostic.TMP3303.severity = warning
 dotnet_diagnostic.TMP3305.severity = warning
 dotnet_diagnostic.TMP3307.severity = warning
+
+dotnet_diagnostic.TMP4101.severity = warning
+dotnet_diagnostic.TMP4104.severity = warning
+dotnet_diagnostic.TMP4105.severity = warning
+dotnet_diagnostic.TMP4106.severity = warning
+dotnet_diagnostic.TMP4107.severity = warning
+dotnet_diagnostic.TMP4201.severity = warning
+dotnet_diagnostic.TMP4202.severity = warning
+dotnet_diagnostic.TMP4203.severity = warning
 
 # Maps the CustomerInput.CustomerId field to the CustomerId search attribute,
 # used by the TMP2161 demonstration.
