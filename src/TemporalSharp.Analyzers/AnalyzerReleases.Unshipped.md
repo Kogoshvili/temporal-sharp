@@ -15,6 +15,7 @@ TMP0143 | TemporalSharp.Determinism | Warning | Raw task scheduling in workflow 
 TMP0144 | TemporalSharp.Determinism | Error | Raw TaskCompletionSource coordination in workflow code
 TMP0145 | TemporalSharp.Determinism | Error | Reflection / dynamic invocation in workflow code
 TMP0151 | TemporalSharp.Determinism | Error | Non-deterministic collection enumeration in workflow code
+TMP0161 | TemporalSharp.Determinism | Warning | Culture-sensitive parse/format in workflow code
 TMP0102 | TemporalSharp.Determinism | Error | Stopwatch elapsed wall-clock time in workflow code
 TMP1101 | TemporalSharp.WorkflowState | Error | Static field mutation in workflow code
 TMP1102 | TemporalSharp.WorkflowState | Error | [ThreadStatic] state mutation in workflow code

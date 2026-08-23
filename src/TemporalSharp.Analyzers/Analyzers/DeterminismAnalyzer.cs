@@ -28,7 +28,8 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.ManualTaskCoordination,
             DiagnosticDescriptors.ReflectionInvocation,
             DiagnosticDescriptors.AmbientState,
-            DiagnosticDescriptors.UnorderedEnumeration);
+            DiagnosticDescriptors.UnorderedEnumeration,
+            DiagnosticDescriptors.CultureSensitiveParse);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => Supported;
 
@@ -44,6 +45,26 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
         StringComparer.Ordinal,
         "Where", "Select", "SelectMany", "OfType", "Cast", "AsEnumerable",
         "Distinct", "DefaultIfEmpty", "Append", "Prepend", "Concat");
+
+    private static readonly ImmutableHashSet<string> CultureSensitiveParseTypes = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "System.Int16", "System.Int32", "System.Int64",
+        "System.UInt16", "System.UInt32", "System.UInt64",
+        "System.Byte", "System.SByte",
+        "System.Single", "System.Double", "System.Decimal",
+        "System.DateTime", "System.DateTimeOffset", "System.TimeSpan");
+
+    // Types whose parameterless ToString() has a culture-dependent representation.
+    // Integral types format only digits and a sign, and TimeSpan.ToString() is the
+    // invariant "c" format, so they are intentionally excluded.
+    private static readonly ImmutableHashSet<string> CultureSensitiveDefaultToStringTypes = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "System.Single", "System.Double", "System.Decimal",
+        "System.DateTime", "System.DateTimeOffset");
+
+    private static readonly ImmutableHashSet<string> ParseMethodNames = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "Parse", "ParseExact", "TryParse", "TryParseExact");
 
     public override void Initialize(AnalysisContext context)
     {
@@ -77,6 +98,10 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzeLock(nodeContext, state),
                 SyntaxKind.LockStatement);
+
+            startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeCultureSensitiveCall(nodeContext, state),
+                SyntaxKind.InvocationExpression);
         });
     }
 
@@ -266,6 +291,64 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
 
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.BlockingPrimitive, node.LockKeyword.GetLocation(), "lock"));
     }
+
+    private static void AnalyzeCultureSensitiveCall(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = (InvocationExpressionSyntax)context.Node;
+        if (context.SemanticModel.GetSymbolInfo(node).Symbol is not IMethodSymbol symbol)
+        {
+            return;
+        }
+
+        if (!IsCultureSensitiveWithoutProvider(symbol))
+        {
+            return;
+        }
+
+        ReportIfReachable(context, state, node, symbol, DiagnosticDescriptors.CultureSensitiveParse);
+    }
+
+    private static bool IsCultureSensitiveWithoutProvider(IMethodSymbol symbol)
+    {
+        var typeName = TypeNames.FullName(symbol.ContainingType);
+
+        if (symbol.Name == "Format")
+        {
+            return typeName == "System.String" && !HasProviderParameter(symbol);
+        }
+
+        if (HasProviderParameter(symbol))
+        {
+            return false;
+        }
+
+        if (symbol.Name == "ToString")
+        {
+            if (!CultureSensitiveParseTypes.Contains(typeName))
+            {
+                return false;
+            }
+
+            // Parameterless ToString() is only culture-sensitive for types whose
+            // default representation varies by culture (floating-point, dates).
+            if (symbol.Parameters.IsEmpty && !CultureSensitiveDefaultToStringTypes.Contains(typeName))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        if (ParseMethodNames.Contains(symbol.Name))
+        {
+            return CultureSensitiveParseTypes.Contains(typeName);
+        }
+
+        return false;
+    }
+
+    private static bool HasProviderParameter(IMethodSymbol symbol)
+        => symbol.Parameters.Any(p => TypeNames.FullName(p.Type) == "System.IFormatProvider");
 
     private static void ReportIfReachable(
         SyntaxNodeAnalysisContext context,

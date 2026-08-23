@@ -22,6 +22,7 @@ reachable from a `[WorkflowRun]` method (or any method in a `[Workflow]` class).
 | TMP0144 | Error | Raw task coordination: `new TaskCompletionSource<T>()` (task not owned by the deterministic scheduler) | `Workflow.WaitConditionAsync` on a field |
 | TMP0145 | Error | Reflection / dynamic invocation: `Activator.CreateInstance` / `Assembly.Load*` / `Assembly.GetTypes` / `Type.GetType` / `MethodInfo.Invoke` / `Delegate.DynamicInvoke` | move into an activity |
 | TMP0151 | Error | Unordered enumeration: `foreach` / `ToList()` / `ToArray()` / `First()` / `Last()` / `.Keys`/`.Values` / slicing over `Dictionary<,>` / `HashSet<T>` / `Hashtable` / `ConcurrentDictionary<,>` / `ISet<T>` (honor `OrderBy`/`Sorted*` as deterministic) | sort / `SortedDictionary` / `OrderBy` |
+| TMP0161 | Warning | Culture-sensitive parse/format: `Parse`/`ParseExact`/`TryParse`/`ToString` on numeric/date/time types and `string.Format` without an `IFormatProvider` (uses ambient culture) | pass `CultureInfo.InvariantCulture` |
 
 ## Shared-state mutation
 

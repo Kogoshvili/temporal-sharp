@@ -744,4 +744,215 @@ public class DeterminismAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task LongParse_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var x = {|TMP0161:long.Parse("42")|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DateTimeOffsetParse_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var x = {|TMP0161:System.DateTimeOffset.Parse("2026-01-01")|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task IntTryParse_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    int n;
+                    {|TMP0161:int.TryParse("42", out n)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task IntParseWithInvariantCulture_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var x = int.Parse("42", System.Globalization.CultureInfo.InvariantCulture);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task IntToStringWithFormat_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    int n = 42;
+                    var s = {|TMP0161:n.ToString("N0")|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task IntToStringNoFormat_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    int n = 42;
+                    var s = n.ToString();
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DoubleToString_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    double d = 3.14;
+                    var s = {|TMP0161:d.ToString()|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DateToStringWithFormat_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.DateTime(2026, 1, 1);
+                    var s = {|TMP0161:d.ToString("yyyy-MM-dd")|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DateToStringWithProvider_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var d = new System.DateTime(2026, 1, 1);
+                    var s = d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task StringFormat_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var s = {|TMP0161:string.Format("x={0}", 1)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task StringFormatWithProvider_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var s = string.Format(System.Globalization.CultureInfo.InvariantCulture, "x={0}", 1);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task GuidParse_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var g = System.Guid.Parse("00000000-0000-0000-0000-000000000000");
+                }
+            }
+            """);
+
+    [Fact]
+    public Task BoolParse_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var b = bool.Parse("true");
+                }
+            }
+            """);
+
+    [Fact]
+    public Task CultureSensitiveParse_InActivity_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    Activities.DoWork();
+                }
+            }
+
+            public static class Activities
+            {
+                [Temporalio.Activities.Activity]
+                public static void DoWork()
+                {
+                    var x = long.Parse("42");
+                }
+            }
+            """);
 }

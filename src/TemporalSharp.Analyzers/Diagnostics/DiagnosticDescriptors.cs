@@ -130,6 +130,13 @@ internal static class DiagnosticDescriptors
         "Dictionary and HashSet iteration order is not deterministic across runs and replays. Sort the collection first.",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor CultureSensitiveParse = Create(
+        "TMP0161",
+        DeterminismCategory,
+        "Workflow code parses or formats using the ambient culture",
+        "'{0}' is culture-sensitive in workflow code; pass System.Globalization.CultureInfo.InvariantCulture",
+        "Parsing or formatting numbers, dates, and times with the ambient culture diverges across workers and replays. Pass CultureInfo.InvariantCulture (or another explicit IFormatProvider).");
+
     internal static readonly DiagnosticDescriptor ThreadStaticMutation = Create(
         "TMP1102",
         WorkflowStateCategory,
