@@ -148,12 +148,9 @@ dotnet_diagnostic.TMP2147.severity = warning
 
 Kogoshvili.Temporal covers the same ground as the Go ecosystem's tools, for .NET:
 
-- **workflowcheck** — Temporal's first-party Go determinism analyzer
-  (`github.com/temporalio/sdk-go/contrib/tools/workflowcheck`).
-- **temporalcheck-lint** — a community Go type-safety/feature-misuse linter
-  (`github.com/samgozman/temporalcheck-lint`).
-- **eslint-plugin-temporal** — the de-facto standard JavaScript/TypeScript Temporal
-  linter (`github.com/stevekinney/eslint-plugin-temporal`).
+- **[workflowcheck](https://github.com/temporalio/sdk-go/tree/main/contrib/tools/workflowcheck)** — Temporal's first-party Go determinism analyzer.
+- **[temporalcheck-lint](https://github.com/samgozman/temporalcheck-lint)** — a community Go type-safety/feature-misuse linter.
+- **[eslint-plugin-temporal](https://github.com/stevekinney/eslint-plugin-temporal)** — a community JavaScript/TypeScript Temporal linter.
 
 ## License
 
