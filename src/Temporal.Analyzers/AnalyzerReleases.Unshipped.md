@@ -38,7 +38,7 @@ TMP2106 | SdkMisuse | Warning | RetryPolicy set on a non-idempotent activity
 TMP2107 | SdkMisuse | Warning | Non-idempotent activity without an idempotency-key argument
 TMP2122 | SdkMisuse | Warning | Continue-as-new without passing current workflow state
 TMP2125 | SdkMisuse | Warning | Unbounded loop without a continue-as-new check
-TMP2132 | SdkMisuse | Warning | Base Exception thrown instead of ApplicationFailure
+TMP2132 | SdkMisuse | Warning | Non-ApplicationFailure exception thrown from workflow code
 TMP2133 | SdkMisuse | Warning | Debug.Assert / Trace.Assert in workflow code
 TMP2146 | SdkMisuse | Error | Use of internal Temporalio.* namespaces
 TMP2142 | SdkMisuse | Warning | BigInteger in a payload without a converter
