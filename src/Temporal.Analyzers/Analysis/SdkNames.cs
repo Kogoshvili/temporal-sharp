@@ -15,6 +15,7 @@ internal static class SdkNames
     public const string ActivityExecutionContextType = "Temporalio.Activities.ActivityExecutionContext";
     public const string CompleteAsyncExceptionType = "Temporalio.Activities.CompleteAsyncException";
     public const string CancellationTokenType = "System.Threading.CancellationToken";
+    public const string ExternalWorkflowHandleType = "Temporalio.Workflows.ExternalWorkflowHandle";
 
     /// <summary>
     /// Workflow command methods that schedule commands or mutate workflow
@@ -78,4 +79,15 @@ internal static class SdkNames
         method.ContainingType is not null &&
         IsWorkflowType(method.ContainingType) &&
         WorkflowBlockingCommands.Contains(method.Name);
+
+    /// <summary>
+    /// True if the method cancels an external workflow. Unlike most workflow
+    /// commands, <c>ExternalWorkflowHandle.CancelAsync</c> issues its cancel
+    /// request unconditionally and does not consult the workflow's cancellation
+    /// token, so it remains safe in cancellation cleanup.
+    /// </summary>
+    public static bool IsExternalWorkflowCancel(IMethodSymbol method) =>
+        method.Name == "CancelAsync" &&
+        method.ContainingType is not null &&
+        TypeNames.FullName(method.ContainingType) == ExternalWorkflowHandleType;
 }

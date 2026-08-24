@@ -360,6 +360,42 @@ public class WorkflowLifecycleAnalyzerTests
             """);
 
     [Fact]
+    public Task ExternalWorkflowCancelCleanup_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    catch (System.OperationCanceledException)
+                    {
+                        await Temporalio.Workflows.Workflow.GetExternalWorkflowHandle("child-id").CancelAsync();
+                    }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ExternalWorkflowSignalCleanup_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    {|TMP2124:catch|} (System.OperationCanceledException)
+                    {
+                        await Temporalio.Workflows.Workflow.GetExternalWorkflowHandle("child-id").SignalAsync("sig", null);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
     public Task UnboundedLoop_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

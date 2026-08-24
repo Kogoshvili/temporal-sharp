@@ -400,7 +400,8 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
         foreach (var descendant in node.DescendantNodes())
         {
             if (IsCancellationTokenNone(descendant, model) ||
-                IsDetachedCancellationTokenSource(descendant, model))
+                IsDetachedCancellationTokenSource(descendant, model) ||
+                IsNonCancellableExternalCancel(descendant, model))
             {
                 return true;
             }
@@ -450,6 +451,11 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
         node is BaseObjectCreationExpressionSyntax creation &&
         model.GetTypeInfo(creation).Type is { } type &&
         TypeNames.FullName(type) == "System.Threading.CancellationTokenSource";
+
+    private static bool IsNonCancellableExternalCancel(SyntaxNode node, SemanticModel model) =>
+        node is InvocationExpressionSyntax invocation &&
+        model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+        SdkNames.IsExternalWorkflowCancel(method);
 
     // TMP2125 — unbounded loop in [WorkflowRun] that never checks continue-as-new.
     private static void AnalyzeLoop(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)

@@ -99,6 +99,17 @@ internal static class TestStubs
                 public ContinueAsNewException() { }
             }
 
+            public sealed class ExternalWorkflowHandle
+            {
+                public System.Threading.Tasks.Task CancelAsync()
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public System.Threading.Tasks.Task SignalAsync(
+                    string signal,
+                    System.Collections.Generic.IReadOnlyCollection<object?> args)
+                    => System.Threading.Tasks.Task.CompletedTask;
+            }
+
             public sealed class SearchAttributeKey
             {
                 public static SearchAttributeKey ForKeyword(string name) => new SearchAttributeKey();
@@ -241,6 +252,9 @@ internal static class TestStubs
                     System.Linq.Expressions.Expression<System.Func<object?>> workflowRunCall,
                     ContinueAsNewOptions options)
                     => new ContinueAsNewException();
+
+                public static ExternalWorkflowHandle GetExternalWorkflowHandle(string id)
+                    => new ExternalWorkflowHandle();
             }
         }
 
