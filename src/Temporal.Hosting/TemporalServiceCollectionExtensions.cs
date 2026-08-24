@@ -1,11 +1,15 @@
 using System.Diagnostics.Metrics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Temporalio.Client;
 using Temporalio.Client.Interceptors;
+using Temporalio.Common;
 using Temporalio.Extensions.Hosting;
+using Temporalio.Runtime;
+using Temporalio.Worker;
 using Kogoshvili.Temporal.Configuration;
 using Kogoshvili.Temporal.Hosting;
 
@@ -28,16 +32,22 @@ public static class TemporalServiceCollectionExtensions
 
     /// <summary>
     /// Registers a Temporal client and starter services, binding options from
-    /// the <c>Temporal</c> configuration section.
+    /// the <c>Temporal</c> configuration section. The options are registered
+    /// through the options infrastructure so <see cref="IOptionsMonitor{TemporalOptions}"/>
+    /// reflects configuration reloads.
     /// </summary>
     public static TemporalBuilder AddTemporal(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        var section = configuration.GetSection(TemporalOptions.SectionName);
+        services.Configure<TemporalOptions>(section);
+
         var options = new TemporalOptions();
-        configuration.GetSection(TemporalOptions.SectionName).Bind(options);
-        return services.AddTemporal(options);
+        section.Bind(options);
+        Validate(options);
+        return RegisterCore(services, options);
     }
 
     /// <summary>
@@ -49,9 +59,12 @@ public static class TemporalServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
 
+        services.Configure(configure);
+
         var options = new TemporalOptions();
         configure(options);
-        return services.AddTemporal(options);
+        Validate(options);
+        return RegisterCore(services, options);
     }
 
     /// <summary>
@@ -62,50 +75,11 @@ public static class TemporalServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
 
-        services.AddSingleton(options);
-        services.AddSingleton<IOptions<TemporalOptions>>(new OptionsWrapper<TemporalOptions>(options));
+        Validate(options);
 
-        if (options.Metrics.Enabled)
-        {
-            services.AddSingleton(sp => new Meter(sp.GetRequiredService<TemporalOptions>().Metrics.MeterName));
-            services.AddSingleton<TemporalMetricsInterceptor>();
-        }
+        services.Configure<TemporalOptions>(configured => CopyTo(options, configured));
 
-        if (options.TestServer.Enabled)
-        {
-            // A single connect-options instance is shared between the lazy client
-            // and the test-server service. The lazy connection reads TargetHost on
-            // first connect, so the service can fill it in once the dev server has
-            // bound an (ephemeral) port.
-            var testConnectOptions = new TemporalClientConnectOptions { Namespace = options.Namespace };
-            services.AddSingleton(testConnectOptions);
-            services.AddSingleton<TemporalTestServerService>();
-            services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TemporalTestServerService>());
-            services.AddSingleton<ITemporalClient>(sp =>
-            {
-                var connect = sp.GetRequiredService<TemporalClientConnectOptions>();
-                if (sp.GetService<TemporalMetricsInterceptor>() is { } interceptor)
-                {
-                    connect.Interceptors = new IClientInterceptor[] { interceptor };
-                }
-
-                return TemporalClient.CreateLazy(connect);
-            });
-        }
-        else
-        {
-            var client = services.AddTemporalClient();
-            client.Configure(connect => ClientOptionsFactory.Apply(connect, options));
-            if (options.Metrics.Enabled)
-            {
-                client.Configure<TemporalMetricsInterceptor>((connect, interceptor) =>
-                    connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
-                        .Concat(new IClientInterceptor[] { interceptor })
-                        .ToArray());
-            }
-        }
-
-        return new TemporalBuilder(services);
+        return RegisterCore(services, options);
     }
 
     /// <summary>
@@ -125,9 +99,55 @@ public static class TemporalServiceCollectionExtensions
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        ArgumentException.ThrowIfNullOrEmpty(taskQueue);
-
         return builder.Services.AddTemporalWorker(taskQueue, assembly, configure);
+    }
+
+    /// <summary>
+    /// Registers a hosted Temporal worker that opts into worker versioning via
+    /// <see cref="WorkerDeploymentOptions"/> (public preview), applying
+    /// convention-based auto-discovery.
+    /// </summary>
+    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
+        this TemporalBuilder builder,
+        string taskQueue,
+        WorkerDeploymentOptions deploymentOptions,
+        Assembly? assembly = null,
+        Action<TemporalWorkerServiceOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.Services.AddTemporalWorker(taskQueue, deploymentOptions, assembly, configure);
+    }
+
+    /// <summary>
+    /// Registers a hosted Temporal worker that auto-discovers types from the
+    /// assemblies of the given marker types. Use this instead of the assembly
+    /// overload when the entry assembly is not the worker assembly (e.g. under
+    /// <c>dotnet test</c>).
+    /// </summary>
+    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
+        this TemporalBuilder builder,
+        string taskQueue,
+        Type markerType,
+        params Type[] markerTypes)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.Services.AddTemporalWorker(taskQueue, markerType, markerTypes);
+    }
+
+    /// <summary>
+    /// Registers a hosted Temporal worker that auto-discovers types from the
+    /// assemblies of the given marker types and applies a worker options
+    /// configuration delegate.
+    /// </summary>
+    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
+        this TemporalBuilder builder,
+        string taskQueue,
+        Type markerType,
+        Action<TemporalWorkerServiceOptions> configure,
+        params Type[] markerTypes)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.Services.AddTemporalWorker(taskQueue, markerType, configure, markerTypes);
     }
 
     /// <summary>
@@ -140,6 +160,7 @@ public static class TemporalServiceCollectionExtensions
     /// <param name="assembly">Assembly to scan for workflow/activity types. Defaults to the entry assembly.</param>
     /// <param name="configure">Optional worker options configuration.</param>
     /// <returns>The underlying Temporal worker options builder for further configuration.</returns>
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this IServiceCollection services,
         string taskQueue,
@@ -149,23 +170,182 @@ public static class TemporalServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrEmpty(taskQueue);
 
-        var targetAssembly = assembly ?? Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
-        var worker = services.AddHostedTemporalWorker(taskQueue);
+        return AddTemporalWorkerCore(
+            services,
+            taskQueue,
+            deploymentOptions: null,
+            ResolveAssemblies(assembly, Array.Empty<Type>(), Assembly.GetCallingAssembly()),
+            configure);
+    }
 
-        foreach (var workflowType in WorkerDiscovery.FindWorkflowTypes(targetAssembly))
+    /// <summary>
+    /// Registers a hosted Temporal worker that opts into worker versioning via
+    /// <see cref="WorkerDeploymentOptions"/> (public preview), applying
+    /// convention-based auto-discovery.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
+        this IServiceCollection services,
+        string taskQueue,
+        WorkerDeploymentOptions deploymentOptions,
+        Assembly? assembly = null,
+        Action<TemporalWorkerServiceOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrEmpty(taskQueue);
+        ArgumentNullException.ThrowIfNull(deploymentOptions);
+
+        if (deploymentOptions.Version is null)
+        {
+            throw new ArgumentException("Deployment version must be set when using worker versioning.", nameof(deploymentOptions));
+        }
+
+        return AddTemporalWorkerCore(
+            services,
+            taskQueue,
+            deploymentOptions,
+            ResolveAssemblies(assembly, Array.Empty<Type>(), Assembly.GetCallingAssembly()),
+            configure);
+    }
+
+    /// <summary>
+    /// Registers a hosted Temporal worker that auto-discovers types from the
+    /// assemblies of the given marker types.
+    /// </summary>
+    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
+        this IServiceCollection services,
+        string taskQueue,
+        Type markerType,
+        params Type[] markerTypes)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrEmpty(taskQueue);
+        ArgumentNullException.ThrowIfNull(markerType);
+
+        return AddTemporalWorkerCore(
+            services,
+            taskQueue,
+            deploymentOptions: null,
+            ResolveAssemblies(null, Prepend(markerType, markerTypes), Assembly.GetCallingAssembly()),
+            configure: null);
+    }
+
+    /// <summary>
+    /// Registers a hosted Temporal worker that auto-discovers types from the
+    /// assemblies of the given marker types and applies a worker options
+    /// configuration delegate.
+    /// </summary>
+    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
+        this IServiceCollection services,
+        string taskQueue,
+        Type markerType,
+        Action<TemporalWorkerServiceOptions> configure,
+        params Type[] markerTypes)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrEmpty(taskQueue);
+        ArgumentNullException.ThrowIfNull(markerType);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        return AddTemporalWorkerCore(
+            services,
+            taskQueue,
+            deploymentOptions: null,
+            ResolveAssemblies(null, Prepend(markerType, markerTypes), Assembly.GetCallingAssembly()),
+            configure);
+    }
+
+    private static TemporalBuilder RegisterCore(IServiceCollection services, TemporalOptions options)
+    {
+        var runtime = options.Metrics.Enabled ? CreateRuntime(options.Metrics) : null;
+
+        if (options.Metrics.Enabled)
+        {
+            services.AddSingleton(sp => new Meter(sp.GetRequiredService<IOptions<TemporalOptions>>().Value.Metrics.MeterName));
+            services.AddSingleton<TemporalMetricsInterceptor>();
+        }
+
+        if (runtime is not null)
+        {
+            services.AddSingleton(runtime);
+        }
+
+        if (options.TestServer.Enabled)
+        {
+            // A single connect-options instance is shared between the lazy client
+            // and the test-server service. The lazy connection reads TargetHost on
+            // first connect, so the service can fill it in once the dev server has
+            // bound an (ephemeral) port.
+            var testConnectOptions = new TemporalClientConnectOptions
+            {
+                Namespace = options.Namespace,
+                Runtime = runtime,
+            };
+            services.AddSingleton(testConnectOptions);
+            services.AddSingleton<TemporalTestServerService>();
+            services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TemporalTestServerService>());
+            services.AddSingleton<ITemporalClient>(sp =>
+            {
+                var connect = sp.GetRequiredService<TemporalClientConnectOptions>();
+                if (sp.GetService<TemporalMetricsInterceptor>() is { } interceptor)
+                {
+                    connect.Interceptors = new IClientInterceptor[] { interceptor };
+                }
+
+                return TemporalClient.CreateLazy(connect);
+            });
+        }
+        else
+        {
+            var client = services.AddTemporalClient();
+            client.Configure(connect => ClientOptionsFactory.Apply(connect, options));
+            if (runtime is not null)
+            {
+                client.Configure(connect => connect.Runtime = runtime);
+            }
+
+            if (options.Metrics.Enabled)
+            {
+                client.Configure<TemporalMetricsInterceptor>((connect, interceptor) =>
+                    connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
+                        .Concat(new IClientInterceptor[] { interceptor })
+                        .ToArray());
+            }
+        }
+
+        return new TemporalBuilder(services);
+    }
+
+    private static ITemporalWorkerServiceOptionsBuilder AddTemporalWorkerCore(
+        IServiceCollection services,
+        string taskQueue,
+        WorkerDeploymentOptions? deploymentOptions,
+        IReadOnlyCollection<Assembly> assemblies,
+        Action<TemporalWorkerServiceOptions>? configure)
+    {
+        var worker = services.AddHostedTemporalWorker(taskQueue, deploymentOptions);
+
+        foreach (var workflowType in assemblies.SelectMany(WorkerDiscovery.FindWorkflowTypes))
         {
             worker.AddWorkflow(workflowType);
         }
 
-        foreach (var activityType in WorkerDiscovery.FindActivityTypes(targetAssembly))
+        foreach (var activityType in assemblies.SelectMany(WorkerDiscovery.FindActivityTypes))
         {
-            if (activityType.IsAbstract && activityType.IsSealed)
+            switch (WorkerDiscovery.GetActivityLifetime(activityType))
             {
-                worker.AddStaticActivities(activityType);
-            }
-            else
-            {
-                worker.AddScopedActivities(activityType);
+                case ActivityLifetime.Singleton:
+                    worker.AddSingletonActivities(activityType);
+                    break;
+                case ActivityLifetime.Transient:
+                    worker.AddTransientActivities(activityType);
+                    break;
+                case ActivityLifetime.Static:
+                    worker.AddStaticActivities(activityType);
+                    break;
+                default:
+                    worker.AddScopedActivities(activityType);
+                    break;
             }
         }
 
@@ -175,5 +355,80 @@ public static class TemporalServiceCollectionExtensions
         }
 
         return worker;
+    }
+
+    private static IReadOnlyCollection<Assembly> ResolveAssemblies(
+        Assembly? assembly,
+        Type[] markerTypes,
+        Assembly callingAssembly)
+    {
+        if (assembly is not null)
+        {
+            return new[] { assembly };
+        }
+
+        if (markerTypes.Length > 0)
+        {
+            return markerTypes.Select(type => type.Assembly).Distinct().ToArray();
+        }
+
+        return new[] { Assembly.GetEntryAssembly() ?? callingAssembly };
+    }
+
+    private static Type[] Prepend(Type first, Type[] rest)
+    {
+        var types = new Type[rest.Length + 1];
+        types[0] = first;
+        Array.Copy(rest, 0, types, 1, rest.Length);
+        return types;
+    }
+
+    private static TemporalRuntime? CreateRuntime(TemporalMetricsOptions metrics)
+    {
+        MetricsOptions metricsOptions;
+        if (!string.IsNullOrWhiteSpace(metrics.PrometheusBindAddress))
+        {
+            metricsOptions = new MetricsOptions(new PrometheusOptions(metrics.PrometheusBindAddress));
+        }
+        else if (!string.IsNullOrWhiteSpace(metrics.OpenTelemetryUrl))
+        {
+            metricsOptions = new MetricsOptions(new OpenTelemetryOptions(metrics.OpenTelemetryUrl));
+        }
+        else
+        {
+            return null;
+        }
+
+        return new TemporalRuntime(new TemporalRuntimeOptions(new TelemetryOptions { Metrics = metricsOptions }));
+    }
+
+    private static void Validate(TemporalOptions options)
+    {
+        if (options.TestServer.Port < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options),
+                "Temporal:TestServer:Port must be zero or greater.");
+        }
+
+        if (options.Tls is { Disabled: true } tls &&
+            (tls.Domain is not null ||
+             tls.ServerRootCACertPath is not null ||
+             tls.ClientCertPath is not null ||
+             tls.ClientPrivateKeyPath is not null))
+        {
+            throw new InvalidOperationException(
+                "TLS cannot be disabled while certificate options are configured.");
+        }
+    }
+
+    private static void CopyTo(TemporalOptions source, TemporalOptions target)
+    {
+        target.TargetHost = source.TargetHost;
+        target.Namespace = source.Namespace;
+        target.ApiKey = source.ApiKey;
+        target.Tls = source.Tls;
+        target.Metrics = source.Metrics;
+        target.TestServer = source.TestServer;
     }
 }

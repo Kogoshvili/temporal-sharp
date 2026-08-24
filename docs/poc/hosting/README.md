@@ -247,19 +247,54 @@ When `Temporal:Metrics:Enabled` is `true`:
 
 It is wired onto both the real-connection path and the test-server path.
 
+### Exporting SDK runtime metrics
+
+Set `Temporal:Metrics:PrometheusBindAddress` (e.g. `0.0.0.0:9000`) or
+`Temporal:Metrics:OpenTelemetryUrl` (e.g. `http://localhost:4317`) to additionally
+configure the SDK `TemporalRuntime` to export its own metrics. This is separate
+from the interceptor above, which records custom app-level workflow-start metrics.
+
+## Activity lifetimes
+
+Auto-discovered activity classes are registered as `scoped` by default and static
+classes as `static`. Override per type with `[ActivityLifetime]`:
+
+```csharp
+[ActivityLifetime(ActivityLifetime.Singleton)]
+public class MyActivities
+{
+    [Activity]
+    public Task DoAsync() => Task.CompletedTask;
+}
+```
+
+## Worker versioning
+
+Pass `WorkerDeploymentOptions` (public preview) to `AddTemporalWorker` to opt into
+versioned workers:
+
+```csharp
+builder.Services.AddTemporalWorker(
+    "my-task-queue",
+    new WorkerDeploymentOptions(new WorkerDeploymentVersion("my-app", "1.0"), useWorkerVersioning: true));
+```
+
 ## Limitations / POC scope
 
-- **Metrics are demonstrated, not exported** — the meter/interceptor are registered,
-  but with no OpenTelemetry/`MeterListener` attached nothing is published. A real
-  integration would bridge to `Temporalio.Extensions.OpenTelemetry` or OTel.
 - **No time-skipping test server** — only `WorkflowEnvironment.StartLocalAsync`
-  (dev server) is wired; the `StartTimeSkippingAsync` path is not exposed.
-- **Options are bound once** — configuration is read eagerly at `AddTemporal`
-  time; there is no `IOptionsMonitor` live-reload.
-- **No worker-versioning/deployment options** in the fluent API (use the returned
-  builder's `ConfigureOptions(...)` to reach `TemporalWorkerServiceOptions`).
-- **Not packaged, not tested** — this is a spike, not a shipped library; there are
-  no unit tests for the starter itself.
+  (dev server) is wired; the `StartTimeSkippingAsync` path lives in
+  `Kogoshvili.Temporal.Testing`, where it belongs (the time-skipping server is
+  single-test-at-a-time and not thread safe).
+- **No reconnect on live reload** — `TemporalOptions` is registered through
+  `IOptions<TemporalOptions>` / `IOptionsMonitor<TemporalOptions>` so options
+  reload, but the client connection itself is established once at startup.
+- **Runtime metrics export is opt-in** — `TemporalMetricsInterceptor` records
+  custom workflow-start metrics; the SDK's own metrics are only exported when
+  Prometheus/OpenTelemetry is configured as described above.
+
+There is now a unit-test project (`tests/Temporal.Hosting.Tests`) covering
+discovery, DI registration, options binding, validation, and the test-server
+service.
 
 ## Demo
 

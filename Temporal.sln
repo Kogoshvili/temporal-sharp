@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Temporal.AspNetSample", "sa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Temporal.ConsoleWorker", "samples\Temporal.ConsoleWorker\Temporal.ConsoleWorker.csproj", "{A97FD23B-1160-49DC-86BE-BCFB22E46BE5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Temporal.Hosting.Tests", "tests\Temporal.Hosting.Tests\Temporal.Hosting.Tests.csproj", "{0A5C5CBB-9AD0-49D3-8C39-5820DE62F9B0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -84,6 +86,10 @@ Global
 		{A97FD23B-1160-49DC-86BE-BCFB22E46BE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A97FD23B-1160-49DC-86BE-BCFB22E46BE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A97FD23B-1160-49DC-86BE-BCFB22E46BE5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0A5C5CBB-9AD0-49D3-8C39-5820DE62F9B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A5C5CBB-9AD0-49D3-8C39-5820DE62F9B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A5C5CBB-9AD0-49D3-8C39-5820DE62F9B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A5C5CBB-9AD0-49D3-8C39-5820DE62F9B0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{C67E9F04-D9B1-4769-9097-482AE147CFC4} = {06F4A075-8F89-4117-8DAA-8E6E328A683D}
@@ -97,5 +103,6 @@ Global
 		{57E9BE32-C587-494C-8069-10E8C426A247} = {06F4A075-8F89-4117-8DAA-8E6E328A683D}
 		{4D0FDFF7-646B-467C-B322-DFDAA014395F} = {030FF2D4-3966-4D8E-8A13-F6F2BEE7CE14}
 		{A97FD23B-1160-49DC-86BE-BCFB22E46BE5} = {030FF2D4-3966-4D8E-8A13-F6F2BEE7CE14}
+		{0A5C5CBB-9AD0-49D3-8C39-5820DE62F9B0} = {D08D863A-2835-4C63-AFC0-D85D190FA775}
 	EndGlobalSection
 EndGlobal

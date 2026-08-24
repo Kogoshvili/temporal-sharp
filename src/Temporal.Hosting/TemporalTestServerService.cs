@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Temporalio.Client;
 using Temporalio.Testing;
 
@@ -14,13 +15,13 @@ namespace Kogoshvili.Temporal.Hosting;
 /// </summary>
 public sealed class TemporalTestServerService : IHostedService
 {
-    private readonly TemporalOptions options;
+    private readonly IOptionsMonitor<TemporalOptions> options;
     private readonly TemporalClientConnectOptions connectOptions;
     private readonly ILogger<TemporalTestServerService> logger;
     private WorkflowEnvironment? environment;
 
     public TemporalTestServerService(
-        TemporalOptions options,
+        IOptionsMonitor<TemporalOptions> options,
         TemporalClientConnectOptions connectOptions,
         ILogger<TemporalTestServerService> logger)
     {
@@ -31,17 +32,17 @@ public sealed class TemporalTestServerService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (!options.TestServer.Enabled)
+        if (!options.CurrentValue.TestServer.Enabled)
         {
             return;
         }
 
         // Port 0 asks the OS for an ephemeral free port.
-        var port = options.TestServer.Port;
+        var port = options.CurrentValue.TestServer.Port;
         var environmentOptions = new WorkflowEnvironmentStartLocalOptions
         {
             TargetHost = port == 0 ? "127.0.0.1:0" : $"127.0.0.1:{port}",
-            Namespace = options.Namespace,
+            Namespace = options.CurrentValue.Namespace,
         };
 
         logger.LogInformation("Starting Temporal test server on {TargetHost}", environmentOptions.TargetHost);
