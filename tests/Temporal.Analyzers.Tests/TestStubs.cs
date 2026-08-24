@@ -278,6 +278,24 @@ internal static class TestStubs
                 public TemporalWorkerOptions(string taskQueue) { TaskQueue = taskQueue; }
                 public string TaskQueue { get; set; }
             }
+
+            public sealed class TemporalWorker
+            {
+                public TemporalWorker(Temporalio.Client.ITemporalClient client, TemporalWorkerOptions options) { }
+
+                public System.Threading.Tasks.Task ExecuteAsync(
+                    System.Func<System.Threading.Tasks.Task> untilCancelled,
+                    System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public System.Threading.Tasks.Task ExecuteAsync(System.Threading.CancellationToken? cancellationToken = null)
+                    => System.Threading.Tasks.Task.CompletedTask;
+            }
+
+            public sealed class WorkflowReplayer
+            {
+                public WorkflowReplayer(object? options) { }
+            }
         }
 
         namespace Temporalio.Exceptions
@@ -294,6 +312,23 @@ internal static class TestStubs
             public static class TemporalException
             {
                 public static bool IsCanceledException(System.Exception ex) => false;
+            }
+        }
+        """;
+
+    public const string Testing = """
+        namespace Temporalio.Testing
+        {
+            public sealed class WorkflowEnvironment : System.IAsyncDisposable
+            {
+                public static System.Threading.Tasks.Task<WorkflowEnvironment> StartLocalAsync()
+                    => System.Threading.Tasks.Task.FromResult(new WorkflowEnvironment());
+
+                public Temporalio.Client.ITemporalClient Client => null!;
+
+                public System.Threading.Tasks.Task ShutdownAsync() => System.Threading.Tasks.Task.CompletedTask;
+
+                public System.Threading.Tasks.ValueTask DisposeAsync() => System.Threading.Tasks.ValueTask.CompletedTask;
             }
         }
         """;

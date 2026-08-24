@@ -95,3 +95,6 @@ dotnet_diagnostic.TMP4105.severity = error
 dotnet_diagnostic.TMP4106.severity = error
 dotnet_diagnostic.TMP4107.severity = error
 dotnet_diagnostic.TMP4108.severity = error
+dotnet_diagnostic.TMP5001.severity = error
+dotnet_diagnostic.TMP5002.severity = error
+dotnet_diagnostic.TMP5003.severity = error

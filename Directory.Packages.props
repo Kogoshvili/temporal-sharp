@@ -17,6 +17,7 @@
     <PackageVersion Include="coverlet.collector" Version="6.0.0" />
     <PackageVersion Include="MinVer" Version="7.0.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="Temporalio" Version="1.18.0" />
 
     <!-- Override vulnerable transitive dependencies (pulled in by
          Microsoft.CodeAnalysis.Workspaces.MSBuild and the testing packages). -->
