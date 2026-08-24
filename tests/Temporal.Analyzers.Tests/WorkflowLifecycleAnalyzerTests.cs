@@ -295,6 +295,71 @@ public class WorkflowLifecycleAnalyzerTests
             """);
 
     [Fact]
+    public Task CleanupViaHelperWithNoneToken_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    finally { await CleanupAsync(); }
+                }
+
+                private async System.Threading.Tasks.Task CleanupAsync()
+                {
+                    await System.Threading.Tasks.Task.Delay(1, System.Threading.CancellationToken.None);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task CleanupViaNestedHelperWithNoneToken_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    finally { await CleanupAsync(); }
+                }
+
+                private async System.Threading.Tasks.Task CleanupAsync()
+                {
+                    await DoCleanupAsync();
+                }
+
+                private async System.Threading.Tasks.Task DoCleanupAsync()
+                {
+                    await System.Threading.Tasks.Task.Delay(1, System.Threading.CancellationToken.None);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task CleanupViaHelperWithoutNoneToken_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    {|TMP2124:finally|} { await CleanupAsync(); }
+                }
+
+                private async System.Threading.Tasks.Task CleanupAsync()
+                {
+                    await System.Threading.Tasks.Task.Delay(1);
+                }
+            }
+            """);
+
+    [Fact]
     public Task UnboundedLoop_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

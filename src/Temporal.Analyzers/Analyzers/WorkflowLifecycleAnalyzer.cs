@@ -305,7 +305,7 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (UsesNonCancellableToken(finallyClause.Block, context.SemanticModel))
+        if (UsesNonCancellableToken(context, finallyClause.Block))
         {
             return;
         }
@@ -334,7 +334,7 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (UsesNonCancellableToken(catchClause.Block, context.SemanticModel))
+        if (UsesNonCancellableToken(context, catchClause.Block))
         {
             return;
         }
@@ -376,30 +376,80 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    private static bool UsesNonCancellableToken(BlockSyntax block, SemanticModel model)
-    {
-        foreach (var node in block.DescendantNodes())
-        {
-            if (node is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "None" } access &&
-                model.GetSymbolInfo(access).Symbol is { Name: "None" } symbol &&
-                symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
-                SdkNames.CancellationTokenType)
-            {
-                return true;
-            }
+    private const int MaxNonCancellableSearchDepth = 4;
 
-            // A fresh CancellationTokenSource created inside cleanup is a detached
-            // token (the docs-sanctioned alternative to CancellationToken.None).
-            if (node is BaseObjectCreationExpressionSyntax creation &&
-                model.GetTypeInfo(creation).Type is { } type &&
-                TypeNames.FullName(type) == "System.Threading.CancellationTokenSource")
+    /// <summary>
+    /// Reports whether the cleanup block uses a non-cancellable token either
+    /// directly or through helper methods it invokes. The token is "detached"
+    /// from the workflow's cancellation when it is <c>CancellationToken.None</c>
+    /// or comes from a <c>CancellationTokenSource</c> created inside the cleanup
+    /// path, so the check follows calls into their method bodies.
+    /// </summary>
+    private static bool UsesNonCancellableToken(SyntaxNodeAnalysisContext context, BlockSyntax block)
+    {
+        var visited = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
+        return ContainsNonCancellableSignal(block, context.SemanticModel, visited, 0);
+    }
+
+    private static bool ContainsNonCancellableSignal(
+        SyntaxNode node,
+        SemanticModel model,
+        HashSet<IMethodSymbol> visited,
+        int depth)
+    {
+        foreach (var descendant in node.DescendantNodes())
+        {
+            if (IsCancellationTokenNone(descendant, model) ||
+                IsDetachedCancellationTokenSource(descendant, model))
             {
                 return true;
             }
         }
 
+        if (depth >= MaxNonCancellableSearchDepth)
+        {
+            return false;
+        }
+
+        foreach (var invocation in node.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            if (model.GetSymbolInfo(invocation).Symbol is not IMethodSymbol target ||
+                target.DeclaringSyntaxReferences.Length == 0 ||
+                !visited.Add(target))
+            {
+                continue;
+            }
+
+            foreach (var syntaxReference in target.DeclaringSyntaxReferences)
+            {
+                // Only follow helpers in the same syntax tree; resolving symbols in
+                // other trees would require Compilation.GetSemanticModel, which is
+                // disallowed (RS1030) in the per-node hot path.
+                if (syntaxReference.SyntaxTree != model.SyntaxTree)
+                {
+                    continue;
+                }
+
+                if (ContainsNonCancellableSignal(syntaxReference.GetSyntax(), model, visited, depth + 1))
+                {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
+
+    private static bool IsCancellationTokenNone(SyntaxNode node, SemanticModel model) =>
+        node is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "None" } access &&
+        model.GetSymbolInfo(access).Symbol is { Name: "None" } symbol &&
+        symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
+        SdkNames.CancellationTokenType;
+
+    private static bool IsDetachedCancellationTokenSource(SyntaxNode node, SemanticModel model) =>
+        node is BaseObjectCreationExpressionSyntax creation &&
+        model.GetTypeInfo(creation).Type is { } type &&
+        TypeNames.FullName(type) == "System.Threading.CancellationTokenSource";
 
     // TMP2125 — unbounded loop in [WorkflowRun] that never checks continue-as-new.
     private static void AnalyzeLoop(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
