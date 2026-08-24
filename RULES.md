@@ -87,7 +87,7 @@ rules that users must enable explicitly.
 | TMP3101 | Warning | Long-running activity does not heartbeat | Long-running activities should heartbeat so Temporal can detect failures and deliver cancellations. |
 | TMP3102 | Warning | HeartbeatTimeout set but no heartbeat detected | HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. Detection recognizes Heartbeat() calls made directly by the activity or through helper methods it calls. |
 | TMP3103 | Warning | Heartbeat called without HeartbeatTimeout | Without a HeartbeatTimeout, heartbeats deliver no cancellation and enable no timeout-based failure detection. Set a HeartbeatTimeout so the heartbeat has an effect. |
-| TMP3104 | Info | Heartbeat called unnecessarily | Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection. |
+| TMP3104 | off | Heartbeat called unnecessarily | Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection. |
 | TMP3106 | Info | Non-SDK logger used in an activity | Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Logger. |
 | TMP3107 | Warning | HttpClient call without a CancellationToken | HTTP calls should honor the activity's CancellationToken so a cancelled activity stops its network I/O immediately. |
 | TMP3108 | Warning | HeartbeatTimeout much shorter than StartToCloseTimeout | A HeartbeatTimeout far shorter than StartToCloseTimeout causes the activity to be marked failed on the first missed heartbeat. |

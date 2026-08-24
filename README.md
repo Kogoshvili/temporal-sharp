@@ -99,7 +99,7 @@ var now = DateTime.Now;
 ```
 
 Opt-in rules (`TMP2103`, `TMP2111`, `TMP2147`, `TMP2151`, `TMP2161`,
-`TMP2171`, `TMP4104`) are enabled via
+`TMP2171`, `TMP3104`, `TMP4104`) are enabled via
 `.editorconfig`:
 
 ```ini
@@ -109,6 +109,7 @@ dotnet_diagnostic.TMP2147.severity = warning
 dotnet_diagnostic.TMP2151.severity = warning
 dotnet_diagnostic.TMP2161.severity = warning
 dotnet_diagnostic.TMP2171.severity = warning
+dotnet_diagnostic.TMP3104.severity = warning
 dotnet_diagnostic.TMP4104.severity = warning
 ```
 

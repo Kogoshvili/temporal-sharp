@@ -320,6 +320,7 @@ internal static class DiagnosticDescriptors
         "Heartbeat called unnecessarily",
         "Activity '{0}' calls Heartbeat() but has no loop and at most one await; the heartbeat is unnecessary",
         "Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection.",
+        isEnabledByDefault: false,
         severity: DiagnosticSeverity.Info);
 
     internal static readonly DiagnosticDescriptor InvalidWorkflowRun = Create(

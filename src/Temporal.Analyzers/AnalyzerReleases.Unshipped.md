@@ -70,4 +70,4 @@ Rule ID | New Category | New Severity | Old Category | Old Severity | Notes
 --------|--------------|--------------|--------------|--------------|-------
 TMP3203 | SdkMisuse | Warning | SdkMisuse | Error | Activity instance-state mutation is a race risk, not a determinism error
 TMP3102 | SdkMisuse | Warning | SdkMisuse | Error | Heartbeat detection can't see through third-party wrappers; downgrade to a heuristic warning
-TMP3104 | SdkMisuse | Info | SdkMisuse | Warning | Heartbeat called unnecessarily is a low-value heuristic; demote to a suggestion
+TMP3104 | SdkMisuse | Disabled | SdkMisuse | Warning | Heartbeat called unnecessarily is a low-value heuristic; disabled by default

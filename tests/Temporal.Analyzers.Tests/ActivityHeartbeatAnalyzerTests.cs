@@ -15,6 +15,10 @@ public class ActivityHeartbeatAnalyzerTests
             TestCode = source,
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
         };
+        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", """
+            root = true
+            dotnet_diagnostic.TMP3104.severity = warning
+            """));
         return test.RunAsync();
     }
 
