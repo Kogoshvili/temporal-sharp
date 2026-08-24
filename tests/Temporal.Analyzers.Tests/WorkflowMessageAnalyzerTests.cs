@@ -85,13 +85,13 @@ public class WorkflowMessageAnalyzerTests
             """);
 
     [Fact]
-    public Task SignalReturningVoid_DoesNotReport()
+    public Task SignalReturningVoid_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
             {
                 [Temporalio.Workflows.WorkflowSignal]
-                public void Handle() { }
+                public void {|TMP3205:Handle|}() { }
             }
             """);
 
@@ -214,10 +214,8 @@ public class WorkflowMessageAnalyzerTests
             public class W
             {
                 [Temporalio.Workflows.WorkflowSignal]
-                public void Handle()
-                {
-                    Temporalio.Workflows.Workflow.DelayAsync(100);
-                }
+                public System.Threading.Tasks.Task Handle()
+                    => Temporalio.Workflows.Workflow.DelayAsync(100);
             }
             """);
 

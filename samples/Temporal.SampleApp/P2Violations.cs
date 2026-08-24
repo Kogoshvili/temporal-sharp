@@ -78,10 +78,7 @@ public class ValidatorWorkflow
 public class HandlerWorkflow
 {
     [WorkflowSignal]
-    public void Handle()
-    {
-        Workflow.DelayAsync(100);
-    }
+    public async Task Handle() => await Workflow.DelayAsync(100);
 }
 
 // TMP3217 — async handler but the workflow never awaits AllHandlersFinished.
@@ -224,17 +221,9 @@ public class LargePayloadWorkflow
     }
 }
 
-// TMP3105 — ActivityExecutionContext captured across an await.
+// TMP3106 — non-SDK logger in an activity.
 public static class ContextActivities
 {
-    [Activity]
-    public static async Task CaptureContext()
-    {
-        var ctx = ActivityExecutionContext.Current;
-        await Task.Delay(1);
-    }
-
-    // TMP3106 — non-SDK logger in an activity.
     [Activity]
     public static Task ConsoleLog()
     {

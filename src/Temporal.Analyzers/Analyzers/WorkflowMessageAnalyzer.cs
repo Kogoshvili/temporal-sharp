@@ -116,9 +116,9 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!IsVoid(method.ReturnType) && !IsNonGenericTask(method.ReturnType))
+        if (!IsNonGenericTask(method.ReturnType))
         {
-            Report(context, location, "signals must return void or Task (never Task<T> or a value)", DiagnosticDescriptors.InvalidSignal);
+            Report(context, location, "signals must return Task (never void, Task<T>, or a value)", DiagnosticDescriptors.InvalidSignal);
         }
     }
 
@@ -133,8 +133,6 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
 
         return TypeNames.FullName(type) is "System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask";
     }
-
-    private static bool IsVoid(ITypeSymbol type) => type.SpecialType == SpecialType.System_Void;
 
     private static bool IsNonGenericTask(ITypeSymbol type) =>
         type is INamedTypeSymbol { TypeArguments.Length: 0 } named &&

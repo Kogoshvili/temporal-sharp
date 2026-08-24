@@ -379,46 +379,4 @@ public class P1DeterminismTests
                 }
             }
             """);
-
-    [Fact]
-    public Task NewGuid_AsActivityArgument_InWorkflow_Reports()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class MyWorkflow
-            {
-                [Temporalio.Workflows.WorkflowRun]
-                public void Run()
-                {
-                    _ = Workflow.ExecuteActivityAsync("act", new object[] { {|TMP0123:Workflow.NewGuid()|} }, new ActivityOptions());
-                }
-            }
-            """);
-
-    [Fact]
-    public Task WorkflowRandom_AsActivityArgument_InWorkflow_Reports()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class MyWorkflow
-            {
-                [Temporalio.Workflows.WorkflowRun]
-                public void Run()
-                {
-                    _ = Workflow.ExecuteActivityAsync("act", new object[] { {|TMP0123:Workflow.Random.Next()|} }, new ActivityOptions());
-                }
-            }
-            """);
-
-    [Fact]
-    public Task NewGuid_NotPassedToCommand_DoesNotReport()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class MyWorkflow
-            {
-                [Temporalio.Workflows.WorkflowRun]
-                public void Run()
-                {
-                    var id = Workflow.NewGuid();
-                }
-            }
-            """);
 }

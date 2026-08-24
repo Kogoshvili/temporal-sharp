@@ -42,8 +42,7 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.WeakReference,
             DiagnosticDescriptors.ModuleSideEffect,
             DiagnosticDescriptors.NondeterministicControlFlow,
-            DiagnosticDescriptors.WallClockComparison,
-            DiagnosticDescriptors.PersistedIdRandomness);
+            DiagnosticDescriptors.WallClockComparison);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => Supported;
 
@@ -156,10 +155,6 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.DoStatement,
                 SyntaxKind.SwitchStatement,
                 SyntaxKind.ConditionalExpression);
-
-            startContext.RegisterSyntaxNodeAction(
-                nodeContext => AnalyzePersistedId(nodeContext, state),
-                SyntaxKind.InvocationExpression);
         });
     }
 
@@ -795,90 +790,6 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
                descriptor == DiagnosticDescriptors.NonDeterministicRandomness ||
                descriptor == DiagnosticDescriptors.StopwatchUsage ||
                descriptor == DiagnosticDescriptors.CryptoRandomness;
-    }
-
-    // TMP0123 — Workflow.Random / Workflow.NewGuid passed into a workflow command
-    // (i.e. leaving the workflow as a persisted id or payload).
-    private static void AnalyzePersistedId(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
-    {
-        var invocation = (InvocationExpressionSyntax)context.Node;
-        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
-            !SdkNames.IsWorkflowCommand(method))
-        {
-            return;
-        }
-
-        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
-        {
-            return;
-        }
-
-        if (invocation.ArgumentList is not { } argumentList)
-        {
-            return;
-        }
-
-        foreach (var argument in argumentList.Arguments)
-        {
-            if (FindWorkflowRandomness(argument.Expression, context.SemanticModel) is not { } randomness)
-            {
-                continue;
-            }
-
-            context.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.PersistedIdRandomness,
-                randomness.GetLocation(),
-                randomness.ToString()));
-            return;
-        }
-    }
-
-    private static ExpressionSyntax? FindWorkflowRandomness(ExpressionSyntax expression, SemanticModel model)
-    {
-        foreach (var node in expression.DescendantNodesAndSelf())
-        {
-            if (node is InvocationExpressionSyntax invocation &&
-                model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method)
-            {
-                if (SdkNames.IsWorkflowType(method.ContainingType) && method.Name == "NewGuid")
-                {
-                    return invocation;
-                }
-
-                if (TypeNames.IsOrDerivesFrom(method.ContainingType, "System.Random") &&
-                    invocation.Expression is MemberAccessExpressionSyntax receiverAccess &&
-                    IsWorkflowRandomProperty(receiverAccess.Expression, model))
-                {
-                    return invocation;
-                }
-            }
-            else if (node is MemberAccessExpressionSyntax access &&
-                     model.GetSymbolInfo(access).Symbol is IPropertySymbol or IFieldSymbol &&
-                     IsWorkflowRandomProperty(access, model))
-            {
-                return access;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool IsWorkflowRandomProperty(ExpressionSyntax expression, SemanticModel model)
-    {
-        if (expression is not MemberAccessExpressionSyntax access)
-        {
-            return false;
-        }
-
-        var symbol = model.GetSymbolInfo(access).Symbol;
-        if (symbol is null || (symbol is not IPropertySymbol && symbol is not IFieldSymbol))
-        {
-            return false;
-        }
-
-        return symbol.Name == "Random" &&
-               symbol.ContainingType is not null &&
-               SdkNames.IsWorkflowType(symbol.ContainingType);
     }
 
     private static void ReportIfReachable(

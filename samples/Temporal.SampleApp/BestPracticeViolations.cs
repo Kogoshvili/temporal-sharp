@@ -11,18 +11,6 @@ public class BestPracticeViolations
     [WorkflowRun]
     public async Task RunAsync(string orderId, int amount, string customerId)
     {
-        // TMP4201 — Workflow.NewGuid without a determinism comment.
-        var id = Workflow.NewGuid();
-
-        // TMP4202 — DeprecatePatch without an explanatory comment.
-        Workflow.DeprecatePatch("v1");
-
-        // TMP4203 — Patched guarding a change without a replay-tested comment.
-        if (Workflow.Patched("v2"))
-        {
-            // new behavior
-        }
-
         // TMP4105 — hard-coded task-queue name.
         await Workflow.ExecuteActivityAsync(
             () => BestPracticeActivities.Fetch(),

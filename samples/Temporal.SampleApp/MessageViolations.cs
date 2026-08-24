@@ -3,7 +3,7 @@ using Temporalio.Workflows;
 namespace Kogoshvili.Temporal.SampleApp;
 
 // Query/signal handler contract violations (TMP3204-TMP3207). Queries must be
-// synchronous and read-only; signals must return void or Task.
+// synchronous and read-only; signals must return Task.
 
 // TMP3204 — [WorkflowQuery] method is async.
 [Workflow]

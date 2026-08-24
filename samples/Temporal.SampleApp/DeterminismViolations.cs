@@ -87,12 +87,6 @@ public class DeterminismViolations
         var expiry = System.DateTime.UtcNow;
         if (Workflow.UtcNow > expiry) { }
 
-        // TMP0123 — workflow randomness used for a persisted payload
-        _ = Workflow.ExecuteActivityAsync(
-            "act",
-            new object[] { Workflow.NewGuid() },
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
-
         // TMP4103 — polling loop instead of Workflow.WaitConditionAsync
         while (true)
         {

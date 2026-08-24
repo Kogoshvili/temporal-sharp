@@ -232,16 +232,8 @@ internal static class DiagnosticDescriptors
         "TMP0104",
         DeterminismCategory,
         "Workflow time compared to a persisted value",
-        "'{0}' compares workflow time to a persisted timestamp; wall-clock assumptions break replay",
-        "Comparing Workflow.UtcNow against an externally persisted timestamp or expiry makes the branch replay-dependent. Use a workflow timer, or persist the comparison time as workflow state.",
-        severity: DiagnosticSeverity.Warning);
-
-    internal static readonly DiagnosticDescriptor PersistedIdRandomness = Create(
-        "TMP0123",
-        DeterminismCategory,
-        "Workflow randomness used for a persisted id or payload",
-        "'{0}' uses workflow randomness for a persisted id or payload; generate it in an activity or on the client",
-        "Workflow.Random and Workflow.NewGuid are deterministic across replays, which makes them unsuitable for identifiers or payloads that must be unique across executions. Generate them in an activity or on the client.",
+        "'{0}' compares workflow time to a persisted timestamp; use a workflow timer for deadlines",
+        "Workflow.UtcNow advances with workflow history, not wall-clock time, so it cannot test whether a real-world deadline has passed. Use a workflow timer, or persist the comparison time as workflow state.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor PollingLoop = Create(
@@ -405,8 +397,8 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Invalid workflow signal method",
         "Invalid [WorkflowSignal] method: {0}",
-        "A signal handler must return void or Task; returning Task<T> or a value is not allowed.",
-        severity: DiagnosticSeverity.Error);
+        "A signal handler must return Task; returning void, Task<T>, or a value is not allowed.",
+        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor QueryMutation = Create(
         "TMP3206",
@@ -631,14 +623,6 @@ internal static class DiagnosticDescriptors
         "object/dynamic/JsonElement members decode to JsonElement and may lose precision. Declare a concrete member type on the payload DTO.",
         severity: DiagnosticSeverity.Warning);
 
-    internal static readonly DiagnosticDescriptor ActivityContextAcrossAwait = Create(
-        "TMP3105",
-        SdkMisuseCategory,
-        "ActivityExecutionContext captured across an await",
-        "ActivityExecutionContext is captured across an await boundary",
-        "ActivityExecutionContext is async-local to the activity. Prefer accessing Current fresh, or store the specific values you need (logger, info, cancellation token) instead of holding the context itself.",
-        severity: DiagnosticSeverity.Warning);
-
     internal static readonly DiagnosticDescriptor NonSdkActivityLog = Create(
         "TMP3106",
         SdkMisuseCategory,
@@ -742,30 +726,6 @@ internal static class DiagnosticDescriptors
         "'{0}' runs in a local activity; local activities must be short and lightweight",
         "Local activities run on the worker's task queue and block a worker slot. Blocking or network I/O such as Task.Delay, sockets, or file I/O makes them long-running; use a regular activity instead.",
         severity: DiagnosticSeverity.Warning);
-
-    internal static readonly DiagnosticDescriptor NewGuidRequiresComment = Create(
-        "TMP4201",
-        BestPracticeCategory,
-        "Workflow.NewGuid without a determinism comment",
-        "Workflow.NewGuid is deterministic (not secure); add a comment noting it is not for security use",
-        "Workflow.NewGuid produces a deterministic, replay-stable GUID, not a cryptographically secure identifier. Document this so it is not mistaken for a security token.",
-        isEnabledByDefault: false);
-
-    internal static readonly DiagnosticDescriptor DeprecatePatchRequiresComment = Create(
-        "TMP4202",
-        BestPracticeCategory,
-        "DeprecatePatch without an explanatory comment",
-        "Workflow.DeprecatePatch should be accompanied by a comment explaining the versioning change",
-        "Deprecating a patch changes how old workflows replay. Document the change so future readers understand the versioning history.",
-        isEnabledByDefault: false);
-
-    internal static readonly DiagnosticDescriptor VersioningChangeRequiresReplayComment = Create(
-        "TMP4203",
-        BestPracticeCategory,
-        "Versioning change without a replay-tested comment",
-        "This versioning change should note that it was replay-tested",
-        "Behavior changes guarded by Workflow.Patched affect how old histories replay. Note that the change was replay-tested against existing workflow executions.",
-        isEnabledByDefault: false);
 
     private static DiagnosticDescriptor Create(
         string id,
