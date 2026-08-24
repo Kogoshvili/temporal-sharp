@@ -1,15 +1,11 @@
-# POC: `temporal-sharp map` — static workflow topology graph
+# temporal-sharp `map` — static workflow topology graph
 
-This is a proof-of-concept for a new `map` subcommand in the `temporal-sharp`
-CLI. It produces a static **topology graph** of a Temporal .NET codebase:
-workflows, their signal/query/update handlers, activities, child workflows,
-nexus operations, and task queues — all resolved semantically (no execution,
-no Temporal server), and all emitted as Mermaid, JSON, HTML (interactive), or
-Graphviz DOT. It accepts **multiple** solutions/projects and stitches them
-together into one graph.
-
-The POC lives on branch `poc/map`. It is intentionally scoped to demonstrate
-the idea; see [Limitations](#limitations--poc-scope).
+The `map` subcommand of the `temporal-sharp` CLI produces a static **topology
+graph** of a Temporal .NET codebase: workflows, their signal/query/update
+handlers, activities, child workflows, nexus operations, and task queues — all
+resolved semantically (no execution, no Temporal server), and all emitted as
+Mermaid, JSON, HTML (interactive), or Graphviz DOT. It accepts **multiple**
+solutions/projects and stitches them together into one graph.
 
 ## Problem
 
@@ -255,9 +251,6 @@ minimal interactivity on top of the static diagram:
 </html>
 ```
 
-A rendered example is checked in at `docs/examples/topology.html` (open it in a
-browser; it needs network access only for the Mermaid CDN).
-
 ### DOT
 
 `--format dot` emits Graphviz DOT with per-kind shapes/colours (workflows = blue
@@ -276,18 +269,7 @@ digraph temporal_topology {
 }
 ```
 
-## Running the demo
-
-```sh
-./demo.sh
-```
-
-The script builds the CLI and the sample app, then runs `map` against
-`samples/Temporal.SampleApp` in all four formats (printing mermaid + json and
-writing `html`/`dot`), plus a multi-input run. It refreshes everything under
-`docs/examples/`.
-
-## Limitations / POC scope
+## Limitations
 
 - **Direct calls only.** Edges are traced from method bodies declared directly in
   a `[Workflow]` type. A workflow that calls a helper in another class which in
@@ -304,107 +286,10 @@ writing `html`/`dot`), plus a multi-input run. It refreshes everything under
 - **No interface/abstract workflow support** and no `[WorkflowInit]` port.
 - **Cross-solution stitching is keyed by fully-qualified name**, not assembly
   identity. Two distinct types with the same namespace + type name in different
-  repositories would be merged into one node; the POC assumes names are unique
+  repositories would be merged into one node; `map` assumes names are unique
   across the inputs (which is the point of a shared contract assembly).
 - **HTML is rendered client-side** by Mermaid.js loaded from a CDN; viewing
   `topology.html` requires network access (for the CDN) and a browser, and the
   kind filter hides nodes but not the edges attached to them.
 - **Not a replacement for `analyze`** — this is purely a graph/view, it reports
   no diagnostics.
-
-## Demo
-
-Captured by running `./demo.sh` in this worktree. The full run produces **72
-nodes** (49 workflows, 17 activities, 1 task queue, 5 unknown boundaries) and
-**16 edges**. Node ids are assigned in deterministic (sorted) order and are
-stable for a given input.
-
-### `OrderWorkflow` subgraph (mermaid excerpt — exact)
-
-```
-    n14["OrderActivities.ChargeCustomer"]:::activity
-    n17["order-task-queue"]:::taskQueue
-    n19["Activity: LegacyPayment"]:::unknown
-    n21["NexusOperation: ShipPackage"]:::unknown
-    n22["NexusService: shipping-nexus"]:::unknown
-    n29["ChildWorkflow<br/><i>query: Progress</i><br/><i>run: RunAsync</i>"]:::workflow
-    n54["OrderWorkflow<br/><i>query: Status</i><br/><i>run: RunAsync</i><br/><i>signal: ApproveAsync</i>"]:::workflow
-
-    n54 --> n14
-    n54 -->|task queue| n17
-    n54 --> n19
-    n54 ==> n21
-    n54 ==> n22
-    n54 -.-> n29
-```
-
-### JSON excerpt (exact)
-
-```json
-{
-  "id": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
-  "kind": "workflow",
-  "name": "OrderWorkflow",
-  "file": "samples/Temporal.SampleApp/TopologySample.cs",
-  "line": 12,
-  "handlers": [
-    { "kind": "query", "name": "Status" },
-    { "kind": "run", "name": "RunAsync" },
-    { "kind": "signal", "name": "ApproveAsync" }
-  ]
-}
-```
-
-```json
-{ "id": "Unknown:Activity:\"LegacyPayment\"", "kind": "unknown",
-  "name": "LegacyPayment", "unknownKind": "activity", "handlers": [] }
-{ "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
-  "to": "Workflow:Kogoshvili.Temporal.SampleApp.ChildWorkflow", "kind": "childWorkflow" }
-{ "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
-  "to": "TaskQueue:order-task-queue", "kind": "taskQueue" }
-```
-
-### Script header (exact)
-
-```
-==> Building the CLI
-Build succeeded.
-    0 Warning(s)
-    0 Error(s)
-
-==> Building the sample app
-Build succeeded.
-    0 Warning(s)
-    0 Error(s)
-
-==> map samples/Temporal.SampleApp --format mermaid
-flowchart TB
-    classDef workflow fill:#e3f2fd,stroke:#1565c0;
-    ...
-
-==> map samples/Temporal.SampleApp --format json
-{
-  "nodes": [ ... ], "edges": [ ... ]
-}
-
-==> map samples/Temporal.SampleApp --format html  (docs/examples/topology.html)
-Wrote docs/examples/topology.html
-
-==> map samples/Temporal.SampleApp --format dot  (docs/examples/topology.dot)
-Wrote docs/examples/topology.dot
---- topology.dot preview ---
-digraph temporal_topology {
-    graph [rankdir=TB, splines=spline];
-    node [fontname="Helvetica"];
-    n0 [label="ActivityViolationActivities.LongRunningHeartbeat", shape=ellipse, style="filled", fillcolor="#fff3e0"];
-    ...
-
-==> map (multi-input) samples/Temporal.SampleApp + Temporal.sln  (docs/examples/multi-input-topology.json)
-Wrote docs/examples/multi-input-topology.json
-
-==> Refreshing docs/examples/
-Wrote docs/examples/sample-app-topology.mmd
-Wrote docs/examples/sample-app-topology.json
-
-==> Done.
-```
