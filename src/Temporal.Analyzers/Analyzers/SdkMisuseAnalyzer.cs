@@ -103,7 +103,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (literal.Token.ValueText.Length <= 1024)
+        if (literal.Token.ValueText.Length <= 100000)
         {
             return;
         }
@@ -127,7 +127,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (initializer.Expressions.Count <= 20)
+        if (initializer.Expressions.Count <= 1000)
         {
             return;
         }
@@ -158,27 +158,48 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
         }
 
         var initializer = creation.Initializer;
-        if (initializer is null || initializer.Expressions.Count == 0)
+        var hasStartToClose = false;
+        var hasScheduleToClose = false;
+        if (initializer is not null)
+        {
+            foreach (var expression in initializer.Expressions)
+            {
+                if (expression is AssignmentExpressionSyntax { Left: IdentifierNameSyntax identifier })
+                {
+                    hasStartToClose |= identifier.Identifier.ValueText == "StartToCloseTimeout";
+                    hasScheduleToClose |= identifier.Identifier.ValueText == "ScheduleToCloseTimeout";
+                }
+            }
+        }
+
+        if (hasStartToClose || hasScheduleToClose)
         {
             return;
         }
 
-        var hasStartToClose = false;
-        var hasScheduleToClose = false;
-        foreach (var expression in initializer.Expressions)
+        // An empty options object is only a reliable miss when passed inline to a
+        // workflow activity call; otherwise the timeouts may be set after
+        // construction, which the analyzer cannot see.
+        if ((initializer is null || initializer.Expressions.Count == 0) &&
+            !IsInlineActivityOptionsArgument(creation, context.SemanticModel))
         {
-            if (expression is AssignmentExpressionSyntax { Left: IdentifierNameSyntax identifier })
-            {
-                hasStartToClose |= identifier.Identifier.ValueText == "StartToCloseTimeout";
-                hasScheduleToClose |= identifier.Identifier.ValueText == "ScheduleToCloseTimeout";
-            }
+            return;
         }
 
         // TMP2101 — neither required timeout set.
-        if (!hasStartToClose && !hasScheduleToClose)
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ActivityMissingTimeout, creation.GetLocation()));
+    }
+
+    private static bool IsInlineActivityOptionsArgument(BaseObjectCreationExpressionSyntax creation, SemanticModel model)
+    {
+        if (creation.Parent is not ArgumentSyntax { Parent: ArgumentListSyntax { Parent: InvocationExpressionSyntax invocation } })
         {
-            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ActivityMissingTimeout, creation.GetLocation()));
+            return false;
         }
+
+        return model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+               method.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == SdkNames.WorkflowType &&
+               method.Name is "ExecuteActivityAsync" or "ExecuteLocalActivityAsync";
     }
 
     private static void AnalyzeMethodSignature(SymbolAnalysisContext context, TemporalConfig config)
@@ -290,21 +311,44 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
                 continue;
             }
 
-            if (IsLossyNumber(memberType))
-            {
-                var location = member.Locations.Length > 0 ? member.Locations[0] : context.Symbol.Locations[0];
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.NestedLossyNumber,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
-            }
-            else
-            {
-                ReportNestedLossyMembers(context, memberType, visited);
-            }
+        if (IsLossyNumber(memberType) || ContainsLossyTypeArgument(memberType))
+        {
+            var location = member.Locations.Length > 0 ? member.Locations[0] : context.Symbol.Locations[0];
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.NestedLossyNumber,
+                location,
+                member.Name,
+                memberType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+        }
+        else
+        {
+            ReportNestedLossyMembers(context, memberType, visited);
         }
     }
+}
+
+private static bool ContainsLossyTypeArgument(ITypeSymbol type)
+{
+    if (type is IArrayTypeSymbol array)
+    {
+        return ContainsLossyTypeArgument(array.ElementType);
+    }
+
+    if (type is not INamedTypeSymbol named)
+    {
+        return false;
+    }
+
+    foreach (var typeArgument in named.TypeArguments)
+    {
+        if (IsLossyNumber(typeArgument) || ContainsLossyTypeArgument(typeArgument))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
 
     private static ITypeSymbol? PayloadType(IMethodSymbol method)
     {

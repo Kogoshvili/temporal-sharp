@@ -240,6 +240,61 @@ public class WorkflowLifecycleAnalyzerTests
             """);
 
     [Fact]
+    public Task DetachedTokenCleanup_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    finally
+                    {
+                        using var cts = new System.Threading.CancellationTokenSource();
+                        await System.Threading.Tasks.Task.Delay(1, cts.Token);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task CancellationCatchCleanup_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    {|TMP2124:catch|} (System.OperationCanceledException)
+                    {
+                        await System.Threading.Tasks.Task.Delay(1);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task CancellationCatchWithNoneToken_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    catch (System.OperationCanceledException)
+                    {
+                        await System.Threading.Tasks.Task.Delay(1, System.Threading.CancellationToken.None);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
     public Task UnboundedLoop_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

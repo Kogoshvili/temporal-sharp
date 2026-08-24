@@ -40,6 +40,10 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeUsing(c),
                 SyntaxKind.UsingDirective);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeQualifiedReference(c),
+                SyntaxKind.QualifiedName);
         });
     }
 
@@ -74,16 +78,57 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
         }
 
         var name = usingDirective.Name?.ToString() ?? string.Empty;
+        if (MatchesInternalNamespace(name))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.InternalTemporalNamespace,
+                usingDirective.Name!.GetLocation(),
+                name));
+        }
+    }
+
+    // TMP2146 — fully-qualified reference to an internal Temporalio.* namespace
+    // (e.g. Temporalio.Bridge.Api.*) outside a using/namespace declaration.
+    private static void AnalyzeQualifiedReference(SyntaxNodeAnalysisContext context)
+    {
+        var qualifiedName = (QualifiedNameSyntax)context.Node;
+
+        // Only the topmost name in a chain (not a prefix of a longer name).
+        if (qualifiedName.Parent is QualifiedNameSyntax { Left: var left } && left == qualifiedName)
+        {
+            return;
+        }
+
+        foreach (var ancestor in qualifiedName.Ancestors())
+        {
+            if (ancestor is UsingDirectiveSyntax or NamespaceDeclarationSyntax or FileScopedNamespaceDeclarationSyntax)
+            {
+                return;
+            }
+        }
+
+        var name = qualifiedName.ToString();
+        if (!MatchesInternalNamespace(name))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.InternalTemporalNamespace,
+            qualifiedName.GetLocation(),
+            name));
+    }
+
+    private static bool MatchesInternalNamespace(string name)
+    {
         foreach (var prefix in InternalNamespacePrefixes)
         {
             if (name == prefix || name.StartsWith(prefix + ".", System.StringComparison.Ordinal))
             {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.InternalTemporalNamespace,
-                    usingDirective.Name!.GetLocation(),
-                    name));
-                return;
+                return true;
             }
         }
+
+        return false;
     }
 }

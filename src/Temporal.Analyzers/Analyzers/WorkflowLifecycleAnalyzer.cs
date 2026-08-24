@@ -10,7 +10,7 @@ namespace Kogoshvili.Temporal.Analyzers.Analyzers;
 
 /// <summary>
 /// Flags workflow lifecycle mistakes: continue-as-new without passing state
-/// (TMP2122), swallowed cancellation (TMP2123), cancellable cleanup (TMP2124),
+/// (TMP2122), swallowed continue-as-new (TMP2123), cancellable cleanup (TMP2124),
 /// and unbounded loops that never continue-as-new (TMP2125).
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -38,6 +38,10 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
 
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeCatch(c, state),
+                SyntaxKind.CatchClause);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeCancellationCatch(c, state),
                 SyntaxKind.CatchClause);
 
             startContext.RegisterSyntaxNodeAction(
@@ -301,7 +305,7 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (UsesNonCancellableToken(finallyClause, context.SemanticModel))
+        if (UsesNonCancellableToken(finallyClause.Block, context.SemanticModel))
         {
             return;
         }
@@ -311,14 +315,84 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             finallyClause.FinallyKeyword.GetLocation()));
     }
 
-    private static bool UsesNonCancellableToken(FinallyClauseSyntax finallyClause, SemanticModel model)
+    // TMP2124 — a cancellation catch performs cleanup with a cancellable token.
+    private static void AnalyzeCancellationCatch(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
-        foreach (var node in finallyClause.Block.DescendantNodes())
+        var catchClause = (CatchClauseSyntax)context.Node;
+        if (!state.IsWorkflowReachable(catchClause, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (!IsCancellationCatch(catchClause, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (!catchClause.Block.DescendantNodes().OfType<AwaitExpressionSyntax>().Any())
+        {
+            return;
+        }
+
+        if (UsesNonCancellableToken(catchClause.Block, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.CleanupNotNonCancellable,
+            catchClause.CatchKeyword.GetLocation()));
+    }
+
+    private static bool IsCancellationCatch(CatchClauseSyntax catchClause, SemanticModel model)
+    {
+        if (catchClause.Filter is { } filter &&
+            ReferencesCancellationInFilter(filter.FilterExpression))
+        {
+            return true;
+        }
+
+        if (catchClause.Declaration is null)
+        {
+            return false;
+        }
+
+        var type = model.GetTypeInfo(catchClause.Declaration.Type).Type;
+        return type is not null &&
+               TypeNames.FullName(type) is "System.OperationCanceledException" or
+                   "System.Threading.Tasks.TaskCanceledException";
+    }
+
+    private static bool ReferencesCancellationInFilter(ExpressionSyntax expression)
+    {
+        foreach (var name in expression.DescendantNodesAndSelf().OfType<SimpleNameSyntax>())
+        {
+            if (name.Identifier.ValueText is "IsCanceledException" or "IsCancellationRequested")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool UsesNonCancellableToken(BlockSyntax block, SemanticModel model)
+    {
+        foreach (var node in block.DescendantNodes())
         {
             if (node is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "None" } access &&
                 model.GetSymbolInfo(access).Symbol is { Name: "None" } symbol &&
                 symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) ==
                 SdkNames.CancellationTokenType)
+            {
+                return true;
+            }
+
+            // A fresh CancellationTokenSource created inside cleanup is a detached
+            // token (the docs-sanctioned alternative to CancellationToken.None).
+            if (node is BaseObjectCreationExpressionSyntax creation &&
+                model.GetTypeInfo(creation).Type is { } type &&
+                TypeNames.FullName(type) == "System.Threading.CancellationTokenSource")
             {
                 return true;
             }

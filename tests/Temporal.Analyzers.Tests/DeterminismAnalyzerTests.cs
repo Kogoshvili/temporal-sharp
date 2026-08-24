@@ -1350,7 +1350,7 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
-    public Task FloatingTaskAssignedToVariable_DoesNotReport()
+    public Task FloatingTaskAssignedButNeverUsed_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class MyWorkflow
@@ -1358,7 +1358,24 @@ public class DeterminismAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public void Run()
                 {
+                    var {|TMP0112:task|} = DoWorkAsync();
+                }
+
+                public static System.Threading.Tasks.Task DoWorkAsync() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task FloatingTaskAssignedThenAwaited_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
                     var task = DoWorkAsync();
+                    await task;
                 }
 
                 public static System.Threading.Tasks.Task DoWorkAsync() => System.Threading.Tasks.Task.CompletedTask;

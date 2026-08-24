@@ -60,6 +60,23 @@ public class SdkMisuseP2Tests
 
     [Fact]
     public Task LargeCollectionPayload_Reports()
+    {
+        var elements = string.Join(", ", Enumerable.Range(1, 1001));
+        var source = Stubs +
+            "[Temporalio.Workflows.Workflow]\n" +
+            "public class W\n" +
+            "{\n" +
+            "    [Temporalio.Workflows.WorkflowRun]\n" +
+            "    public async System.Threading.Tasks.Task Run()\n" +
+            "    {\n" +
+            "        var x = new int[] {|TMP2144:{ " + elements + " }|};\n" +
+            "    }\n" +
+            "}\n";
+        return Verify(source);
+    }
+
+    [Fact]
+    public Task SmallCollectionPayload_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -67,7 +84,7 @@ public class SdkMisuseP2Tests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    var x = new int[] {|TMP2144:{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 }|};
+                    var x = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 };
                 }
             }
             """);

@@ -70,7 +70,7 @@ rules that users must enable explicitly.
 | TMP2141 | Error | Non-serializable type in workflow/activity signature | Workflow and activity arguments and return values are serialized; delegates, streams, channels, and async enumerables cannot round-trip. |
 | TMP2142 | Warning | BigInteger in a payload without a converter | System.Numerics.BigInteger is not supported by the default JSON payload converter. Register a custom converter or use a supported type. |
 | TMP2143 | Warning | Exception used as a payload | Serializing an Exception as a payload is lossy and couples the workflow contract to the .NET exception hierarchy. Use ApplicationFailure or a plain error model. |
-| TMP2144 | Warning | Oversized inline payload | Large literals or collection initializers passed to activities or persisted to state bloat event history. Move them to a field, an activity, or external storage. |
+| TMP2144 | Warning | Oversized inline payload | Very large inline literals and collection initializers bloat source and, when serialized, event history. Move them to a field, an activity, or external storage. |
 | TMP2146 | Error | Use of internal Temporal namespace | Temporalio.Bridge is not part of the public API and can change without notice. |
 | TMP2147 | off | Unsafe namespace imported in workflow code | Importing namespaces that provide I/O, networking, or other non-deterministic APIs into workflow code invites replay bugs. Configure kogoshvili.temporal.unsafe_namespaces with a list of namespace prefixes that workflow code must not import. |
 | TMP2151 | off | Workflow/activity parameter may contain sensitive data | Workflow inputs are recorded in event history; avoid passing sensitive values directly. |

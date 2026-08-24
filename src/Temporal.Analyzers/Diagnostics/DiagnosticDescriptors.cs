@@ -605,8 +605,8 @@ internal static class DiagnosticDescriptors
         "TMP2144",
         SdkMisuseCategory,
         "Oversized inline payload",
-        "Inline payload is unusually large; large literals and collections bloat history and may exceed the event-size limit",
-        "Large literals or collection initializers passed to activities or persisted to state bloat event history. Move them to a field, an activity, or external storage.",
+        "Inline payload is unusually large; move it out of workflow code",
+        "Very large inline literals and collection initializers bloat source and, when serialized, event history. Move them to a field, an activity, or external storage.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor NestedLossyNumber = Create(

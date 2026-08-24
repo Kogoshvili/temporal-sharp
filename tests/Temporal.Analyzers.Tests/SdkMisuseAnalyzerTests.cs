@@ -45,6 +45,22 @@ public class SdkMisuseAnalyzerTests
             """);
 
     [Fact]
+    public Task ActivityOptionsInlineEmpty_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await Temporalio.Workflows.Workflow.ExecuteActivityAsync(
+                        () => null,
+                        {|TMP2101:new Temporalio.Workflows.ActivityOptions()|});
+                }
+            }
+            """);
+
+    [Fact]
     public Task ActivityOptionsWithStartToCloseTimeout_DoesNotReport()
         => Verify(Stubs + """
             public class C
@@ -202,6 +218,22 @@ public class SdkMisuseAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public System.Threading.Tasks.Task Run(System.Func<int> {|TMP2141:f|})
                     => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task NestedLossyCollectionMember_Reports()
+        => Verify(Stubs + """
+            public class Dto
+            {
+                public System.Collections.Generic.List<object> {|TMP2172:Items|} { get; set; }
+            }
+
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run(Dto d) => System.Threading.Tasks.Task.CompletedTask;
             }
             """);
 

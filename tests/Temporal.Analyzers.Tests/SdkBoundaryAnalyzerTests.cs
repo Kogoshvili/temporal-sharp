@@ -73,6 +73,27 @@ public class SdkBoundaryAnalyzerTests
     }
 
     [Fact]
+    public Task FullyQualifiedInternalNamespace_Reports()
+    {
+        var test = new CSharpAnalyzerTest<SdkBoundaryAnalyzer, DefaultVerifier>
+        {
+            TestCode = """
+                namespace Temporalio.Bridge.Api { public class X { } }
+
+                public class C
+                {
+                    public void M()
+                    {
+                        {|TMP2146:Temporalio.Bridge.Api.X|} x = default;
+                    }
+                }
+                """,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+        };
+        return test.RunAsync();
+    }
+
+    [Fact]
     public Task PublicTemporalNamespaces_DoNotReport()
     {
         var test = new CSharpAnalyzerTest<SdkBoundaryAnalyzer, DefaultVerifier>

@@ -103,6 +103,10 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.InvocationExpression);
 
             startContext.RegisterSyntaxNodeAction(
+                nodeContext => AnalyzeDeadTaskLocal(nodeContext, state),
+                SyntaxKind.LocalDeclarationStatement);
+
+            startContext.RegisterSyntaxNodeAction(
                 nodeContext => AnalyzeUnorderedMaterialization(nodeContext, state),
                 SyntaxKind.InvocationExpression);
 
@@ -209,6 +213,62 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
     {
         var name = TypeNames.FullName(type);
         return name is "System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask";
+    }
+
+    // TMP0112 — a task-returning call assigned to a local that is never referenced
+    // again (never awaited, returned, passed, or otherwise used) is a dead task.
+    private static void AnalyzeDeadTaskLocal(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var statement = (LocalDeclarationStatementSyntax)context.Node;
+        if (!state.IsWorkflowReachable(statement, context.SemanticModel))
+        {
+            return;
+        }
+
+        foreach (var variable in statement.Declaration.Variables)
+        {
+            if (variable.Initializer?.Value is not InvocationExpressionSyntax invocation ||
+                context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
+                !IsTaskLike(method.ReturnType))
+            {
+                continue;
+            }
+
+            var local = context.SemanticModel.GetDeclaredSymbol(variable);
+            if (local is null || IsReferencedElsewhere(context, local))
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.FloatingTask,
+                variable.Identifier.GetLocation(),
+                invocation.ToString()));
+        }
+    }
+
+    private static bool IsReferencedElsewhere(SyntaxNodeAnalysisContext context, ISymbol local)
+    {
+        var method = SymbolUtilities.GetEnclosingRegularMethod(
+            context.SemanticModel.GetEnclosingSymbol(context.Node.SpanStart));
+        if (method is null)
+        {
+            return false;
+        }
+
+        foreach (var syntaxReference in method.DeclaringSyntaxReferences)
+        {
+            foreach (var identifier in syntaxReference.GetSyntax().DescendantNodes().OfType<IdentifierNameSyntax>())
+            {
+                if (SymbolEqualityComparer.Default.Equals(
+                        context.SemanticModel.GetSymbolInfo(identifier).Symbol, local))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static bool IsConfigureAwaitFalse(InvocationExpressionSyntax node, IMethodSymbol symbol)
