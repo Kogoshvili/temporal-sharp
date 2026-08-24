@@ -14,10 +14,6 @@ Two tools, one rule engine:
   `temporal-sharp`) for CI pipelines, so findings stay visible in PRs even when
   a project already ignores warnings.
 
-The suite is intentionally a namespace (`Kogoshvili.Temporal.*`) so more tools
-can be added alongside the analyzer and CLI (e.g. `dotnet new` templates or a
-source generator) without a naming collision.
-
 See [`RULES.md`](RULES.md) for the full rule catalog.
 
 ## Install
