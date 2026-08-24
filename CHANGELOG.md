@@ -4,8 +4,15 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.0-beta.5] - 2026-08-24
+
+- Fix TMP2124 false positive when cleanup token is in a helper method
+- Make TMP3104 (unnecessary heartbeat) off by default
+- Remove namespace explanation from README
+
 ## [1.0.0-beta.4] - 2026-08-24
 
+- Prepare v1.0.0-beta.4 release
 - Address deferred remediation items (TMP2124/2146/2144/2101/0112/2172)
 - Remediate rules against Temporal skill docs and SDK
 - Fix heartbeat false positives and refine TMP2123/TMP3104
