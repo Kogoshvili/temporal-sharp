@@ -72,6 +72,16 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
                     Report(symbolContext, location, "the entry method must be public");
                 }
 
+                if (method.IsStatic)
+                {
+                    Report(symbolContext, location, "the entry method must not be static");
+                }
+
+                if (method.Arity > 0)
+                {
+                    Report(symbolContext, location, "the entry method must not be generic");
+                }
+
                 if (!IsErrorType(method.ReturnType) && !IsTaskReturning(method))
                 {
                     Report(symbolContext, location, "the entry method must return Task");
@@ -135,13 +145,18 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
             Report(context, FirstLocation(type), type.Name, DiagnosticDescriptors.MixedWorkflowAndActivity);
         }
 
-        // TMP3219 — [Workflow] type with a parameterized constructor and no [WorkflowInit].
+        // TMP3219 — [Workflow] type with no parameterless constructor and no [WorkflowInit].
         if (WorkflowDetection.IsWorkflowType(type))
         {
             var initCtor = methods.FirstOrDefault(m =>
                 m.MethodKind == MethodKind.Constructor && WorkflowDetection.IsWorkflowInit(m));
 
-            if (initCtor is null)
+            // A parameterless constructor satisfies the SDK contract; a
+            // parameterized constructor coexisting with one is valid and harmless.
+            var hasParameterlessCtor = methods.Any(m =>
+                m.MethodKind == MethodKind.Constructor && !m.IsStatic && m.Parameters.Length == 0);
+
+            if (initCtor is null && !hasParameterlessCtor)
             {
                 foreach (var ctor in methods.Where(m =>
                              m.MethodKind == MethodKind.Constructor &&

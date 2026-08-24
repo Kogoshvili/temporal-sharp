@@ -200,6 +200,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             else
             {
                 ReportPayloadTypeIssue(context, payloadType, method.Locations[0]);
+                ReportNestedLossyMembers(context, payloadType, new HashSet<ISymbol>(SymbolEqualityComparer.Default));
             }
         }
 

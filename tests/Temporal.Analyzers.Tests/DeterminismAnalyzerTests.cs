@@ -430,15 +430,15 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
-    public Task TaskFactoryStartNew_InWorkflow_Reports()
+    public Task TaskFactoryStartNew_Awaited_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class MyWorkflow
             {
                 [Temporalio.Workflows.WorkflowRun]
-                public void Run()
+                public async System.Threading.Tasks.Task Run()
                 {
-                    {|TMP0146:System.Threading.Tasks.Task.Factory.StartNew(() => { })|};
+                    await System.Threading.Tasks.Task.Factory.StartNew(() => { });
                 }
             }
             """);
@@ -487,46 +487,61 @@ public class DeterminismAnalyzerTests
             """);
 
     [Fact]
-    public Task TaskWhenAny_InWorkflow_Reports()
+    public Task TaskWhenAny_Awaited_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class MyWorkflow
             {
                 [Temporalio.Workflows.WorkflowRun]
-                public void Run()
+                public async System.Threading.Tasks.Task Run()
                 {
                     var t = System.Threading.Tasks.Task.CompletedTask;
-                    {|TMP0143:System.Threading.Tasks.Task.WhenAny(t)|};
+                    await System.Threading.Tasks.Task.WhenAny(t);
                 }
             }
             """);
 
     [Fact]
-    public Task TaskContinueWith_InWorkflow_Reports()
+    public Task TaskWhenAnyGeneric_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class MyWorkflow
             {
                 [Temporalio.Workflows.WorkflowRun]
-                public void Run()
-                {
-                    var t = System.Threading.Tasks.Task.CompletedTask;
-                    {|TMP0143:t.ContinueWith(x => { })|};
-                }
-            }
-            """);
-
-    [Fact]
-    public Task TaskOfTContinueWith_InWorkflow_Reports()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class MyWorkflow
-            {
-                [Temporalio.Workflows.WorkflowRun]
-                public void Run()
+                public async System.Threading.Tasks.Task Run()
                 {
                     var t = System.Threading.Tasks.Task.FromResult("x");
-                    {|TMP0143:t.ContinueWith(x => "done")|};
+                    await {|TMP0143:System.Threading.Tasks.Task.WhenAny(new[] { t })|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskContinueWith_Awaited_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var t = System.Threading.Tasks.Task.CompletedTask;
+                    await t.ContinueWith(x => { });
+                }
+            }
+            """);
+
+    [Fact]
+    public Task TaskOfTContinueWith_Awaited_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var t = System.Threading.Tasks.Task.FromResult("x");
+                    await t.ContinueWith(x => "done");
                 }
             }
             """);

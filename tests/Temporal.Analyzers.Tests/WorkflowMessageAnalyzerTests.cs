@@ -63,6 +63,17 @@ public class WorkflowMessageAnalyzerTests
             """);
 
     [Fact]
+    public Task ValueTaskQuery_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowQuery]
+                public System.Threading.Tasks.ValueTask<int> Get() => default;
+            }
+            """);
+
+    [Fact]
     public Task SignalReturningValue_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

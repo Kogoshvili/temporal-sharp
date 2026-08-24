@@ -180,6 +180,17 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // TMP0143 — generic Task.WhenAny<TResult> leaves the workflow scheduler; the
+        // non-generic params overload is what Workflow.WhenAnyAsync wraps and is safe.
+        if (symbol.IsGenericMethod &&
+            symbol.Name == "WhenAny" &&
+            symbol.ContainingType is not null &&
+            TypeNames.FullName(symbol.ContainingType) == "System.Threading.Tasks.Task")
+        {
+            ReportIfReachable(context, state, node, symbol, DiagnosticDescriptors.TaskScheduling);
+            return;
+        }
+
         if (DenyList.TryGetMember(SymbolKeys.Member(symbol), out var descriptor))
         {
             ReportIfReachable(context, state, node, symbol, descriptor);
@@ -707,6 +718,25 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
                         IsClockDerived(initializer.Value, model, visited))
                     {
                         return true;
+                    }
+                }
+
+                // A field/property that was assigned from Workflow.UtcNow elsewhere in
+                // the type is still a workflow-clock snapshot (the "persist the
+                // comparison time as workflow state" pattern), not a wall-clock value.
+                if (symbol is IFieldSymbol or IPropertySymbol &&
+                    symbol.ContainingType is { } containingType)
+                {
+                    foreach (var typeSyntax in containingType.DeclaringSyntaxReferences)
+                    {
+                        foreach (var assignment in typeSyntax.GetSyntax().DescendantNodes().OfType<AssignmentExpressionSyntax>())
+                        {
+                            if (SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(assignment.Left).Symbol, symbol) &&
+                                IsClockDerived(assignment.Right, model, visited))
+                            {
+                                return true;
+                            }
+                        }
                     }
                 }
 

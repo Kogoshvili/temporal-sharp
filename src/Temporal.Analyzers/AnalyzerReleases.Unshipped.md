@@ -6,11 +6,11 @@
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 TMP0113 | Determinism | Error | ConfigureAwait(false) in workflow code
-TMP0146 | Determinism | Error | Task.Run / TaskFactory.StartNew in workflow code (use Workflow.RunTaskAsync)
+TMP0146 | Determinism | Error | Task.Run in workflow code (use Workflow.RunTaskAsync)
 TMP0147 | Determinism | Error | Mutex / Semaphore / SemaphoreSlim in workflow code (use Temporalio.Workflows.*)
 TMP0112 | Determinism | Error | Un-awaited (floating) Task/ValueTask in workflow code
 TMP3204 | SdkMisuse | Error | [WorkflowQuery] must not be async or return void/Task/Task<T>
-TMP3205 | SdkMisuse | Warning | [WorkflowSignal] must return Task
+TMP3205 | SdkMisuse | Error | [WorkflowSignal] must return Task
 TMP3206 | SdkMisuse | Error | [WorkflowQuery] mutates workflow state
 TMP3207 | SdkMisuse | Error | Workflow command API called inside a [WorkflowQuery]
 TMP0122 | Determinism | Error | Cryptographic randomness (RandomNumberGenerator / RNGCryptoServiceProvider) in workflow code
@@ -21,20 +21,19 @@ TMP0177 | Determinism | Error | Static constructor / static field initializer / 
 TMP0175 | Determinism | Warning | Control flow depending on non-deterministic time or randomness
 TMP0104 | Determinism | Warning | Workflow.UtcNow compared to a persisted timestamp
 TMP3208 | SdkMisuse | Error | [WorkflowUpdate] must return Task or Task<T>
-TMP3209 | SdkMisuse | Error | Continue-as-new invoked inside a [WorkflowUpdate]
+TMP3209 | SdkMisuse | Error | Continue-as-new invoked inside a [WorkflowUpdate]/[WorkflowSignal] handler
 TMP3212 | SdkMisuse | Error | Temporalio.Client / worker types referenced from workflow code
-TMP3213 | SdkMisuse | Warning | StartWorkflowAsync/ExecuteWorkflowAsync without an explicit workflow id
 TMP3214 | SdkMisuse | Warning | Workflow and activity methods mixed in one class
 TMP3215 | SdkMisuse | Error | [WorkflowUpdateValidator] mutates state or blocks
 TMP3216 | SdkMisuse | Warning | Signal handler schedules activities/child workflows/delays
 TMP3217 | SdkMisuse | Warning | Workflow may complete while async handlers are pending
 TMP3218 | SdkMisuse | Error | [WorkflowInit] and [WorkflowRun] parameter lists mismatch
-TMP3219 | SdkMisuse | Error | [Workflow] parameterized constructor without [WorkflowInit]
+TMP3219 | SdkMisuse | Error | [Workflow] class with no parameterless constructor and no [WorkflowInit]
 TMP2123 | SdkMisuse | Error | catch swallows a ContinueAsNewException
 TMP2124 | SdkMisuse | Warning | Cleanup after cancellation not in a non-cancellable scope
 TMP2122 | SdkMisuse | Warning | Continue-as-new without passing current workflow state
 TMP2125 | SdkMisuse | Warning | Unbounded loop without a continue-as-new check
-TMP2132 | SdkMisuse | Warning | Non-ApplicationFailureException thrown from workflow code
+TMP2132 | SdkMisuse | Warning | Non-failure exception thrown from workflow code
 TMP2133 | SdkMisuse | Warning | Debug.Assert / Trace.Assert in workflow code
 TMP2134 | SdkMisuse | Warning | Base exception thrown from an activity
 TMP2146 | SdkMisuse | Error | Use of internal Temporalio.* namespaces
@@ -42,13 +41,13 @@ TMP2142 | SdkMisuse | Warning | BigInteger in a payload without a converter
 TMP2143 | SdkMisuse | Warning | Exception used as a param/return payload
 TMP2144 | SdkMisuse | Warning | Oversized inline literal/collection payload
 TMP2172 | SdkMisuse | Warning | object/dynamic/JsonElement in nested payload members
-TMP3106 | SdkMisuse | Warning | Console.* / non-SDK logger in an activity
+TMP3106 | SdkMisuse | Info | Console.* / non-SDK logger in an activity
 TMP3107 | SdkMisuse | Warning | HttpClient call without a CancellationToken
 TMP3108 | SdkMisuse | Warning | HeartbeatTimeout much shorter than StartToCloseTimeout
 TMP3109 | SdkMisuse | Warning | Activity heartbeats in a loop but never checks the CancellationToken
 TMP2162 | SdkMisuse | Warning | Workflow.UpsertTypedSearchAttributes inside a loop
 TMP2163 | SdkMisuse | Warning | Search-attribute removal not using ValueUnset()
-TMP3303 | SdkMisuse | Error | Same patch id Patched more than once
+TMP3303 | SdkMisuse | Warning | Same patch id Patched more than once
 TMP3305 | SdkMisuse | Warning | Patched result discarded (does not guard a change)
 TMP4101 | BestPractice | Info | Multiple positional parameters on a workflow/activity method (prefer a single object)
 TMP4103 | BestPractice | Warning | Polling loop with a constant Workflow.DelayAsync (use Workflow.WaitConditionAsync)
@@ -70,6 +69,5 @@ TMP2102 | SdkMisuse | Disabled | ScheduleToCloseTimeout set without StartToClose
 Rule ID | New Category | New Severity | Old Category | Old Severity | Notes
 --------|--------------|--------------|--------------|--------------|-------
 TMP3203 | SdkMisuse | Warning | SdkMisuse | Error | Activity instance-state mutation is a race risk, not a determinism error
-TMP0143 | Determinism | Error | Determinism | Warning | Raw task scheduling (WhenAny/ContinueWith/CancelAsync) is replay-breaking; escalate to Error
 TMP3102 | SdkMisuse | Warning | SdkMisuse | Error | Heartbeat detection can't see through third-party wrappers; downgrade to a heuristic warning
 TMP3104 | SdkMisuse | Info | SdkMisuse | Warning | Heartbeat called unnecessarily is a low-value heuristic; demote to a suggestion

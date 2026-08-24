@@ -42,8 +42,8 @@ internal static class DiagnosticDescriptors
         "TMP0112",
         DeterminismCategory,
         "Workflow code discards an un-awaited task",
-        "'{0}' returns a task that is neither awaited nor assigned; await it or discard it explicitly with '_ ='",
-        "Fire-and-forget task calls in workflow code are not tracked by the deterministic scheduler, so their completion is not journaled and replays diverge. Await the task, assign it, or discard it explicitly.",
+        "'{0}' returns a task that is not awaited; await it so its completion is journaled",
+        "Fire-and-forget task calls in workflow code are not tracked by the deterministic scheduler, so their completion is not journaled and replays diverge. Await the task.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor NonDeterministicRandomness = Create(
@@ -114,7 +114,7 @@ internal static class DiagnosticDescriptors
         DeterminismCategory,
         "Workflow code starts work on the default task scheduler",
         "'{0}' uses the default task scheduler in workflow code; use Workflow.RunTaskAsync instead",
-        "Task.Run and TaskFactory.StartNew schedule work on the default task scheduler rather than the deterministic workflow scheduler. Use Workflow.RunTaskAsync.",
+        "Task.Run schedules work on the thread-pool TaskScheduler rather than the deterministic workflow scheduler. Use Workflow.RunTaskAsync.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor BlockingPrimitive = Create(
@@ -137,9 +137,9 @@ internal static class DiagnosticDescriptors
         "TMP0143",
         DeterminismCategory,
         "Workflow code uses raw task scheduling",
-        "'{0}' runs on the non-deterministic task scheduler; use Workflow.WhenAllAsync / Workflow.WhenAnyAsync instead",
-        "Raw Task combinators (WhenAll/WhenAny/ContinueWith) schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAllAsync / Workflow.WhenAnyAsync, and use .Cancel() instead of CancellationTokenSource.CancelAsync().",
-        severity: DiagnosticSeverity.Error);
+        "'{0}' runs on the non-deterministic task scheduler; use Workflow.WhenAnyAsync or CancellationTokenSource.Cancel instead",
+        "Task.WhenAny<T> and CancellationTokenSource.CancelAsync schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAnyAsync and use .Cancel() instead of CancellationTokenSource.CancelAsync().",
+        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor TaskWhenAll = Create(
         "TMP0148",
@@ -215,9 +215,9 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor ModuleSideEffect = Create(
         "TMP0177",
         DeterminismCategory,
-        "Workflow module performs side effects at load",
+        "Workflow module schedules workflow commands at load",
         "'{0}' runs at module load and schedules workflow commands; move it into a workflow method or activity",
-        "Static constructors, static field initializers, and module initializers run at type/module load, which is not deterministic or journaled. Avoid scheduling workflow commands from them.",
+        "Static constructors, static field initializers, and module initializers run at type/module load, before a workflow context exists and outside journaled history. Avoid scheduling workflow commands from them.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor NondeterministicControlFlow = Create(
@@ -240,8 +240,8 @@ internal static class DiagnosticDescriptors
         "TMP4103",
         BestPracticeCategory,
         "Polling loop instead of Workflow.WaitConditionAsync",
-        "'{0}' polls with a delay; use Workflow.WaitConditionAsync instead",
-        "A loop that awaits a fixed delay to poll some state burns history and slows replay. Use Workflow.WaitConditionAsync or a signal-driven approach.",
+        "'{0}' polls with a delay; use Workflow.WaitConditionAsync for signals, or move external polling into an activity",
+        "A loop that awaits a fixed delay burns history and slows replay. For local-state changes use Workflow.WaitConditionAsync; for polling external state, move the loop into an activity.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor ThreadStaticMutation = Create(
@@ -272,8 +272,8 @@ internal static class DiagnosticDescriptors
         "TMP2104",
         SdkMisuseCategory,
         "WaitConditionAsync timeout result ignored",
-        "Workflow.WaitConditionAsync timeout result is ignored; the timeout provides no protection",
-        "When the bool returned by the timeout overload is discarded, the timeout has no effect and the workflow proceeds as if the condition were met. Check the result and handle the timeout path.");
+        "Workflow.WaitConditionAsync timeout result is ignored; the timeout path is never handled",
+        "When the bool returned by the timeout overload is discarded, the timed-out branch is never handled and the workflow proceeds as if the condition were met. Check the result and handle the timeout path.");
 
     internal static readonly DiagnosticDescriptor NonSerializableType = Create(
         "TMP2141",
@@ -310,8 +310,9 @@ internal static class DiagnosticDescriptors
         "TMP3103",
         SdkMisuseCategory,
         "Heartbeat called without HeartbeatTimeout",
-        "Activity '{0}' calls Heartbeat() but is invoked without a HeartbeatTimeout; set one so a stalled activity can be detected",
-        "Heartbeats persist details and deliver cancellation even without a HeartbeatTimeout; only timeout-based failure detection requires one.");
+        "Activity '{0}' calls Heartbeat() but is invoked without a HeartbeatTimeout; set one so the heartbeat is effective",
+        "Without a HeartbeatTimeout, heartbeats deliver no cancellation and enable no timeout-based failure detection. Set a HeartbeatTimeout so the heartbeat has an effect.",
+        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor UnnecessaryHeartbeat = Create(
         "TMP3104",
@@ -358,7 +359,7 @@ internal static class DiagnosticDescriptors
         WorkflowStateCategory,
         "Workflow code uses ambient AsyncLocal/ThreadLocal state",
         "'{0}' stores ambient state that is not deterministic during workflow replay; pass state explicitly instead",
-        "AsyncLocal/ThreadLocal state lives in ExecutionContext/thread storage and flows across awaits in scheduler-dependent ways, so it is not deterministic replay state. Thread state explicitly through method parameters and fields.",
+        "AsyncLocal/ThreadLocal state lives in ExecutionContext/thread storage and is not re-established when a workflow task resumes after replay, so it is not deterministic replay state. Thread state explicitly through method parameters and fields.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor LossyNumber = Create(
@@ -399,7 +400,7 @@ internal static class DiagnosticDescriptors
         "Invalid workflow signal method",
         "Invalid [WorkflowSignal] method: {0}",
         "A signal handler must return Task; returning void, Task<T>, or a value is not allowed.",
-        severity: DiagnosticSeverity.Warning);
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor QueryMutation = Create(
         "TMP3206",
@@ -451,9 +452,9 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor ContinueAsNewInUpdate = Create(
         "TMP3209",
         SdkMisuseCategory,
-        "Continue-as-new invoked inside an update handler",
-        "'{0}' is invoked inside a [WorkflowUpdate]; continue-as-new must be raised from the main workflow method",
-        "Continue-as-new replaces the workflow execution and is only valid from the main workflow method. Raising it from an update handler is rejected at run time.",
+        "Continue-as-new invoked inside an update or signal handler",
+        "'{0}' is invoked inside a [WorkflowUpdate]/[WorkflowSignal] handler; continue-as-new must be raised from the main workflow method",
+        "Continue-as-new replaces the workflow execution and is only valid from the main workflow method. Raising it from an update or signal handler is rejected at run time.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor ClientOrWorkerTypeInWorkflow = Create(
@@ -463,14 +464,6 @@ internal static class DiagnosticDescriptors
         "'{0}' is a Temporal client or worker type and must not be referenced from workflow code",
         "Workflow code runs on the replay-deterministic workflow thread; referencing client or worker types pulls the worker process into the workflow and breaks determinism.",
         severity: DiagnosticSeverity.Error);
-
-    internal static readonly DiagnosticDescriptor StartWorkflowWithoutId = Create(
-        "TMP3213",
-        SdkMisuseCategory,
-        "Start/execute workflow without an explicit workflow id",
-        "The workflow is started without an explicit workflow id; provide one so the start is idempotent",
-        "Without an explicit workflow id, Temporal generates one per call and a retry can start a duplicate workflow. Set workflowId for idempotent starts.",
-        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor MixedWorkflowAndActivity = Create(
         "TMP3214",
@@ -515,9 +508,9 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor WorkflowParameterizedCtor = Create(
         "TMP3219",
         SdkMisuseCategory,
-        "[Workflow] class has a parameterized constructor without [WorkflowInit]",
-        "[Workflow] class '{0}' has a parameterized constructor; mark one with [WorkflowInit] to receive workflow arguments",
-        "Workflow constructors are not dependency-injected. A parameterized constructor will be called with no arguments and fail unless a constructor is marked [WorkflowInit].",
+        "[Workflow] class has no instantiable constructor without [WorkflowInit]",
+        "[Workflow] class '{0}' has no parameterless constructor; mark a constructor with [WorkflowInit] to receive workflow arguments",
+        "A workflow must have a parameterless constructor unless one is marked [WorkflowInit]; otherwise the worker cannot instantiate it and throws at startup.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor SwallowedContinueAsNew = Create(
@@ -555,9 +548,9 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor ThrowsBaseException = Create(
         "TMP2132",
         SdkMisuseCategory,
-        "Non-ApplicationFailureException thrown from workflow code",
-        "Throwing a non-ApplicationFailureException; throw Temporalio.Exceptions.ApplicationFailureException instead",
-        "By default only ApplicationFailureException fails a workflow; other exception types retry the task forever. Throw ApplicationFailureException, or configure WorkflowFailureExceptionTypes for the intended exception types.",
+        "Non-failure exception thrown from workflow code",
+        "Throwing an exception that will not fail the workflow; throw a Temporalio.Exceptions.FailureException such as ApplicationFailureException instead",
+        "By default a workflow only fails on a FailureException or cancellation; other exception types retry the task forever. Throw ApplicationFailureException, or configure WorkflowFailureExceptionTypes for the intended exception types.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor ActivityThrowsBaseException = Create(
@@ -573,7 +566,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Debug/Trace assert in workflow code",
         "'{0}' asserts in workflow code outside tests; remove the assertion",
-        "Debug.Assert and Trace.Assert are compiled out in release builds and have no place in production workflow code.",
+        "Debug.Assert is compiled out in release, and Trace.Assert performs non-deterministic output in release builds; neither has a place in production workflow code.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor InternalTemporalNamespace = Create(
@@ -630,7 +623,7 @@ internal static class DiagnosticDescriptors
         "Non-SDK logger used in an activity",
         "'{0}' writes to a non-SDK logger; use ActivityExecutionContext.Current.Logger instead",
         "Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Logger.",
-        severity: DiagnosticSeverity.Warning);
+        severity: DiagnosticSeverity.Info);
 
     internal static readonly DiagnosticDescriptor HttpClientWithoutCancellation = Create(
         "TMP3107",
@@ -669,7 +662,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Search attribute removal uses the wrong shape",
         "Search-attribute removal should use ValueUnset(), not ValueSet(null)",
-        "Removing a search attribute requires SearchAttributeKey<T>.ValueUnset(); ValueSet(null) does not remove the attribute.",
+        "Use SearchAttributeKey<T>.ValueUnset() to remove an attribute; ValueSet(null) is non-idiomatic and corrupts the local attribute collection.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor DuplicatePatchId = Create(
@@ -678,14 +671,14 @@ internal static class DiagnosticDescriptors
         "Patch id applied more than once",
         "patch id '{0}' is Patched more than once in the same workflow method",
         "Applying the same patch id more than once in a workflow method is redundant and usually indicates a merge error.",
-        severity: DiagnosticSeverity.Error);
+        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor PatchWithoutGuard = Create(
         "TMP3305",
         SdkMisuseCategory,
         "Patched call does not guard a behavior change",
         "Workflow.Patched result is discarded; the patch does not guard a behavior change",
-        "Workflow.Patched is meant to guard an incompatible behavior change; discarding its result means the patch has no effect.",
+        "Workflow.Patched is meant to guard an incompatible behavior change; discarding its result means no behavior is actually changed (though the marker is still recorded).",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor MultipleParameters = Create(
@@ -717,15 +710,15 @@ internal static class DiagnosticDescriptors
         BestPracticeCategory,
         "Consecutive local activities",
         "Consecutive ExecuteLocalActivityAsync calls with no intervening workflow command",
-        "Running several local activities back-to-back in a workflow adds latency and history events. Combine the work into fewer activities, or batch the calls.",
+        "Local-activity completions are only persisted when the workflow task completes; running several back-to-back with no yield risks losing work if the worker crashes mid-sequence. Combine the work into fewer activities, or batch the calls.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor LocalActivityBlockingIo = Create(
         "TMP4107",
         BestPracticeCategory,
-        "Local activity performs blocking or network I/O",
+        "Local activity performs blocking or long-running I/O",
         "'{0}' runs in a local activity; local activities must be short and lightweight",
-        "Local activities run on the worker's task queue and block a worker slot. Blocking or network I/O such as Task.Delay, sockets, or file I/O makes them long-running; use a regular activity instead.",
+        "Local activities run on the worker's task queue and must complete quickly. Blocking I/O or long-running work such as Task.Delay, sockets, or file I/O makes them long-running; use a regular activity instead.",
         severity: DiagnosticSeverity.Warning);
 
     private static DiagnosticDescriptor Create(

@@ -83,6 +83,8 @@ internal static class DenyList
             "System.TimeZoneInfo.Local",
             "System.Environment.TickCount",
             "System.Environment.TickCount64",
+            "System.TimeProvider.GetUtcNow",
+            "System.TimeProvider.GetLocalNow",
         })
         {
             entries.Add((name, DiagnosticDescriptors.WallClockTime));
@@ -92,6 +94,8 @@ internal static class DenyList
         foreach (var name in new[]
         {
             "System.Threading.Thread.Sleep",
+            "System.Threading.Thread.Join",
+            "System.Threading.Thread.SpinWait",
             "System.Threading.Tasks.Task.Delay",
             "System.Threading.Tasks.Task.Wait",
             "System.Threading.Tasks.Task.WaitAll",
@@ -134,6 +138,9 @@ internal static class DenyList
             "System.Diagnostics.Stopwatch.Elapsed",
             "System.Diagnostics.Stopwatch.ElapsedMilliseconds",
             "System.Diagnostics.Stopwatch.ElapsedTicks",
+            "System.Diagnostics.Stopwatch.GetElapsedTime",
+            "System.TimeProvider.GetTimestamp",
+            "System.TimeProvider.GetElapsedTime",
         })
         {
             entries.Add((name, DiagnosticDescriptors.StopwatchUsage));
@@ -149,6 +156,11 @@ internal static class DenyList
             "System.Environment.UserName",
             "System.Environment.OSVersion",
             "System.Environment.ProcessorCount",
+            "System.Environment.GetFolderPath",
+            "System.IO.Path.GetTempPath",
+            "System.Console.Read",
+            "System.Console.ReadLine",
+            "System.Console.ReadKey",
             "System.IO.File.ReadAllText",
             "System.IO.File.ReadAllTextAsync",
             "System.IO.File.ReadAllLines",
@@ -231,7 +243,6 @@ internal static class DenyList
         foreach (var name in new[]
         {
             "System.Threading.Tasks.Task.Run",
-            "System.Threading.Tasks.TaskFactory.StartNew",
         })
         {
             entries.Add((name, DiagnosticDescriptors.ConcurrentTaskRun));
@@ -273,14 +284,13 @@ internal static class DenyList
             entries.Add((name, DiagnosticDescriptors.BlockingPrimitive));
         }
 
-        // TMP0143 — raw task scheduling
+        // TMP0143 — raw task scheduling. Only the APIs that actually leave the
+        // deterministic scheduler are listed: ContinueWith/ContinueWhenAll/
+        // ContinueWhenAny default to TaskScheduler.Current (the workflow scheduler)
+        // and non-generic Task.WhenAny is what Workflow.WhenAnyAsync wraps, so those
+        // are intentionally excluded; generic Task.WhenAny<T> is detected separately.
         foreach (var name in new[]
         {
-            "System.Threading.Tasks.Task.WhenAny",
-            "System.Threading.Tasks.Task.ContinueWith",
-            "System.Threading.Tasks.Task<TResult>.ContinueWith",
-            "System.Threading.Tasks.TaskFactory.ContinueWhenAll",
-            "System.Threading.Tasks.TaskFactory.ContinueWhenAny",
             "System.Threading.CancellationTokenSource.CancelAsync",
         })
         {
@@ -342,6 +352,8 @@ internal static class DenyList
             "System.Security.Cryptography.RandomNumberGenerator.GetString",
             "System.Security.Cryptography.RandomNumberGenerator.GetHexString",
             "System.Security.Cryptography.RandomNumberGenerator.Fill",
+            "System.Security.Cryptography.RandomNumberGenerator.GetItems",
+            "System.Security.Cryptography.RandomNumberGenerator.Shuffle",
             "System.Security.Cryptography.RNGCryptoServiceProvider.GetBytes",
             "System.Security.Cryptography.RNGCryptoServiceProvider.GetNonZeroBytes",
         })

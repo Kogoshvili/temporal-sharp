@@ -229,7 +229,9 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
 
         var type = model.GetTypeInfo(catchClause.Declaration.Type).Type;
         return type is not null &&
-               TypeNames.FullName(type) is "System.Exception" or "Temporalio.Workflows.ContinueAsNewException";
+               TypeNames.FullName(type) is "System.Exception" or
+                   "Temporalio.Exceptions.TemporalException" or
+                   "Temporalio.Workflows.ContinueAsNewException";
     }
 
     private static bool RethrowsCaughtException(CatchClauseSyntax catchClause)

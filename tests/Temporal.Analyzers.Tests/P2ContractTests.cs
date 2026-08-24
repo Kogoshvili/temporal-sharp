@@ -46,6 +46,21 @@ public class WorkflowContractP2Tests
             """);
 
     [Fact]
+    public Task ParameterizedAndParameterlessCtor_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                public W() { }
+
+                public W(int x) { }
+
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
     public Task InitAndRunParameterMismatch_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

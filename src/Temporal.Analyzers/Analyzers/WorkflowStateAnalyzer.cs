@@ -168,7 +168,9 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
         }
 
         var receiverType = (receiver as IFieldSymbol)?.Type ?? ((IPropertySymbol)receiver).Type;
-        if (receiverType is null || !TypeNames.IsCollection(receiverType))
+        if (receiverType is null ||
+            ImmutableBclReferenceTypes.Contains(TypeNames.FullName(receiverType)) ||
+            !TypeNames.IsCollection(receiverType))
         {
             return;
         }
@@ -229,7 +231,7 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
 
     private static bool IsSdkManagedStatic(ISymbol symbol) =>
         symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == SdkNames.WorkflowType &&
-        symbol.Name is "Signals" or "Updates";
+        symbol.Name is "Signals" or "Updates" or "CurrentDetails" or "DynamicQuery" or "DynamicSignal" or "DynamicUpdate";
 
     private static void ReportIfStaticMutable(
         SyntaxNodeAnalysisContext context,
@@ -238,6 +240,11 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
         ExpressionSyntax target)
     {
         var symbol = context.SemanticModel.GetSymbolInfo(target).Symbol;
+        if (symbol is null || IsSdkManagedStatic(symbol))
+        {
+            return;
+        }
+
         var descriptor = GetStaticMutationDescriptor(symbol);
         if (descriptor is null)
         {
@@ -249,7 +256,7 @@ public sealed class WorkflowStateAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var display = symbol!.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        var display = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         context.ReportDiagnostic(Diagnostic.Create(descriptor, node.GetLocation(), display));
     }
 

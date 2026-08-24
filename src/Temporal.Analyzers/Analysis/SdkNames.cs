@@ -15,8 +15,6 @@ internal static class SdkNames
     public const string ActivityExecutionContextType = "Temporalio.Activities.ActivityExecutionContext";
     public const string CompleteAsyncExceptionType = "Temporalio.Activities.CompleteAsyncException";
     public const string CancellationTokenType = "System.Threading.CancellationToken";
-    public const string WorkflowOptionsType = "Temporalio.Client.WorkflowOptions";
-    public const string ClientNamespace = "Temporalio.Client";
 
     /// <summary>
     /// Workflow command methods that schedule commands or mutate workflow
@@ -33,7 +31,24 @@ internal static class SdkNames
         "ExecuteChildWorkflowAsync",
         "StartChildWorkflowAsync",
         "CreateContinueAsNewException",
-        "UpsertTypedSearchAttributes");
+        "UpsertTypedSearchAttributes",
+        "UpsertMemo");
+
+    /// <summary>
+    /// The subset of workflow commands that block or yield the workflow task
+    /// (activities, child workflows, timers, condition waits). Synchronous
+    /// history-only commands (UpsertTypedSearchAttributes, UpsertMemo) and
+    /// continue-as-new are excluded; a signal handler that upserts search
+    /// attributes is synchronous and idiomatic.
+    /// </summary>
+    public static readonly ImmutableHashSet<string> WorkflowBlockingCommands = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "DelayAsync",
+        "WaitConditionAsync",
+        "ExecuteActivityAsync",
+        "ExecuteLocalActivityAsync",
+        "ExecuteChildWorkflowAsync",
+        "StartChildWorkflowAsync");
 
     /// <summary>
     /// Temporal client and worker types that must never be referenced from
@@ -58,4 +73,9 @@ internal static class SdkNames
         method.ContainingType is not null &&
         IsWorkflowType(method.ContainingType) &&
         WorkflowCommandMethods.Contains(method.Name);
+
+    public static bool IsBlockingWorkflowCommand(IMethodSymbol method) =>
+        method.ContainingType is not null &&
+        IsWorkflowType(method.ContainingType) &&
+        WorkflowBlockingCommands.Contains(method.Name);
 }

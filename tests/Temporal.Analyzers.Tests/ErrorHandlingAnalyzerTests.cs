@@ -76,6 +76,20 @@ public class ErrorHandlingAnalyzerTests
             """);
 
     [Fact]
+    public Task ThrowsOperationCanceled_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    throw new System.OperationCanceledException();
+                }
+            }
+            """);
+
+    [Fact]
     public Task ValidatorThrowsArgumentException_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

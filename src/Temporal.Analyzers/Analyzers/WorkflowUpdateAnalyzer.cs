@@ -72,6 +72,16 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        if (method.DeclaredAccessibility != Accessibility.Public)
+        {
+            Report(context, FirstLocation(method), "the update handler must be public");
+        }
+
+        if (method.IsStatic)
+        {
+            Report(context, FirstLocation(method), "the update handler must not be static");
+        }
+
         if (IsErrorType(method.ReturnType) || IsTaskOrSubtype(method.ReturnType))
         {
             return;
@@ -98,7 +108,7 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
 
         var hasAsyncHandler = methods.Any(m =>
             (WorkflowDetection.IsWorkflowSignalMethod(m) || WorkflowDetection.IsWorkflowUpdateMethod(m)) &&
-            TypeNames.FullName(m.ReturnType) == "System.Threading.Tasks.Task" &&
+            TypeNames.IsOrDerivesFrom(m.ReturnType, "System.Threading.Tasks.Task") &&
             ReferencesAwait(m));
 
         if (!hasAsyncHandler)
@@ -219,10 +229,10 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
 
         var display = method.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
 
-        // TMP3209 — continue-as-new inside an update handler.
+        // TMP3209 — continue-as-new inside an update or signal handler.
         if (IsWorkflowApi(method, "CreateContinueAsNewException"))
         {
-            if (GetEnclosingUpdate(context, invocation) is not null)
+            if (GetEnclosingHandlerKind(context, invocation) is not null)
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.ContinueAsNewInUpdate,
@@ -233,7 +243,7 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!SdkNames.IsWorkflowCommand(method))
+        if (!SdkNames.IsBlockingWorkflowCommand(method))
         {
             return;
         }
@@ -264,20 +274,6 @@ public sealed class WorkflowUpdateAnalyzer : DiagnosticAnalyzer
         method.Name == name &&
         method.ContainingType is not null &&
         SdkNames.IsWorkflowType(method.ContainingType);
-
-    private static IMethodSymbol? GetEnclosingUpdate(SyntaxNodeAnalysisContext context, SyntaxNode node)
-    {
-        var enclosing = context.SemanticModel.GetEnclosingSymbol(node.SpanStart);
-        for (var current = enclosing; current is not null; current = current.ContainingSymbol)
-        {
-            if (current is IMethodSymbol { MethodKind: not (MethodKind.LambdaMethod or MethodKind.LocalFunction) } method)
-            {
-                return WorkflowDetection.IsWorkflowUpdateMethod(method) ? method : null;
-            }
-        }
-
-        return null;
-    }
 
     private static string? GetEnclosingHandlerKind(SyntaxNodeAnalysisContext context, SyntaxNode node)
     {

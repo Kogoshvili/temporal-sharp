@@ -111,6 +111,16 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeSignal(SymbolAnalysisContext context, IMethodSymbol method, Location location)
     {
+        if (method.DeclaredAccessibility != Accessibility.Public)
+        {
+            Report(context, location, "signals must be public", DiagnosticDescriptors.InvalidSignal);
+        }
+
+        if (method.IsStatic)
+        {
+            Report(context, location, "signals must not be static", DiagnosticDescriptors.InvalidSignal);
+        }
+
         if (IsErrorType(method.ReturnType))
         {
             return;
@@ -131,7 +141,9 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
             return true;
         }
 
-        return TypeNames.FullName(type) is "System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask";
+        // The SDK rejects void and any Task-assignable type; ValueTask/ValueTask<T>
+        // are not Task-assignable and are therefore permitted.
+        return TypeNames.FullName(type) == "System.Threading.Tasks.Task";
     }
 
     private static bool IsNonGenericTask(ITypeSymbol type) =>

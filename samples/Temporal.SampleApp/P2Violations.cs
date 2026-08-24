@@ -38,16 +38,6 @@ public class ClientTypeWorkflow
     }
 }
 
-// TMP3213 — StartWorkflowAsync without an explicit workflow id (client scope).
-public static class ClientStarter
-{
-    public static async Task StartAsync()
-    {
-        var client = new Temporalio.Client.WorkflowClient();
-        await client.StartWorkflowAsync(() => new object(), new Temporalio.Client.WorkflowOptions());
-    }
-}
-
 // TMP3214 — workflow and activity methods mixed in one class.
 [Workflow]
 public class MixedContract
