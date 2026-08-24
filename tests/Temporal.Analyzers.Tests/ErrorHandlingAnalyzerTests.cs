@@ -47,6 +47,21 @@ public class ErrorHandlingAnalyzerTests
             """);
 
     [Fact]
+    public Task CaughtException_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { throw new System.InvalidOperationException("boom"); }
+                    catch (System.InvalidOperationException) { }
+                }
+            }
+            """);
+
+    [Fact]
     public Task ThrowsApplicationFailure_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

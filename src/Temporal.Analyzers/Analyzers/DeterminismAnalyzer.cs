@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -644,8 +645,8 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var leftIsClock = IsWorkflowUtcNow(node.Left, context.SemanticModel);
-        var rightIsClock = IsWorkflowUtcNow(node.Right, context.SemanticModel);
+        var leftIsClock = IsClockDerived(node.Left, context.SemanticModel, new HashSet<ISymbol>(SymbolEqualityComparer.Default));
+        var rightIsClock = IsClockDerived(node.Right, context.SemanticModel, new HashSet<ISymbol>(SymbolEqualityComparer.Default));
         if (leftIsClock == rightIsClock)
         {
             return;
@@ -658,22 +659,67 @@ public sealed class DeterminismAnalyzer : DiagnosticAnalyzer
             clockOperand.ToString()));
     }
 
-    private static bool IsWorkflowUtcNow(ExpressionSyntax expression, SemanticModel model)
+    // Time-arithmetic members on Workflow.UtcNow's DateTimeOffset return type that
+    // keep the value deterministic (e.g. Workflow.UtcNow.AddHours(1)).
+    private static readonly ImmutableHashSet<string> ClockArithmeticMethods = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "Add", "AddYears", "AddMonths", "AddDays", "AddHours", "AddMinutes", "AddSeconds",
+        "AddMilliseconds", "AddTicks", "AddMicroseconds");
+
+    private static bool IsClockDerived(ExpressionSyntax expression, SemanticModel model, HashSet<ISymbol> visited)
     {
-        if (expression is MemberAccessExpressionSyntax memberAccess &&
-            model.GetSymbolInfo(memberAccess).Symbol is IPropertySymbol property &&
-            property.Name == "UtcNow" &&
-            property.ContainingType is not null &&
-            SdkNames.IsWorkflowType(property.ContainingType))
+        var current = expression;
+        while (current is ParenthesizedExpressionSyntax parens)
         {
-            return true;
+            current = parens.Expression;
         }
 
-        return expression is InvocationExpressionSyntax invocation &&
-               model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
-               method.Name == "UtcNow" &&
-               method.ContainingType is not null &&
-               SdkNames.IsWorkflowType(method.ContainingType);
+        switch (current)
+        {
+            case MemberAccessExpressionSyntax memberAccess:
+                return model.GetSymbolInfo(memberAccess).Symbol is IPropertySymbol { Name: "UtcNow" } property &&
+                       property.ContainingType is not null &&
+                       SdkNames.IsWorkflowType(property.ContainingType);
+
+            case InvocationExpressionSyntax invocation:
+                if (model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+                    method.Name == "UtcNow" &&
+                    method.ContainingType is not null &&
+                    SdkNames.IsWorkflowType(method.ContainingType))
+                {
+                    return true;
+                }
+
+                if (invocation.Expression is MemberAccessExpressionSyntax arithmetic &&
+                    ClockArithmeticMethods.Contains(arithmetic.Name.Identifier.ValueText) &&
+                    IsClockDerived(arithmetic.Expression, model, visited))
+                {
+                    return true;
+                }
+
+                return false;
+
+            case IdentifierNameSyntax identifier:
+                var symbol = model.GetSymbolInfo(identifier).Symbol;
+                if (symbol is null || !visited.Add(symbol))
+                {
+                    return false;
+                }
+
+                foreach (var syntaxReference in symbol.DeclaringSyntaxReferences)
+                {
+                    if (syntaxReference.GetSyntax() is VariableDeclaratorSyntax { Initializer: { } initializer } declarator &&
+                        IsClockDerived(initializer.Value, model, visited))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+
+            default:
+                return false;
+        }
     }
 
     // TMP0175 — control flow that branches/loops on non-deterministic time or randomness.

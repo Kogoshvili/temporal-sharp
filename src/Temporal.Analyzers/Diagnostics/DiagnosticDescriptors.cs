@@ -309,10 +309,10 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor HeartbeatTimeoutWithoutHeartbeat = Create(
         "TMP3102",
         SdkMisuseCategory,
-        "HeartbeatTimeout set but activity never heartbeats",
-        "Activity '{0}' is invoked with HeartbeatTimeout set but never calls ActivityExecutionContext.Heartbeat()",
-        "HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed.",
-        severity: DiagnosticSeverity.Error);
+        "HeartbeatTimeout set but no heartbeat detected",
+        "Activity '{0}' is invoked with HeartbeatTimeout set but no heartbeat call is detected",
+        "HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. Detection only recognizes direct ActivityExecutionContext.Heartbeat() calls and common heartbeat method names, so a heartbeat dispatched through a third-party wrapper may not be seen.",
+        severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor HeartbeatWithoutTimeout = Create(
         "TMP3103",
@@ -463,14 +463,6 @@ internal static class DiagnosticDescriptors
         "Continue-as-new replaces the workflow execution and is only valid from the main workflow method. Raising it from an update handler is rejected at run time.",
         severity: DiagnosticSeverity.Error);
 
-    internal static readonly DiagnosticDescriptor MessageNameNotLiteral = Create(
-        "TMP3211",
-        SdkMisuseCategory,
-        "Workflow message name is not a string literal",
-        "The {0} name must be a constant string literal",
-        "Query, signal, and update names are part of the workflow's public contract. A computed name makes the contract unstable and breaks clients that reference the literal name.",
-        severity: DiagnosticSeverity.Warning);
-
     internal static readonly DiagnosticDescriptor ClientOrWorkerTypeInWorkflow = Create(
         "TMP3212",
         SdkMisuseCategory,
@@ -549,14 +541,6 @@ internal static class DiagnosticDescriptors
         "Cleanup after cancellation is not in a non-cancellable scope",
         "cleanup awaits a task outside a non-cancellable scope; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work",
         "Cleanup that runs after cancellation should not itself be cancelled; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work so it always completes.",
-        severity: DiagnosticSeverity.Warning);
-
-    internal static readonly DiagnosticDescriptor RetryOnNonIdempotent = Create(
-        "TMP2106",
-        SdkMisuseCategory,
-        "Activity with retries must be idempotent",
-        "RetryPolicy with multiple attempts is set on activity '{0}'",
-        "Retrying an activity duplicates its side effects unless the activity is idempotent. Ensure the activity is safe to retry, or use an idempotency key inside the activity when calling the external service.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor ContinueAsNewWithoutState = Create(

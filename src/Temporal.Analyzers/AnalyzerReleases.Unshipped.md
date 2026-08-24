@@ -23,7 +23,6 @@ TMP0104 | Determinism | Warning | Workflow.UtcNow compared to a persisted timest
 TMP0123 | Determinism | Warning | Workflow.Random / Workflow.NewGuid used for a persisted id or payload
 TMP3208 | SdkMisuse | Error | [WorkflowUpdate] must return Task or Task<T>
 TMP3209 | SdkMisuse | Error | Continue-as-new invoked inside a [WorkflowUpdate]
-TMP3211 | SdkMisuse | Warning | Query/signal/update Name must be a constant string literal
 TMP3212 | SdkMisuse | Error | Temporalio.Client / worker types referenced from workflow code
 TMP3213 | SdkMisuse | Warning | StartWorkflowAsync/ExecuteWorkflowAsync without an explicit workflow id
 TMP3214 | SdkMisuse | Warning | Workflow and activity methods mixed in one class
@@ -34,7 +33,6 @@ TMP3218 | SdkMisuse | Error | [WorkflowInit] and [WorkflowRun] parameter lists m
 TMP3219 | SdkMisuse | Error | [Workflow] parameterized constructor without [WorkflowInit]
 TMP2123 | SdkMisuse | Warning | catch swallows a cancellation
 TMP2124 | SdkMisuse | Warning | Cleanup after cancellation not in a non-cancellable scope
-TMP2106 | SdkMisuse | Warning | Activity invoked with a RetryPolicy that allows retries (must be idempotent)
 TMP2122 | SdkMisuse | Warning | Continue-as-new without passing current workflow state
 TMP2125 | SdkMisuse | Warning | Unbounded loop without a continue-as-new check
 TMP2132 | SdkMisuse | Warning | Non-ApplicationFailureException thrown from workflow code
@@ -78,3 +76,4 @@ Rule ID | New Category | New Severity | Old Category | Old Severity | Notes
 --------|--------------|--------------|--------------|--------------|-------
 TMP3203 | SdkMisuse | Warning | SdkMisuse | Error | Activity instance-state mutation is a race risk, not a determinism error
 TMP0143 | Determinism | Error | Determinism | Warning | Raw task scheduling (WhenAny/ContinueWith/CancelAsync) is replay-breaking; escalate to Error
+TMP3102 | SdkMisuse | Warning | SdkMisuse | Error | Heartbeat detection can't see through third-party wrappers; downgrade to a heuristic warning

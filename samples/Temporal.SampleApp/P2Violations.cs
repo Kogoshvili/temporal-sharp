@@ -27,14 +27,6 @@ public class ContinueAsNewUpdateWorkflow
     }
 }
 
-// TMP3211 — message name is not a constant string literal.
-[Workflow]
-public class NonLiteralNameWorkflow
-{
-    [WorkflowQuery(Name = nameof(NonLiteralNameWorkflow))]
-    public string Get() => "ok";
-}
-
 // TMP3212 — client type referenced from workflow code.
 [Workflow]
 public class ClientTypeWorkflow
@@ -282,29 +274,6 @@ public class TimeoutMismatchWorkflow
             StartToCloseTimeout = TimeSpan.FromMinutes(10),
             HeartbeatTimeout = TimeSpan.FromSeconds(1),
         };
-    }
-}
-
-// TMP2106 — RetryPolicy on a non-idempotent activity.
-public static class RetryActivities
-{
-    [Activity]
-    public static async Task Process(string idempotencyKey) => await Task.CompletedTask;
-}
-
-[Workflow]
-public class RetryPolicyWorkflow
-{
-    [WorkflowRun]
-    public async Task RunAsync()
-    {
-        await Workflow.ExecuteActivityAsync(
-            () => RetryActivities.Process("k"),
-            new ActivityOptions
-            {
-                StartToCloseTimeout = TimeSpan.FromMinutes(1),
-                RetryPolicy = new RetryPolicy(),
-            });
     }
 }
 

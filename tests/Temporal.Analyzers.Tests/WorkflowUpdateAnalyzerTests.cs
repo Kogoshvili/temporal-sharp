@@ -200,6 +200,20 @@ public class WorkflowUpdateAnalyzerTests
             """);
 
     [Fact]
+    public Task SignalHandlerCallsPatched_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowSignal]
+                public void Handle()
+                {
+                    if (Temporalio.Workflows.Workflow.Patched("my-patch")) { }
+                }
+            }
+            """);
+
+    [Fact]
     public Task AsyncHandlerWithoutAllHandlersFinished_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

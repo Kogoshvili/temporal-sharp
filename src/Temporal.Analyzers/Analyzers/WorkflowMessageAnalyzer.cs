@@ -45,8 +45,7 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.InvalidQuery,
             DiagnosticDescriptors.InvalidSignal,
             DiagnosticDescriptors.QueryMutation,
-            DiagnosticDescriptors.WorkflowApiInQuery,
-            DiagnosticDescriptors.MessageNameNotLiteral);
+            DiagnosticDescriptors.WorkflowApiInQuery);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -59,71 +58,6 @@ public sealed class WorkflowMessageAnalyzer : DiagnosticAnalyzer
         context.RegisterSyntaxNodeAction(AnalyzeAssignment, AssignmentKinds);
         context.RegisterSyntaxNodeAction(AnalyzeIncrementDecrement, IncrementDecrementKinds);
         context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeMessageAttribute, SyntaxKind.Attribute);
-    }
-
-    private static void AnalyzeMessageAttribute(SyntaxNodeAnalysisContext context)
-    {
-        var attribute = (AttributeSyntax)context.Node;
-        if (context.SemanticModel.GetSymbolInfo(attribute).Symbol is not IMethodSymbol ctor)
-        {
-            return;
-        }
-
-        var kind = MessageKind(ctor.ContainingType);
-        if (kind is null)
-        {
-            return;
-        }
-
-        var name = NameExpression(attribute);
-        if (name is null || name.IsKind(SyntaxKind.StringLiteralExpression) || IsNameof(name))
-        {
-            return;
-        }
-
-        context.ReportDiagnostic(Diagnostic.Create(
-            DiagnosticDescriptors.MessageNameNotLiteral,
-            name.GetLocation(),
-            kind));
-    }
-
-    private static bool IsNameof(ExpressionSyntax expression) =>
-        expression is InvocationExpressionSyntax { Expression: IdentifierNameSyntax { Identifier.ValueText: "nameof" } };
-
-    private static string? MessageKind(INamedTypeSymbol? attributeClass)
-    {
-        if (attributeClass is null)
-        {
-            return null;
-        }
-
-        return attributeClass.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) switch
-        {
-            WorkflowDetection.WorkflowQueryAttributeName => "query",
-            WorkflowDetection.WorkflowSignalAttributeName => "signal",
-            WorkflowDetection.WorkflowUpdateAttributeName => "update",
-            _ => null,
-        };
-    }
-
-    private static ExpressionSyntax? NameExpression(AttributeSyntax attribute)
-    {
-        foreach (var argument in attribute.ArgumentList?.Arguments ?? default)
-        {
-            if (argument.NameEquals?.Name.Identifier.ValueText == "Name")
-            {
-                return argument.Expression;
-            }
-        }
-
-        if (attribute.ArgumentList?.Arguments.Count == 1 &&
-            attribute.ArgumentList.Arguments[0].NameEquals is null)
-        {
-            return attribute.ArgumentList.Arguments[0].Expression;
-        }
-
-        return null;
     }
 
     private static void AnalyzeMethod(SymbolAnalysisContext context)

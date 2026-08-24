@@ -366,6 +366,21 @@ public class P1DeterminismTests
             """);
 
     [Fact]
+    public Task WallClockComparison_UtcNowArithmetic_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var expiry = Workflow.UtcNow.AddHours(1);
+                    if (expiry > Workflow.UtcNow) { }
+                }
+            }
+            """);
+
+    [Fact]
     public Task NewGuid_AsActivityArgument_InWorkflow_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]

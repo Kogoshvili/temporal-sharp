@@ -58,8 +58,7 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.BigIntegerInPayload,
             DiagnosticDescriptors.ExceptionInPayload,
             DiagnosticDescriptors.LargeInlinePayload,
-            DiagnosticDescriptors.NestedLossyNumber,
-            DiagnosticDescriptors.RetryOnNonIdempotent);
+            DiagnosticDescriptors.NestedLossyNumber);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -81,10 +80,6 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.InvocationExpression);
 
             startContext.RegisterSyntaxNodeAction(
-                c => AnalyzeRetryPolicy(c, state),
-                SyntaxKind.InvocationExpression);
-
-            startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeLargeStringLiteral(c, state),
                 SyntaxKind.StringLiteralExpression);
 
@@ -97,136 +92,6 @@ public sealed class SdkMisuseAnalyzer : DiagnosticAnalyzer
                 c => AnalyzeMethodSignature(c, config),
                 SymbolKind.Method);
         });
-    }
-
-    // TMP2106 — RetryPolicy with multiple attempts on an activity. Retries can
-    // duplicate side effects unless the activity is idempotent; this nudges the
-    // author to verify that (or use an internal idempotency key).
-    private static void AnalyzeRetryPolicy(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
-    {
-        var invocation = (InvocationExpressionSyntax)context.Node;
-        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol apiMethod ||
-            apiMethod.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) != SdkNames.WorkflowType ||
-            apiMethod.Name is not ("ExecuteActivityAsync" or "ExecuteLocalActivityAsync"))
-        {
-            return;
-        }
-
-        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
-        {
-            return;
-        }
-
-        var options = FindOptionsArgument(context, invocation);
-        if (options is null || !RetryPolicyAllowsRetries(options))
-        {
-            return;
-        }
-
-        var activityName = ResolveActivityName(context, invocation) ?? "activity";
-
-        context.ReportDiagnostic(Diagnostic.Create(
-            DiagnosticDescriptors.RetryOnNonIdempotent,
-            invocation.GetLocation(),
-            activityName));
-    }
-
-    private static bool RetryPolicyAllowsRetries(ExpressionSyntax options)
-    {
-        if (Unwrap(options) is not ObjectCreationExpressionSyntax creation ||
-            creation.Initializer is not { } initializer)
-        {
-            return false;
-        }
-
-        var retryPolicy = initializer.Expressions
-            .OfType<AssignmentExpressionSyntax>()
-            .FirstOrDefault(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "RetryPolicy");
-
-        if (retryPolicy is null)
-        {
-            return false;
-        }
-
-        if (Unwrap(retryPolicy.Right) is not ObjectCreationExpressionSyntax retryCreation ||
-            retryCreation.Initializer is not { } retryInitializer)
-        {
-            // RetryPolicy built elsewhere; assume retries are enabled.
-            return true;
-        }
-
-        var maxAttempts = retryInitializer.Expressions
-            .OfType<AssignmentExpressionSyntax>()
-            .FirstOrDefault(a => a.Left is IdentifierNameSyntax id && id.Identifier.ValueText == "MaximumAttempts");
-
-        if (maxAttempts is null)
-        {
-            // No MaximumAttempts means the SDK default, which retries.
-            return true;
-        }
-
-        return !IsLiteralOne(maxAttempts.Right);
-    }
-
-    private static bool IsLiteralOne(ExpressionSyntax expression)
-    {
-        var current = Unwrap(expression);
-        return current is LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NumericLiteralExpression } literal &&
-               literal.Token.ValueText == "1";
-    }
-
-    private static string? ResolveActivityName(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
-    {
-        var target = LambdaTargetResolver.ResolveTypedLambdaTarget(context, invocation);
-        if (target is not null)
-        {
-            return target.Name;
-        }
-
-        var first = invocation.ArgumentList.Arguments.FirstOrDefault();
-        if (first?.Expression is LiteralExpressionSyntax literal &&
-            literal.IsKind(SyntaxKind.StringLiteralExpression))
-        {
-            return literal.Token.ValueText;
-        }
-
-        return null;
-    }
-
-    private static ExpressionSyntax? FindOptionsArgument(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
-    {
-        foreach (var argument in invocation.ArgumentList.Arguments)
-        {
-            var type = context.SemanticModel.GetTypeInfo(argument.Expression).Type;
-            if (type is null)
-            {
-                continue;
-            }
-
-            var typeName = type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
-            if (typeName == SdkNames.ActivityOptionsType || typeName == SdkNames.LocalActivityOptionsType)
-            {
-                return argument.Expression;
-            }
-        }
-
-        return null;
-    }
-
-    private static ExpressionSyntax Unwrap(ExpressionSyntax expression)
-    {
-        var current = expression;
-        while (current is CastExpressionSyntax cast)
-        {
-            current = cast.Expression;
-        }
-
-        while (current is ParenthesizedExpressionSyntax parens)
-        {
-            current = parens.Expression;
-        }
-
-        return current;
     }
 
     // TMP2144 — oversized inline string literal.

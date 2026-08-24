@@ -87,39 +87,4 @@ public class WorkflowMessageP2Tests
         };
         return test.RunAsync();
     }
-
-    [Fact]
-    public Task MessageNameNotLiteral_Reports()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class W
-            {
-                public const string QUERY_NAME = "my-query";
-
-                [Temporalio.Workflows.WorkflowQuery(Name = {|TMP3211:QUERY_NAME|})]
-                public string Get() => "ok";
-            }
-            """);
-
-    [Fact]
-    public Task MessageNameNameof_DoesNotReport()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class W
-            {
-                [Temporalio.Workflows.WorkflowQuery(Name = nameof(W))]
-                public string Get() => "ok";
-            }
-            """);
-
-    [Fact]
-    public Task MessageNameLiteral_DoesNotReport()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class W
-            {
-                [Temporalio.Workflows.WorkflowQuery(Name = "my-query")]
-                public string Get() => "ok";
-            }
-            """);
 }

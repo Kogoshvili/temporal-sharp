@@ -109,7 +109,7 @@ public class WorkflowLifecycleAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    try { await Temporalio.Workflows.Workflow.DelayAsync(1); }
                     {|TMP2123:catch|} (System.OperationCanceledException) { }
                 }
             }
@@ -190,8 +190,23 @@ public class WorkflowLifecycleAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    try { await Temporalio.Workflows.Workflow.DelayAsync(1); }
                     {|TMP2123:catch|} (System.Exception) { throw new System.Exception("else"); }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task BroadCatchWithoutCancellableWork_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    try { throw new System.Exception("boom"); }
+                    catch (System.Exception) { return; }
                 }
             }
             """);

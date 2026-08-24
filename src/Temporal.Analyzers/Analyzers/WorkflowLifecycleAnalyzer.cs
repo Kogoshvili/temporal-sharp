@@ -217,10 +217,43 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // Only flag when the try block actually contains cancellable workflow work
+        // (an activity, child workflow, delay, or condition wait). A broad catch
+        // around ordinary error handling is not a swallowed cancellation.
+        if (!TryContainsCancellableWork(catchClause, context.SemanticModel))
+        {
+            return;
+        }
+
         context.ReportDiagnostic(Diagnostic.Create(
             DiagnosticDescriptors.SwallowedCancellation,
             catchClause.CatchKeyword.GetLocation()));
     }
+
+    private static bool TryContainsCancellableWork(CatchClauseSyntax catchClause, SemanticModel model)
+    {
+        if (catchClause.Parent is not TryStatementSyntax tryStatement)
+        {
+            return false;
+        }
+
+        foreach (var invocation in tryStatement.Block.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
+        {
+            if (model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method && IsCancellableWorkflowApi(method))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsCancellableWorkflowApi(IMethodSymbol method) =>
+        method.ContainingType is not null &&
+        SdkNames.IsWorkflowType(method.ContainingType) &&
+        method.Name is "ExecuteActivityAsync" or "ExecuteLocalActivityAsync" or
+            "ExecuteChildWorkflowAsync" or "StartChildWorkflowAsync" or
+            "DelayAsync" or "WaitConditionAsync";
 
     private static bool IsBroadCatch(CatchClauseSyntax catchClause, SemanticModel model)
     {

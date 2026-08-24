@@ -58,7 +58,6 @@ rules that users must enable explicitly.
 | TMP2101 | Error | Activity options missing required timeout | Temporal requires at least one of StartToCloseTimeout or ScheduleToCloseTimeout on ActivityOptions and LocalActivityOptions. |
 | TMP2103 | off | WaitConditionAsync called without a timeout | Waiting on a condition without a timeout can leave the workflow blocked forever if the signal never arrives. Use the timeout overload and handle the returned bool. |
 | TMP2104 | Warning | WaitConditionAsync timeout result ignored | When the bool returned by the timeout overload is discarded, the timeout has no effect and the workflow proceeds as if the condition were met. Check the result and handle the timeout path. |
-| TMP2106 | Warning | Activity with retries must be idempotent | Retrying an activity duplicates its side effects unless the activity is idempotent. Ensure the activity is safe to retry, or use an idempotency key inside the activity when calling the external service. |
 | TMP2111 | off | Workflow target named by string | String-named targets cannot be resolved statically and bypass compile-time type checking. This overload is legitimate for dynamic workflows, so the rule is opt-in. |
 | TMP2121 | Error | Continue-as-new exception is not thrown | CreateContinueAsNewException returns an exception that must be thrown to trigger continue-as-new. |
 | TMP2122 | Warning | Continue-as-new without passing current workflow state | Continue-as-new starts a fresh execution; any state needed by the new run must be passed as arguments or it is lost. |
@@ -87,7 +86,7 @@ rules that users must enable explicitly.
 | ID | Default | Rule | Description |
 |---|---|---|---|
 | TMP3101 | Warning | Long-running activity does not heartbeat | Long-running activities should heartbeat so Temporal can detect failures and deliver cancellations. |
-| TMP3102 | Error | HeartbeatTimeout set but activity never heartbeats | HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. |
+| TMP3102 | Warning | HeartbeatTimeout set but no heartbeat detected | HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. Detection only recognizes direct ActivityExecutionContext.Heartbeat() calls and common heartbeat method names, so a heartbeat dispatched through a third-party wrapper may not be seen. |
 | TMP3103 | Warning | Heartbeat called without HeartbeatTimeout | Heartbeats persist details and deliver cancellation even without a HeartbeatTimeout; only timeout-based failure detection requires one. |
 | TMP3104 | Warning | Heartbeat called unnecessarily | Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection. |
 | TMP3105 | Warning | ActivityExecutionContext captured across an await | ActivityExecutionContext is async-local to the activity. Prefer accessing Current fresh, or store the specific values you need (logger, info, cancellation token) instead of holding the context itself. |
@@ -104,7 +103,6 @@ rules that users must enable explicitly.
 | TMP3207 | Error | Workflow API called inside a query | Query handlers run synchronously and must not schedule workflow commands or mutate state; avoid calling Workflow APIs such as DelayAsync, WaitConditionAsync, or ExecuteActivityAsync from a query. |
 | TMP3208 | Error | Invalid workflow update return type | An update handler must return a Task (or Task<T> for a result); returning void or a non-task value is invalid. |
 | TMP3209 | Error | Continue-as-new invoked inside an update handler | Continue-as-new replaces the workflow execution and is only valid from the main workflow method. Raising it from an update handler is rejected at run time. |
-| TMP3211 | Warning | Workflow message name is not a string literal | Query, signal, and update names are part of the workflow's public contract. A computed name makes the contract unstable and breaks clients that reference the literal name. |
 | TMP3212 | Error | Client/worker types used from workflow code | Workflow code runs on the replay-deterministic workflow thread; referencing client or worker types pulls the worker process into the workflow and breaks determinism. |
 | TMP3213 | Warning | Start/execute workflow without an explicit workflow id | Without an explicit workflow id, Temporal generates one per call and a retry can start a duplicate workflow. Set workflowId for idempotent starts. |
 | TMP3214 | Warning | Workflow and activity methods mixed in one class | Workflow and activity methods live on different execution threads and have different contracts; mixing them in one class invites accidental cross-thread access. |

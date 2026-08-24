@@ -21,6 +21,8 @@ internal static class SdkNames
     /// <summary>
     /// Workflow command methods that schedule commands or mutate workflow
     /// context. Calling these at module load or from a query handler is a bug.
+    /// Versioning markers (Patched/DeprecatePatch) are intentionally excluded:
+    /// they record a history marker but do not schedule or block work.
     /// </summary>
     public static readonly ImmutableHashSet<string> WorkflowCommandMethods = ImmutableHashSet.Create(
         StringComparer.Ordinal,
@@ -31,9 +33,7 @@ internal static class SdkNames
         "ExecuteChildWorkflowAsync",
         "StartChildWorkflowAsync",
         "CreateContinueAsNewException",
-        "UpsertTypedSearchAttributes",
-        "Patched",
-        "DeprecatePatch");
+        "UpsertTypedSearchAttributes");
 
     /// <summary>
     /// Temporal client and worker types that must never be referenced from

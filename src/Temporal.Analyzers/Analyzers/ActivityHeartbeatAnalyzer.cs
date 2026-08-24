@@ -21,6 +21,13 @@ namespace Kogoshvili.Temporal.Analyzers.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
 {
+    private static readonly ImmutableHashSet<string> HeartbeatMethodNames = ImmutableHashSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "Heartbeat",
+        "SendHeartbeat",
+        "HeartbeatAsync",
+        "SendHeartbeatAsync");
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.ActivityNeverHeartbeats,
@@ -215,9 +222,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol target ||
-            target.Name != "Heartbeat" ||
-            target.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) !=
-            SdkNames.ActivityExecutionContextType)
+            !HeartbeatMethodNames.Contains(target.Name))
         {
             return;
         }
@@ -501,7 +506,8 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         foreach (var syntaxReference in method.DeclaringSyntaxReferences)
         {
             var node = syntaxReference.GetSyntax();
-            if (node.DescendantNodes().Any(n => n is ForStatementSyntax or ForEachStatementSyntax or WhileStatementSyntax or DoStatementSyntax))
+
+            if (node.DescendantNodes().Any(IsAwaitingLoop))
             {
                 return true;
             }
@@ -513,6 +519,16 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         }
 
         return false;
+    }
+
+    private static bool IsAwaitingLoop(SyntaxNode node)
+    {
+        if (node is not (ForStatementSyntax or ForEachStatementSyntax or WhileStatementSyntax or DoStatementSyntax))
+        {
+            return false;
+        }
+
+        return node.DescendantNodes().OfType<AwaitExpressionSyntax>().Any();
     }
 
     private static bool InitializerHasHeartbeatTimeout(InitializerExpressionSyntax? initializer)

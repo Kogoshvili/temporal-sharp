@@ -76,6 +76,14 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // A throw that is caught within the workflow is control flow, not a
+        // workflow failure; only a throw that escapes the workflow retries the
+        // workflow task forever.
+        if (IsHandledByCatch(throwStatement))
+        {
+            return;
+        }
+
         if (state.IsWorkflowReachable(throwStatement, context.SemanticModel))
         {
             context.ReportDiagnostic(Diagnostic.Create(
@@ -93,6 +101,20 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
                 DiagnosticDescriptors.ActivityThrowsBaseException,
                 throwStatement.ThrowKeyword.GetLocation()));
         }
+    }
+
+    private static bool IsHandledByCatch(ThrowStatementSyntax throwStatement)
+    {
+        for (var current = throwStatement.Parent; current is not null; current = current.Parent)
+        {
+            if (current is TryStatementSyntax { Catches.Count: > 0 } tryStatement &&
+                tryStatement.Block.Contains(throwStatement))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void AnalyzeAssert(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
