@@ -21,10 +21,14 @@
     <!-- Override vulnerable transitive dependencies of MSBuildWorkspace. -->
     <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="System.Text.Json" />
+    <!-- Unify the Logging.Abstractions version pulled by MSBuildWorkspace (2.2.0)
+         and the Temporal SDK (6.0.0+). -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Temporal.Analyzers\Temporal.Analyzers.csproj" />
+    <ProjectReference Include="..\Temporal.Configuration\Temporal.Configuration.csproj" />
   </ItemGroup>
 
   <ItemGroup>

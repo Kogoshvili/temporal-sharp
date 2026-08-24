@@ -1,8 +1,8 @@
-namespace Kogoshvili.Temporal.Hosting;
+namespace Kogoshvili.Temporal.Configuration;
 
 /// <summary>
 /// TLS options for the Temporal connection. Certificate properties are file
-/// paths that are read at startup.
+/// paths that are read at connect time.
 /// </summary>
 public sealed class TemporalTlsOptions
 {

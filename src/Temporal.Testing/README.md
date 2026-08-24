@@ -30,8 +30,8 @@ targets **net8.0**.
   environment:
   - `FromJsonAsync<TWorkflow>(json, workflowId)` — replay one golden history.
   - `FromDirectoryAsync<TWorkflow>(dir)` — replay every `*.json` golden file.
-  - `FromServerAsync<TWorkflow>(client, workflowType)` — replay recorded
-    histories from a live Temporal service.
+  - `FromServerAsync<TWorkflow>(client, workflowType, executionStatus, limit)` —
+    replay recorded histories from a live Temporal service.
 - **`Snapshot`** — `ToJson` / `FromJson` / `AssertEquivalent` for JSON snapshot
   comparison.
 - **`ReplayMismatchException`** — thrown on replay divergence or snapshot
@@ -50,8 +50,31 @@ targets **net8.0**.
    Temporal CLI (`temporal workflow show --output json`) or web UI and committed
    to the repo. Ideal for offline/CI regression tests against real shapes.
 3. **Live service** (`Replay.FromServerAsync`) — replay recorded histories for a
-   workflow type from a running Temporal service. Supply your own authenticated
-   `ITemporalClient` (Cloud mTLS or API key); authentication is up to the caller.
+   workflow type from a running Temporal service, optionally filtered by
+   execution status and capped by a total count.
+
+### Authenticating via configuration
+
+For the live-service path, connect using the shared
+`Kogoshvili.Temporal.Configuration` project, which reads the `Temporal` section
+of `appsettings.json` and `Temporal__*` environment variables:
+
+```csharp
+using Kogoshvili.Temporal.Configuration;
+using Kogoshvili.Temporal.Testing;
+
+// Connect from appsettings.json + Temporal__* env vars (Cloud mTLS / API key).
+var client = await TemporalConfig.ConnectAsync();
+
+await foreach (var result in Replay.FromServerAsync<GreetingWorkflow>(
+    client,
+    workflowType: "GreetingWorkflow",
+    executionStatus: "Completed",
+    limit: 50))
+{
+    result.ThrowIfFailed();
+}
+```
 
 ## Usage
 

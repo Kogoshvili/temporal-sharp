@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Temporalio.Client;
 using Temporalio.Worker;
 
@@ -47,18 +48,51 @@ public static class Replay
     /// <summary>
     /// Replays the recorded histories for a workflow type from a live Temporal
     /// service (Cloud or self-hosted). Supply an already-configured and
-    /// authenticated <c>ITemporalClient</c> — Cloud mTLS/API-key setup is the
-    /// caller's responsibility. Use <paramref name="listOptions"/> to page and
-    /// filter (e.g. <c>new WorkflowListOptions { PageSize = 100 }</c>).
+    /// authenticated <c>ITemporalClient</c> (e.g. from
+    /// <c>TemporalConfig.ConnectAsync()</c>) — Cloud mTLS/API-key setup is the
+    /// caller's responsibility.
     /// </summary>
+    /// <param name="client">Authenticated Temporal client.</param>
+    /// <param name="workflowType">Workflow type to replay, e.g. <c>SayHello</c>.</param>
+    /// <param name="executionStatus">Execution status to filter on, or <c>null</c> for all. Defaults to <c>Completed</c>.</param>
+    /// <param name="limit">Maximum number of histories to replay, or <c>null</c> for all. Applied as a total-count cap.</param>
     public static IAsyncEnumerable<WorkflowReplayResult> FromServerAsync<TWorkflow>(
         ITemporalClient client,
         string workflowType,
-        WorkflowListOptions? listOptions = null,
-        WorkflowHistoryEventFetchOptions? historyFetchOptions = null)
+        string? executionStatus = "Completed",
+        int? limit = null)
     {
         var replayer = CreateReplayer<TWorkflow>();
-        return replayer.ReplayWorkflowsAsync(
-            client.ListWorkflowHistoriesAsync(workflowType, listOptions, historyFetchOptions));
+        var query = BuildQuery(workflowType, executionStatus);
+        return TakeAsync(replayer.ReplayWorkflowsAsync(client.ListWorkflowHistoriesAsync(query)), limit);
+    }
+
+    private static string BuildQuery(string workflowType, string? executionStatus)
+    {
+        var query = $"WorkflowType = '{workflowType}'";
+        if (!string.IsNullOrWhiteSpace(executionStatus))
+        {
+            query += $" AND ExecutionStatus = '{executionStatus}'";
+        }
+
+        return query;
+    }
+
+    private static async IAsyncEnumerable<WorkflowReplayResult> TakeAsync(
+        IAsyncEnumerable<WorkflowReplayResult> source,
+        int? limit,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var count = 0;
+        await foreach (var result in source.WithCancellation(cancellationToken))
+        {
+            if (limit is not null && count >= limit)
+            {
+                yield break;
+            }
+
+            yield return result;
+            count++;
+        }
     }
 }

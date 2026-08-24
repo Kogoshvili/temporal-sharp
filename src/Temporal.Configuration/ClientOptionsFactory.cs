@@ -1,32 +1,24 @@
 using Temporalio.Client;
 
-namespace Kogoshvili.Temporal.Hosting;
+namespace Kogoshvili.Temporal.Configuration;
 
 /// <summary>
 /// Builds <see cref="TemporalClientConnectOptions"/> from
-/// <see cref="TemporalOptions"/>.
+/// <see cref="TemporalConnectionOptions"/>.
 /// </summary>
-internal static class ClientOptionsFactory
+public static class ClientOptionsFactory
 {
-    public static void Apply(TemporalClientConnectOptions connect, TemporalOptions options)
+    /// <summary>
+    /// Applies connection options (target host, namespace, API key, TLS) to a
+    /// connect-options instance.
+    /// </summary>
+    public static void Apply(TemporalClientConnectOptions connect, TemporalConnectionOptions options)
     {
         connect.TargetHost = options.TargetHost;
         connect.Namespace = options.Namespace;
         connect.ApiKey = options.ApiKey;
         connect.Tls = BuildTls(options.Tls);
     }
-
-    /// <summary>
-    /// Creates the shared connect options for the test-server path. Its
-    /// <see cref="TemporalClientConnectOptions.TargetHost"/> is left unset and
-    /// filled in by <see cref="TemporalTestServerService"/> once the ephemeral
-    /// dev server has bound a port.
-    /// </summary>
-    public static TemporalClientConnectOptions CreateTestServer(TemporalOptions options) =>
-        new()
-        {
-            Namespace = options.Namespace,
-        };
 
     private static TlsOptions? BuildTls(TemporalTlsOptions? tls)
     {

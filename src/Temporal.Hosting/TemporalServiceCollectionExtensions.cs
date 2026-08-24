@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Temporalio.Client;
 using Temporalio.Client.Interceptors;
 using Temporalio.Extensions.Hosting;
+using Kogoshvili.Temporal.Configuration;
 using Kogoshvili.Temporal.Hosting;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -76,7 +77,7 @@ public static class TemporalServiceCollectionExtensions
             // and the test-server service. The lazy connection reads TargetHost on
             // first connect, so the service can fill it in once the dev server has
             // bound an (ephemeral) port.
-            var testConnectOptions = ClientOptionsFactory.CreateTestServer(options);
+            var testConnectOptions = new TemporalClientConnectOptions { Namespace = options.Namespace };
             services.AddSingleton(testConnectOptions);
             services.AddSingleton<TemporalTestServerService>();
             services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TemporalTestServerService>());
