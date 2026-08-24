@@ -4,8 +4,16 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.0-beta.3] - 2026-08-24
+
+- Remove no-basis rules and correct signal return-type rule
+- Fix analyzer false positives against Temporal docs
+- Check out repo in publish release job so gh can generate notes
+
 ## [1.0.0-beta.2] - 2026-08-23
 
+- Trigger publish from release workflow; allow manual publish dispatch
+- Prepare v1.0.0-beta.2 release
 - Fix release workflow: commit changelog before rebase
 - Reduce analyzer false positives across the benchmark suite
 - Address review.md findings (third pass)
