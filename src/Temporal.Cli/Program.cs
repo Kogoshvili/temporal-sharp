@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Kogoshvili.Temporal.Cli.Analysis;
 using Kogoshvili.Temporal.Cli.Docs;
+using Kogoshvili.Temporal.Cli.Map;
 using Kogoshvili.Temporal.Cli.Presets;
 using Kogoshvili.Temporal.Cli.Reporting;
 
@@ -10,6 +11,11 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "map")
+        {
+            return await MapCommand.RunAsync(args).ConfigureAwait(false);
+        }
+
         if (args.Length > 0 && args[0] == "docs")
         {
             return RunDocs(args);

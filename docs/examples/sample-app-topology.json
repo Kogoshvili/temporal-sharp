@@ -1,0 +1,915 @@
+{
+  "nodes": [
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.ActivityViolationActivities.LongRunningHeartbeat()",
+      "kind": "activity",
+      "name": "ActivityViolationActivities.LongRunningHeartbeat",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ActivityViolations.cs",
+      "line": 32,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.ActivityViolationActivities.LongRunningNoHeartbeat()",
+      "kind": "activity",
+      "name": "ActivityViolationActivities.LongRunningNoHeartbeat",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ActivityViolations.cs",
+      "line": 10,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.ActivityViolationActivities.Quick()",
+      "kind": "activity",
+      "name": "ActivityViolationActivities.Quick",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ActivityViolations.cs",
+      "line": 20,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.ActivityViolationActivities.QuickHeartbeat()",
+      "kind": "activity",
+      "name": "ActivityViolationActivities.QuickHeartbeat",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ActivityViolations.cs",
+      "line": 24,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.BestPracticeActivities.Blocking()",
+      "kind": "activity",
+      "name": "BestPracticeActivities.Blocking",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/BestPracticeViolations.cs",
+      "line": 55,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.BestPracticeActivities.Fetch()",
+      "kind": "activity",
+      "name": "BestPracticeActivities.Fetch",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/BestPracticeViolations.cs",
+      "line": 46,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.BestPracticeActivities.First()",
+      "kind": "activity",
+      "name": "BestPracticeActivities.First",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/BestPracticeViolations.cs",
+      "line": 49,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.BestPracticeActivities.Second()",
+      "kind": "activity",
+      "name": "BestPracticeActivities.Second",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/BestPracticeViolations.cs",
+      "line": 52,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.ContextActivities.ConsoleLog()",
+      "kind": "activity",
+      "name": "ContextActivities.ConsoleLog",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 220,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.ContextActivities.Fetch()",
+      "kind": "activity",
+      "name": "ContextActivities.Fetch",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 228,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.ContextActivities.LongPoll()",
+      "kind": "activity",
+      "name": "ContextActivities.LongPoll",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 236,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.GoodActivities.GetGreeting()",
+      "kind": "activity",
+      "name": "GoodActivities.GetGreeting",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/GoodWorkflow.cs",
+      "line": 51,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.MixedContract.DoWork()",
+      "kind": "activity",
+      "name": "MixedContract.DoWork",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 48,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.NonIdempotentActivities.Send()",
+      "kind": "activity",
+      "name": "NonIdempotentActivities.Send",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 265,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.OrderActivities.ChargeCustomer()",
+      "kind": "activity",
+      "name": "OrderActivities.ChargeCustomer",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/TopologySample.cs",
+      "line": 73,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.OrderActivities.RefundCustomer()",
+      "kind": "activity",
+      "name": "OrderActivities.RefundCustomer",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/TopologySample.cs",
+      "line": 79,
+      "handlers": []
+    },
+    {
+      "id": "Activity:Kogoshvili.Temporal.SampleApp.StatefulActivity.DoWork()",
+      "kind": "activity",
+      "name": "StatefulActivity.DoWork",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ActivityViolations.cs",
+      "line": 70,
+      "handlers": []
+    },
+    {
+      "id": "TaskQueue:order-task-queue",
+      "kind": "taskQueue",
+      "name": "order-task-queue",
+      "handlers": []
+    },
+    {
+      "id": "Unknown:Activity:\u0022Greet\u0022",
+      "kind": "unknown",
+      "name": "Greet",
+      "unknownKind": "activity",
+      "handlers": []
+    },
+    {
+      "id": "Unknown:Activity:\u0022LegacyPayment\u0022",
+      "kind": "unknown",
+      "name": "LegacyPayment",
+      "unknownKind": "activity",
+      "handlers": []
+    },
+    {
+      "id": "Unknown:Activity:\u0022PlainHelper.DoWork\u0022",
+      "kind": "unknown",
+      "name": "PlainHelper.DoWork",
+      "unknownKind": "activity",
+      "handlers": []
+    },
+    {
+      "id": "Unknown:NexusOperation:\u0022ShipPackage\u0022",
+      "kind": "unknown",
+      "name": "ShipPackage",
+      "unknownKind": "nexusOperation",
+      "handlers": []
+    },
+    {
+      "id": "Unknown:NexusService:\u0022shipping-nexus\u0022",
+      "kind": "unknown",
+      "name": "shipping-nexus",
+      "unknownKind": "nexusService",
+      "handlers": []
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.AssertWorkflow",
+      "kind": "workflow",
+      "name": "AssertWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 167,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.AsyncQueryWorkflow",
+      "kind": "workflow",
+      "name": "AsyncQueryWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/MessageViolations.cs",
+      "line": 9,
+      "handlers": [
+        {
+          "kind": "query",
+          "name": "GetValueAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.BaseExceptionWorkflow",
+      "kind": "workflow",
+      "name": "BaseExceptionWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 156,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.BestPracticeViolations",
+      "kind": "workflow",
+      "name": "BestPracticeViolations",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/BestPracticeViolations.cs",
+      "line": 7,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.BigIntegerWorkflow",
+      "kind": "workflow",
+      "name": "BigIntegerWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 178,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.CancellableCleanupWorkflow",
+      "kind": "workflow",
+      "name": "CancellableCleanupWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 133,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ChildWorkflow",
+      "kind": "workflow",
+      "name": "ChildWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/TopologySample.cs",
+      "line": 57,
+      "handlers": [
+        {
+          "kind": "query",
+          "name": "Progress"
+        },
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ClientTypeWorkflow",
+      "kind": "workflow",
+      "name": "ClientTypeWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 31,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.CommandApiQueryWorkflow",
+      "kind": "workflow",
+      "name": "CommandApiQueryWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/MessageViolations.cs",
+      "line": 55,
+      "handlers": [
+        {
+          "kind": "query",
+          "name": "GetValue"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ContinueAsNewUpdateWorkflow",
+      "kind": "workflow",
+      "name": "ContinueAsNewUpdateWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 19,
+      "handlers": [
+        {
+          "kind": "update",
+          "name": "Update"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ContractViolations.MultipleRunWorkflow",
+      "kind": "workflow",
+      "name": "MultipleRunWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ContractViolations.cs",
+      "line": 32,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "Run1"
+        },
+        {
+          "kind": "run",
+          "name": "Run2"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ContractViolations.NonPublicRunWorkflow",
+      "kind": "workflow",
+      "name": "NonPublicRunWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ContractViolations.cs",
+      "line": 9,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "Run"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ContractViolations.NonTaskRunWorkflow",
+      "kind": "workflow",
+      "name": "NonTaskRunWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ContractViolations.cs",
+      "line": 17,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "Run"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.DeterminismViolations",
+      "kind": "workflow",
+      "name": "DeterminismViolations",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/DeterminismViolations.cs",
+      "line": 7,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.DiscardedPatchWorkflow",
+      "kind": "workflow",
+      "name": "DiscardedPatchWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 307,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.DuplicatePatchWorkflow",
+      "kind": "workflow",
+      "name": "DuplicatePatchWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 295,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ExceptionPayloadWorkflow",
+      "kind": "workflow",
+      "name": "ExceptionPayloadWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 186,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.GenericSignalWorkflow",
+      "kind": "workflow",
+      "name": "GenericSignalWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/MessageViolations.cs",
+      "line": 33,
+      "handlers": [
+        {
+          "kind": "signal",
+          "name": "Handle"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.GoodWorkflow",
+      "kind": "workflow",
+      "name": "GoodWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/GoodWorkflow.cs",
+      "line": 7,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.HandlerWorkflow",
+      "kind": "workflow",
+      "name": "HandlerWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 67,
+      "handlers": [
+        {
+          "kind": "signal",
+          "name": "Handle"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.HeartbeatContractViolations",
+      "kind": "workflow",
+      "name": "HeartbeatContractViolations",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ActivityViolations.cs",
+      "line": 43,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.InitMismatchWorkflow",
+      "kind": "workflow",
+      "name": "InitMismatchWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 86,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.InvalidUpdateWorkflow",
+      "kind": "workflow",
+      "name": "InvalidUpdateWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 11,
+      "handlers": [
+        {
+          "kind": "update",
+          "name": "Update"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.LargePayloadWorkflow",
+      "kind": "workflow",
+      "name": "LargePayloadWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 207,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.LossyParamWorkflow",
+      "kind": "workflow",
+      "name": "LossyParamWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/SdkMisuseViolations.cs",
+      "line": 59,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.MissingActivityAttributeWorkflow",
+      "kind": "workflow",
+      "name": "MissingActivityAttributeWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/ActivityViolations.cs",
+      "line": 79,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.MixedContract",
+      "kind": "workflow",
+      "name": "MixedContract",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 42,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.MutatingQueryWorkflow",
+      "kind": "workflow",
+      "name": "MutatingQueryWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/MessageViolations.cs",
+      "line": 41,
+      "handlers": [
+        {
+          "kind": "query",
+          "name": "GetCount"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.NestedLossyWorkflow",
+      "kind": "workflow",
+      "name": "NestedLossyWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 199,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.NonSerializableParamWorkflow",
+      "kind": "workflow",
+      "name": "NonSerializableParamWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/SdkMisuseViolations.cs",
+      "line": 35,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.NonSerializableReturnWorkflow",
+      "kind": "workflow",
+      "name": "NonSerializableReturnWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/SdkMisuseViolations.cs",
+      "line": 43,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
+      "kind": "workflow",
+      "name": "OrderWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/TopologySample.cs",
+      "line": 12,
+      "handlers": [
+        {
+          "kind": "query",
+          "name": "Status"
+        },
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        },
+        {
+          "kind": "signal",
+          "name": "ApproveAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ParameterizedCtorWorkflow",
+      "kind": "workflow",
+      "name": "ParameterizedCtorWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 97,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.PendingHandlerWorkflow",
+      "kind": "workflow",
+      "name": "PendingHandlerWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 75,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        },
+        {
+          "kind": "signal",
+          "name": "Handle"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.RemovedFallbackWorkflow",
+      "kind": "workflow",
+      "name": "RemovedFallbackWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 318,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.SdkMisuseViolations",
+      "kind": "workflow",
+      "name": "SdkMisuseViolations",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/SdkMisuseViolations.cs",
+      "line": 8,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.SearchAttributeViolationWorkflow",
+      "kind": "workflow",
+      "name": "SearchAttributeViolationWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/SearchAttributeViolations.cs",
+      "line": 17,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.SensitiveDataWorkflow",
+      "kind": "workflow",
+      "name": "SensitiveDataWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/SdkMisuseViolations.cs",
+      "line": 51,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.SharedStateViolations",
+      "kind": "workflow",
+      "name": "SharedStateViolations",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/SharedStateViolations.cs",
+      "line": 8,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.StatelessContinueAsNewWorkflow",
+      "kind": "workflow",
+      "name": "StatelessContinueAsNewWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 107,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.SwallowContinueAsNewWorkflow",
+      "kind": "workflow",
+      "name": "SwallowContinueAsNewWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 118,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.TimeoutMismatchWorkflow",
+      "kind": "workflow",
+      "name": "TimeoutMismatchWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 248,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.UnboundedLoopWorkflow",
+      "kind": "workflow",
+      "name": "UnboundedLoopWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 145,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.UnsetShapeWorkflow",
+      "kind": "workflow",
+      "name": "UnsetShapeWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 284,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.UpsertLoopWorkflow",
+      "kind": "workflow",
+      "name": "UpsertLoopWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 270,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ValidatorWorkflow",
+      "kind": "workflow",
+      "name": "ValidatorWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/P2Violations.cs",
+      "line": 53,
+      "handlers": []
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.ValueSignalWorkflow",
+      "kind": "workflow",
+      "name": "ValueSignalWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/MessageViolations.cs",
+      "line": 25,
+      "handlers": [
+        {
+          "kind": "signal",
+          "name": "Handle"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.VersioningViolations",
+      "kind": "workflow",
+      "name": "VersioningViolations",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/VersioningViolations.cs",
+      "line": 6,
+      "handlers": [
+        {
+          "kind": "run",
+          "name": "RunAsync"
+        }
+      ]
+    },
+    {
+      "id": "Workflow:Kogoshvili.Temporal.SampleApp.VoidQueryWorkflow",
+      "kind": "workflow",
+      "name": "VoidQueryWorkflow",
+      "file": "/home/lotus/Projects/temporal-experiments-worktrees/map/samples/Temporal.SampleApp/MessageViolations.cs",
+      "line": 17,
+      "handlers": [
+        {
+          "kind": "query",
+          "name": "GetValue"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.BestPracticeViolations",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.BestPracticeActivities.Blocking()",
+      "kind": "localActivity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.BestPracticeViolations",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.BestPracticeActivities.Fetch()",
+      "kind": "activity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.BestPracticeViolations",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.BestPracticeActivities.First()",
+      "kind": "localActivity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.BestPracticeViolations",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.BestPracticeActivities.Second()",
+      "kind": "localActivity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.ChildWorkflow",
+      "to": "TaskQueue:order-task-queue",
+      "kind": "taskQueue"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.GoodWorkflow",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.GoodActivities.GetGreeting()",
+      "kind": "activity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.HeartbeatContractViolations",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.ActivityViolationActivities.LongRunningHeartbeat()",
+      "kind": "activity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.HeartbeatContractViolations",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.ActivityViolationActivities.Quick()",
+      "kind": "activity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.MissingActivityAttributeWorkflow",
+      "to": "Unknown:Activity:\u0022PlainHelper.DoWork\u0022",
+      "kind": "activity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.OrderActivities.ChargeCustomer()",
+      "kind": "activity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
+      "to": "TaskQueue:order-task-queue",
+      "kind": "taskQueue"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
+      "to": "Unknown:Activity:\u0022LegacyPayment\u0022",
+      "kind": "activity"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
+      "to": "Unknown:NexusOperation:\u0022ShipPackage\u0022",
+      "kind": "nexus"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
+      "to": "Unknown:NexusService:\u0022shipping-nexus\u0022",
+      "kind": "nexus"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
+      "to": "Workflow:Kogoshvili.Temporal.SampleApp.ChildWorkflow",
+      "kind": "childWorkflow"
+    },
+    {
+      "from": "Workflow:Kogoshvili.Temporal.SampleApp.SdkMisuseViolations",
+      "to": "Unknown:Activity:\u0022Greet\u0022",
+      "kind": "activity"
+    }
+  ]
+}
