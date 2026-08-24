@@ -101,7 +101,7 @@ public class WorkflowLifecycleAnalyzerTests
             """);
 
     [Fact]
-    public Task SwallowedCancellation_Reports()
+    public Task SwallowedContinueAsNew_Reports()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -109,14 +109,18 @@ public class WorkflowLifecycleAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    try { await Temporalio.Workflows.Workflow.DelayAsync(1); }
-                    {|TMP2123:catch|} (System.OperationCanceledException) { }
+                    try
+                    {
+                        throw Temporalio.Workflows.Workflow.CreateContinueAsNewException(
+                            "wf", new object[] { 1 }, new Temporalio.Workflows.ContinueAsNewOptions());
+                    }
+                    {|TMP2123:catch|} (System.Exception) { }
                 }
             }
             """);
 
     [Fact]
-    public Task RethrownCancellation_DoesNotReport()
+    public Task ContinueAsNewRethrown_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -124,14 +128,18 @@ public class WorkflowLifecycleAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    try { await System.Threading.Tasks.Task.Delay(1); }
+                    try
+                    {
+                        throw Temporalio.Workflows.Workflow.CreateContinueAsNewException(
+                            "wf", new object[] { 1 }, new Temporalio.Workflows.ContinueAsNewOptions());
+                    }
                     catch (System.Exception) { throw; }
                 }
             }
             """);
 
     [Fact]
-    public Task CancellationTokenChecked_DoesNotReport()
+    public Task ContinueAsNewRethrownVariable_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -139,32 +147,18 @@ public class WorkflowLifecycleAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    try { await System.Threading.Tasks.Task.Delay(1); }
-                    catch (System.Exception)
+                    try
                     {
-                        if (Temporalio.Workflows.Workflow.CancellationToken.IsCancellationRequested) { return; }
+                        throw Temporalio.Workflows.Workflow.CreateContinueAsNewException(
+                            "wf", new object[] { 1 }, new Temporalio.Workflows.ContinueAsNewOptions());
                     }
-                }
-            }
-            """);
-
-    [Fact]
-    public Task ThrownCatchVariable_DoesNotReport()
-        => Verify(Stubs + """
-            [Temporalio.Workflows.Workflow]
-            public class W
-            {
-                [Temporalio.Workflows.WorkflowRun]
-                public async System.Threading.Tasks.Task Run()
-                {
-                    try { await System.Threading.Tasks.Task.Delay(1); }
                     catch (System.Exception ex) { throw ex; }
                 }
             }
             """);
 
     [Fact]
-    public Task WrappedIntoApplicationFailure_DoesNotReport()
+    public Task ContinueAsNewCaughtBySpecificType_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -172,17 +166,18 @@ public class WorkflowLifecycleAnalyzerTests
                 [Temporalio.Workflows.WorkflowRun]
                 public async System.Threading.Tasks.Task Run()
                 {
-                    try { await System.Threading.Tasks.Task.Delay(1); }
-                    catch (System.Exception ex)
+                    try
                     {
-                        throw new Temporalio.Exceptions.ApplicationFailureException("failed", ex);
+                        throw Temporalio.Workflows.Workflow.CreateContinueAsNewException(
+                            "wf", new object[] { 1 }, new Temporalio.Workflows.ContinueAsNewOptions());
                     }
+                    catch (System.OperationCanceledException) { }
                 }
             }
             """);
 
     [Fact]
-    public Task ThrownUnrelatedException_Reports()
+    public Task BroadCatchWithoutContinueAsNew_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W
@@ -191,13 +186,13 @@ public class WorkflowLifecycleAnalyzerTests
                 public async System.Threading.Tasks.Task Run()
                 {
                     try { await Temporalio.Workflows.Workflow.DelayAsync(1); }
-                    {|TMP2123:catch|} (System.Exception) { throw new System.Exception("else"); }
+                    catch (System.Exception) { }
                 }
             }
             """);
 
     [Fact]
-    public Task BroadCatchWithoutCancellableWork_DoesNotReport()
+    public Task BroadCatchAroundPlainThrow_DoesNotReport()
         => Verify(Stubs + """
             [Temporalio.Workflows.Workflow]
             public class W

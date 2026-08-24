@@ -124,15 +124,18 @@ public class StatelessContinueAsNewWorkflow
     }
 }
 
-// TMP2123 — catch swallows a cancellation.
+// TMP2123 — catch swallows a continue-as-new exception.
 [Workflow]
-public class SwallowCancellationWorkflow
+public class SwallowContinueAsNewWorkflow
 {
     [WorkflowRun]
     public async Task RunAsync()
     {
-        try { await Task.Delay(1); }
-        catch (OperationCanceledException) { }
+        try
+        {
+            throw Workflow.CreateContinueAsNewException("wf", new object[] { 1 }, new ContinueAsNewOptions());
+        }
+        catch (Exception) { }
     }
 }
 

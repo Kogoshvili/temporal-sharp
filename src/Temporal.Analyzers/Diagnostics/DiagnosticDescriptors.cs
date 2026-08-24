@@ -303,7 +303,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "HeartbeatTimeout set but no heartbeat detected",
         "Activity '{0}' is invoked with HeartbeatTimeout set but no heartbeat call is detected",
-        "HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. Detection only recognizes direct ActivityExecutionContext.Heartbeat() calls and common heartbeat method names, so a heartbeat dispatched through a third-party wrapper may not be seen.",
+        "HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. Detection recognizes Heartbeat() calls made directly by the activity or through helper methods it calls.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor HeartbeatWithoutTimeout = Create(
@@ -318,7 +318,8 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Heartbeat called unnecessarily",
         "Activity '{0}' calls Heartbeat() but has no loop and at most one await; the heartbeat is unnecessary",
-        "Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection.");
+        "Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection.",
+        severity: DiagnosticSeverity.Info);
 
     internal static readonly DiagnosticDescriptor InvalidWorkflowRun = Create(
         "TMP3201",
@@ -519,13 +520,13 @@ internal static class DiagnosticDescriptors
         "Workflow constructors are not dependency-injected. A parameterized constructor will be called with no arguments and fail unless a constructor is marked [WorkflowInit].",
         severity: DiagnosticSeverity.Error);
 
-    internal static readonly DiagnosticDescriptor SwallowedCancellation = Create(
+    internal static readonly DiagnosticDescriptor SwallowedContinueAsNew = Create(
         "TMP2123",
         SdkMisuseCategory,
-        "Cancellation is swallowed",
-        "catch block neither rethrows nor checks Workflow.CancellationToken.IsCancellationRequested",
-        "Catching a cancellation without rethrowing or checking Workflow.CancellationToken.IsCancellationRequested hides a workflow/activity cancellation and can leave work running after cancellation.",
-        severity: DiagnosticSeverity.Warning);
+        "Continue-as-new is swallowed",
+        "catch block swallows a ContinueAsNewException; rethrow it so the workflow continues as new",
+        "A broad catch that swallows a ContinueAsNewException silently ends the workflow instead of continuing as new. Rethrow the exception so continue-as-new is triggered.",
+        severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor CleanupNotNonCancellable = Create(
         "TMP2124",

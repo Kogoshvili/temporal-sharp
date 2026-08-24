@@ -272,4 +272,85 @@ public class ActivityHeartbeatAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task HeartbeatViaHelperMethod_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await Temporalio.Workflows.Workflow.ExecuteActivityAsync(
+                        () => Act.Do(),
+                        new Temporalio.Workflows.ActivityOptions { HeartbeatTimeout = System.TimeSpan.FromMinutes(1) });
+                }
+            }
+
+            public static class Act
+            {
+                [Temporalio.Activities.Activity]
+                public static async System.Threading.Tasks.Task Do()
+                {
+                    for (var i = 0; i < 3; i++)
+                    {
+                        Helper.Heartbeat();
+                        if (Temporalio.Activities.ActivityExecutionContext.Current.CancellationToken.IsCancellationRequested) { break; }
+                        await System.Threading.Tasks.Task.Delay(1);
+                    }
+                }
+            }
+
+            public static class Helper
+            {
+                public static void Heartbeat()
+                {
+                    Temporalio.Activities.ActivityExecutionContext.Current.Heartbeat();
+                }
+            }
+            """);
+
+    [Fact]
+    public Task HeartbeatViaTransitiveHelper_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    await Temporalio.Workflows.Workflow.ExecuteActivityAsync(
+                        () => Act.Do(),
+                        new Temporalio.Workflows.ActivityOptions { HeartbeatTimeout = System.TimeSpan.FromMinutes(1) });
+                }
+            }
+
+            public static class Act
+            {
+                [Temporalio.Activities.Activity]
+                public static async System.Threading.Tasks.Task Do()
+                {
+                    for (var i = 0; i < 3; i++)
+                    {
+                        Outer.Beat();
+                        if (Temporalio.Activities.ActivityExecutionContext.Current.CancellationToken.IsCancellationRequested) { break; }
+                        await System.Threading.Tasks.Task.Delay(1);
+                    }
+                }
+            }
+
+            public static class Outer
+            {
+                public static void Beat() => Inner.Beat();
+            }
+
+            public static class Inner
+            {
+                public static void Beat()
+                {
+                    Temporalio.Activities.ActivityExecutionContext.Current.Heartbeat();
+                }
+            }
+            """);
 }

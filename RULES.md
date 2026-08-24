@@ -60,7 +60,7 @@ rules that users must enable explicitly.
 | TMP2111 | off | Workflow target named by string | String-named targets cannot be resolved statically and bypass compile-time type checking. This overload is legitimate for dynamic workflows, so the rule is opt-in. |
 | TMP2121 | Error | Continue-as-new exception is not thrown | CreateContinueAsNewException returns an exception that must be thrown to trigger continue-as-new. |
 | TMP2122 | Warning | Continue-as-new without passing current workflow state | Continue-as-new starts a fresh execution; any state needed by the new run must be passed as arguments or it is lost. |
-| TMP2123 | Warning | Cancellation is swallowed | Catching a cancellation without rethrowing or checking Workflow.CancellationToken.IsCancellationRequested hides a workflow/activity cancellation and can leave work running after cancellation. |
+| TMP2123 | Error | Continue-as-new is swallowed | A broad catch that swallows a ContinueAsNewException silently ends the workflow instead of continuing as new. Rethrow the exception so continue-as-new is triggered. |
 | TMP2124 | Warning | Cleanup after cancellation is not in a non-cancellable scope | Cleanup that runs after cancellation should not itself be cancelled; pass CancellationToken.None (or a token from a detached CancellationTokenSource) to the cleanup work so it always completes. |
 | TMP2125 | Warning | Unbounded loop without a continue-as-new check | An unbounded loop that never checks Workflow.ContinueAsNewSuggested grows the workflow history until it hits the size limit. Break the loop and continue as new. |
 | TMP2131 | Warning | Non-replay-aware logging in workflow code | Standard loggers write on every replay. Use Workflow.Logger, which suppresses output during replay. |
@@ -85,9 +85,9 @@ rules that users must enable explicitly.
 | ID | Default | Rule | Description |
 |---|---|---|---|
 | TMP3101 | Warning | Long-running activity does not heartbeat | Long-running activities should heartbeat so Temporal can detect failures and deliver cancellations. |
-| TMP3102 | Warning | HeartbeatTimeout set but no heartbeat detected | HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. Detection only recognizes direct ActivityExecutionContext.Heartbeat() calls and common heartbeat method names, so a heartbeat dispatched through a third-party wrapper may not be seen. |
+| TMP3102 | Warning | HeartbeatTimeout set but no heartbeat detected | HeartbeatTimeout requires the activity to record heartbeats; otherwise the activity will be considered failed. Detection recognizes Heartbeat() calls made directly by the activity or through helper methods it calls. |
 | TMP3103 | Warning | Heartbeat called without HeartbeatTimeout | Heartbeats persist details and deliver cancellation even without a HeartbeatTimeout; only timeout-based failure detection requires one. |
-| TMP3104 | Warning | Heartbeat called unnecessarily | Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection. |
+| TMP3104 | Info | Heartbeat called unnecessarily | Short activities finish quickly; heartbeating them adds overhead without meaningfully improving failure detection. |
 | TMP3106 | Warning | Non-SDK logger used in an activity | Console and other process-wide loggers bypass the activity's configured logging. Log through ActivityExecutionContext.Current.Logger. |
 | TMP3107 | Warning | HttpClient call without a CancellationToken | HTTP calls should honor the activity's CancellationToken so a cancelled activity stops its network I/O immediately. |
 | TMP3108 | Warning | HeartbeatTimeout much shorter than StartToCloseTimeout | A HeartbeatTimeout far shorter than StartToCloseTimeout causes the activity to be marked failed on the first missed heartbeat. |

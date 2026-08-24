@@ -56,6 +56,10 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
                 SyntaxKind.InvocationExpression);
 
             startContext.RegisterSyntaxNodeAction(
+                nodeContext => CollectCallEdge(nodeContext, state),
+                SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
                 nodeContext => CollectOptionsObjectCreation(nodeContext, state),
                 SyntaxKind.ObjectCreationExpression);
 
@@ -210,6 +214,8 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        state.AllActivities.TryAdd(method, 0);
+
         if (!HasLoopOrMultipleAwaits(method))
         {
             return;
@@ -227,15 +233,41 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var enclosing = context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart);
-        for (var current = enclosing; current is not null; current = current.ContainingSymbol)
+        var enclosing = SymbolUtilities.GetEnclosingRegularMethod(
+            context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart));
+        if (enclosing is null)
         {
-            if (current is IMethodSymbol method && WorkflowDetection.IsActivityMethod(method))
-            {
-                state.HeartbeatingActivities.TryAdd(method, 0);
-                return;
-            }
+            return;
         }
+
+        if (WorkflowDetection.IsActivityMethod(enclosing))
+        {
+            state.HeartbeatingActivities.TryAdd(enclosing, 0);
+        }
+        else
+        {
+            state.HeartbeatingHelpers.TryAdd(enclosing, 0);
+        }
+    }
+
+    private static void CollectCallEdge(SyntaxNodeAnalysisContext context, HeartbeatState state)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol target ||
+            target.MethodKind == MethodKind.DelegateInvoke)
+        {
+            return;
+        }
+
+        var caller = SymbolUtilities.GetEnclosingRegularMethod(
+            context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart));
+        if (caller is null || SymbolEqualityComparer.Default.Equals(caller, target))
+        {
+            return;
+        }
+
+        var callees = state.CallGraph.GetOrAdd(caller, _ => new ConcurrentBag<IMethodSymbol>());
+        callees.Add(target);
     }
 
     private static void CollectOptionsObjectCreation(SyntaxNodeAnalysisContext context, HeartbeatState state)
@@ -344,9 +376,11 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
     {
         ResolvePendingOptions(state);
 
+        var heartbeating = ComputeEffectiveHeartbeating(state);
+
         foreach (var method in state.LongRunningActivities.Keys)
         {
-            if (state.HeartbeatingActivities.ContainsKey(method) ||
+            if (heartbeating.ContainsKey(method) ||
                 state.AsyncCompletionActivities.ContainsKey(method))
             {
                 continue;
@@ -360,7 +394,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
 
         foreach (var pair in state.TimeoutSet)
         {
-            if (state.HeartbeatingActivities.ContainsKey(pair.Key) ||
+            if (heartbeating.ContainsKey(pair.Key) ||
                 state.AsyncCompletionActivities.ContainsKey(pair.Key))
             {
                 continue;
@@ -374,7 +408,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
 
         foreach (var pair in state.TimeoutNotSet)
         {
-            if (!state.HeartbeatingActivities.ContainsKey(pair.Key) || state.TimeoutSet.ContainsKey(pair.Key))
+            if (!heartbeating.ContainsKey(pair.Key) || state.TimeoutSet.ContainsKey(pair.Key))
             {
                 continue;
             }
@@ -385,7 +419,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
                 pair.Key.Name));
         }
 
-        foreach (var method in state.HeartbeatingActivities.Keys)
+        foreach (var method in heartbeating.Keys)
         {
             if (state.LongRunningActivities.ContainsKey(method))
             {
@@ -399,7 +433,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         }
 
         // TMP3109 — activity heartbeats in a loop but never checks the cancellation token.
-        foreach (var method in state.HeartbeatingActivities.Keys)
+        foreach (var method in heartbeating.Keys)
         {
             if (!state.LongRunningActivities.ContainsKey(method) ||
                 state.CancellationCheckingActivities.ContainsKey(method))
@@ -412,6 +446,63 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
                 FirstLocation(method),
                 method.Name));
         }
+    }
+
+    private static ConcurrentDictionary<IMethodSymbol, byte> ComputeEffectiveHeartbeating(HeartbeatState state)
+    {
+        var result = new ConcurrentDictionary<IMethodSymbol, byte>(SymbolEqualityComparer.Default);
+        foreach (var method in state.HeartbeatingActivities.Keys)
+        {
+            result[method] = 0;
+        }
+
+        foreach (var activity in state.AllActivities.Keys)
+        {
+            if (result.ContainsKey(activity))
+            {
+                continue;
+            }
+
+            if (ReachesHeartbeatingHelper(activity, state))
+            {
+                result[activity] = 0;
+            }
+        }
+
+        return result;
+    }
+
+    private static bool ReachesHeartbeatingHelper(IMethodSymbol start, HeartbeatState state)
+    {
+        var visited = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
+        var queue = new Queue<IMethodSymbol>();
+        queue.Enqueue(start);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (!visited.Add(current))
+            {
+                continue;
+            }
+
+            if (state.HeartbeatingHelpers.ContainsKey(current))
+            {
+                return true;
+            }
+
+            if (!state.CallGraph.TryGetValue(current, out var callees))
+            {
+                continue;
+            }
+
+            foreach (var callee in callees)
+            {
+                queue.Enqueue(callee);
+            }
+        }
+
+        return false;
     }
 
     private static void CollectCancellationCheck(SyntaxNodeAnalysisContext context, HeartbeatState state)
@@ -584,9 +675,13 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
 
     private sealed class HeartbeatState
     {
+        public ConcurrentDictionary<IMethodSymbol, byte> AllActivities { get; } = new(SymbolEqualityComparer.Default);
+
         public ConcurrentDictionary<IMethodSymbol, byte> LongRunningActivities { get; } = new(SymbolEqualityComparer.Default);
 
         public ConcurrentDictionary<IMethodSymbol, byte> HeartbeatingActivities { get; } = new(SymbolEqualityComparer.Default);
+
+        public ConcurrentDictionary<IMethodSymbol, byte> HeartbeatingHelpers { get; } = new(SymbolEqualityComparer.Default);
 
         public ConcurrentDictionary<IMethodSymbol, byte> AsyncCompletionActivities { get; } = new(SymbolEqualityComparer.Default);
 
@@ -599,5 +694,7 @@ public sealed class ActivityHeartbeatAnalyzer : DiagnosticAnalyzer
         public ConcurrentDictionary<ISymbol, bool> OptionsStatus { get; } = new(SymbolEqualityComparer.Default);
 
         public ConcurrentBag<(IMethodSymbol Method, Location Location, ISymbol Symbol)> PendingOptionSymbols { get; } = new();
+
+        public ConcurrentDictionary<IMethodSymbol, ConcurrentBag<IMethodSymbol>> CallGraph { get; } = new(SymbolEqualityComparer.Default);
     }
 }

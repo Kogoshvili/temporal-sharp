@@ -30,7 +30,7 @@ TMP3216 | SdkMisuse | Warning | Signal handler schedules activities/child workfl
 TMP3217 | SdkMisuse | Warning | Workflow may complete while async handlers are pending
 TMP3218 | SdkMisuse | Error | [WorkflowInit] and [WorkflowRun] parameter lists mismatch
 TMP3219 | SdkMisuse | Error | [Workflow] parameterized constructor without [WorkflowInit]
-TMP2123 | SdkMisuse | Warning | catch swallows a cancellation
+TMP2123 | SdkMisuse | Error | catch swallows a ContinueAsNewException
 TMP2124 | SdkMisuse | Warning | Cleanup after cancellation not in a non-cancellable scope
 TMP2122 | SdkMisuse | Warning | Continue-as-new without passing current workflow state
 TMP2125 | SdkMisuse | Warning | Unbounded loop without a continue-as-new check
@@ -72,3 +72,4 @@ Rule ID | New Category | New Severity | Old Category | Old Severity | Notes
 TMP3203 | SdkMisuse | Warning | SdkMisuse | Error | Activity instance-state mutation is a race risk, not a determinism error
 TMP0143 | Determinism | Error | Determinism | Warning | Raw task scheduling (WhenAny/ContinueWith/CancelAsync) is replay-breaking; escalate to Error
 TMP3102 | SdkMisuse | Warning | SdkMisuse | Error | Heartbeat detection can't see through third-party wrappers; downgrade to a heuristic warning
+TMP3104 | SdkMisuse | Info | SdkMisuse | Warning | Heartbeat called unnecessarily is a low-value heuristic; demote to a suggestion

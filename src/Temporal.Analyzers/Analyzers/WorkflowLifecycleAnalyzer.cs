@@ -16,17 +16,10 @@ namespace Kogoshvili.Temporal.Analyzers.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly ImmutableHashSet<string> BroadCatchTypes = ImmutableHashSet.Create(
-        StringComparer.Ordinal,
-        "System.Exception",
-        "System.SystemException",
-        "System.OperationCanceledException",
-        "System.Threading.Tasks.TaskCanceledException");
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.ContinueAsNewWithoutState,
-            DiagnosticDescriptors.SwallowedCancellation,
+            DiagnosticDescriptors.SwallowedContinueAsNew,
             DiagnosticDescriptors.CleanupNotNonCancellable,
             DiagnosticDescriptors.LongRunningLoopWithoutContinueAsNew);
 
@@ -198,7 +191,7 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
         };
     }
 
-    // TMP2123 — catch swallows a cancellation.
+    // TMP2123 — catch swallows a continue-as-new exception.
     private static void AnalyzeCatch(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
     {
         var catchClause = (CatchClauseSyntax)context.Node;
@@ -207,55 +200,27 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!IsBroadCatch(catchClause, context.SemanticModel))
+        if (!CanCatchContinueAsNew(catchClause, context.SemanticModel))
         {
             return;
         }
 
-        if (RethrowsOrChecksCancellation(catchClause, context.SemanticModel))
+        if (RethrowsCaughtException(catchClause))
         {
             return;
         }
 
-        // Only flag when the try block actually contains cancellable workflow work
-        // (an activity, child workflow, delay, or condition wait). A broad catch
-        // around ordinary error handling is not a swallowed cancellation.
-        if (!TryContainsCancellableWork(catchClause, context.SemanticModel))
+        if (!TryThrowsContinueAsNew(catchClause, context.SemanticModel))
         {
             return;
         }
 
         context.ReportDiagnostic(Diagnostic.Create(
-            DiagnosticDescriptors.SwallowedCancellation,
+            DiagnosticDescriptors.SwallowedContinueAsNew,
             catchClause.CatchKeyword.GetLocation()));
     }
 
-    private static bool TryContainsCancellableWork(CatchClauseSyntax catchClause, SemanticModel model)
-    {
-        if (catchClause.Parent is not TryStatementSyntax tryStatement)
-        {
-            return false;
-        }
-
-        foreach (var invocation in tryStatement.Block.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
-        {
-            if (model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method && IsCancellableWorkflowApi(method))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool IsCancellableWorkflowApi(IMethodSymbol method) =>
-        method.ContainingType is not null &&
-        SdkNames.IsWorkflowType(method.ContainingType) &&
-        method.Name is "ExecuteActivityAsync" or "ExecuteLocalActivityAsync" or
-            "ExecuteChildWorkflowAsync" or "StartChildWorkflowAsync" or
-            "DelayAsync" or "WaitConditionAsync";
-
-    private static bool IsBroadCatch(CatchClauseSyntax catchClause, SemanticModel model)
+    private static bool CanCatchContinueAsNew(CatchClauseSyntax catchClause, SemanticModel model)
     {
         if (catchClause.Declaration is null)
         {
@@ -264,16 +229,11 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
 
         var type = model.GetTypeInfo(catchClause.Declaration.Type).Type;
         return type is not null &&
-               BroadCatchTypes.Contains(TypeNames.FullName(type));
+               TypeNames.FullName(type) is "System.Exception" or "Temporalio.Workflows.ContinueAsNewException";
     }
 
-    private static bool RethrowsOrChecksCancellation(CatchClauseSyntax catchClause, SemanticModel model)
+    private static bool RethrowsCaughtException(CatchClauseSyntax catchClause)
     {
-        if (catchClause.Filter is { } filter && ReferencesCancellationInFilter(filter.FilterExpression))
-        {
-            return true;
-        }
-
         var catchVariable = catchClause.Declaration?.Identifier.ValueText;
 
         foreach (var node in catchClause.Block.DescendantNodesAndSelf())
@@ -283,27 +243,9 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
                 return true;
             }
 
-            if (node is IdentifierNameSyntax { Identifier.ValueText: "IsCancellationRequested" })
-            {
-                return true;
-            }
-
-            if (node is not ThrowStatementSyntax { Expression: not null } throwStatement)
-            {
-                continue;
-            }
-
             if (catchVariable is not null &&
-                throwStatement.Expression is IdentifierNameSyntax { Identifier.ValueText: var rethrown } &&
+                node is ThrowStatementSyntax { Expression: IdentifierNameSyntax { Identifier.ValueText: var rethrown } } &&
                 rethrown == catchVariable)
-            {
-                return true;
-            }
-
-            // Wrapping into a typed failure still surfaces the error; only a
-            // non-ApplicationFailureException (or a swallowed catch) is flagged.
-            if (model.GetTypeInfo(throwStatement.Expression).Type is { } type &&
-                TypeNames.IsOrDerivesFrom(type, "Temporalio.Exceptions.ApplicationFailureException"))
             {
                 return true;
             }
@@ -312,11 +254,29 @@ public sealed class WorkflowLifecycleAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    private static bool ReferencesCancellationInFilter(ExpressionSyntax expression)
+    private static bool TryThrowsContinueAsNew(CatchClauseSyntax catchClause, SemanticModel model)
     {
-        foreach (var name in expression.DescendantNodesAndSelf().OfType<SimpleNameSyntax>())
+        if (catchClause.Parent is not TryStatementSyntax tryStatement)
         {
-            if (name.Identifier.ValueText is "IsCanceledException" or "IsCancellationRequested")
+            return false;
+        }
+
+        foreach (var throwStatement in tryStatement.Block.DescendantNodesAndSelf().OfType<ThrowStatementSyntax>())
+        {
+            if (throwStatement.Expression is null)
+            {
+                continue;
+            }
+
+            if (throwStatement.Expression is InvocationExpressionSyntax invocation &&
+                model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+                IsWorkflowApi(method, "CreateContinueAsNewException"))
+            {
+                return true;
+            }
+
+            if (model.GetTypeInfo(throwStatement.Expression).Type is { } thrownType &&
+                TypeNames.IsOrDerivesFrom(thrownType, "Temporalio.Workflows.ContinueAsNewException"))
             {
                 return true;
             }
