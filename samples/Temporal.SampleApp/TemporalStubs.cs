@@ -47,6 +47,38 @@ namespace Temporalio.Workflows
 
     public sealed class ContinueAsNewOptions { }
 
+    public sealed class ChildWorkflowOptions { }
+
+    public sealed class ChildWorkflowHandle
+    {
+        public string Id => string.Empty;
+
+        public System.Threading.Tasks.Task GetResultAsync() => System.Threading.Tasks.Task.CompletedTask;
+    }
+
+    public sealed class NexusOperationOptions { }
+
+    public sealed class NexusWorkflowClient
+    {
+        public NexusWorkflowOperationHandle StartNexusOperationAsync(
+            string operation,
+            object? arg,
+            NexusOperationOptions? options)
+            => new NexusWorkflowOperationHandle();
+
+        public NexusWorkflowOperationHandle StartNexusOperationAsync<TService, TResult>(
+            Expression<System.Func<TService, System.Threading.Tasks.Task<TResult>>> operationCall,
+            NexusOperationOptions? options)
+            => new NexusWorkflowOperationHandle();
+    }
+
+    public sealed class NexusWorkflowOperationHandle
+    {
+        public string OperationToken => string.Empty;
+
+        public System.Threading.Tasks.Task GetResultAsync() => System.Threading.Tasks.Task.CompletedTask;
+    }
+
     public sealed class ContinueAsNewException : System.Exception
     {
         public ContinueAsNewException() { }
@@ -130,6 +162,25 @@ namespace Temporalio.Workflows
             ActivityOptions options)
             => System.Threading.Tasks.Task.CompletedTask;
 
+        public static ChildWorkflowHandle StartChildWorkflowAsync(
+            string workflow,
+            System.Collections.Generic.IReadOnlyCollection<object?>? args,
+            ChildWorkflowOptions? options)
+            => new ChildWorkflowHandle();
+
+        public static ChildWorkflowHandle StartChildWorkflowAsync<TWorkflow, TResult>(
+            Expression<System.Func<TWorkflow, System.Threading.Tasks.Task<TResult>>> workflowRunCall,
+            ChildWorkflowOptions? options)
+            => new ChildWorkflowHandle();
+
+        public static NexusWorkflowClient CreateNexusWorkflowClient(
+            string service,
+            NexusOperationOptions? options = null)
+            => new NexusWorkflowClient();
+
+        public static NexusWorkflowClient CreateNexusWorkflowClient<TService>(NexusOperationOptions? options = null)
+            => new NexusWorkflowClient();
+
         public static ContinueAsNewException CreateContinueAsNewException(
             string workflow,
             System.Collections.Generic.IReadOnlyCollection<object?>? args,
@@ -181,9 +232,33 @@ namespace Temporalio.Client
         public string? Id { get; set; }
     }
 
+    public sealed class StartWorkflowOptions
+    {
+        public string? Id { get; set; }
+
+        public string? TaskQueue { get; set; }
+    }
+
+    public sealed class WorkflowHandle<TResult>
+    {
+        public System.Threading.Tasks.Task<TResult> GetResultAsync()
+            => System.Threading.Tasks.Task.FromResult<TResult>(default!);
+    }
+
     public interface ITemporalClient { }
 
-    public sealed class TemporalClient : ITemporalClient { }
+    public sealed class TemporalClient : ITemporalClient
+    {
+        public System.Threading.Tasks.Task<WorkflowHandle<TResult>> StartWorkflowAsync<TWorkflow, TResult>(
+            System.Linq.Expressions.Expression<System.Func<TWorkflow, System.Threading.Tasks.Task<TResult>>> workflowRunCall,
+            StartWorkflowOptions options)
+            => System.Threading.Tasks.Task.FromResult(new WorkflowHandle<TResult>());
+
+        public System.Threading.Tasks.Task<WorkflowHandle<TResult>> ExecuteWorkflowAsync<TWorkflow, TResult>(
+            System.Linq.Expressions.Expression<System.Func<TWorkflow, System.Threading.Tasks.Task<TResult>>> workflowRunCall,
+            StartWorkflowOptions options)
+            => System.Threading.Tasks.Task.FromResult(new WorkflowHandle<TResult>());
+    }
 
     public sealed class WorkflowClient
     {
@@ -191,5 +266,29 @@ namespace Temporalio.Client
             System.Linq.Expressions.Expression<System.Func<object?>> workflowRunCall,
             WorkflowOptions options)
             => System.Threading.Tasks.Task.FromResult("");
+    }
+}
+
+namespace Temporalio.Worker
+{
+    public sealed class TemporalWorkerOptions
+    {
+        public TemporalWorkerOptions(string taskQueue)
+        {
+            TaskQueue = taskQueue;
+        }
+
+        public string? TaskQueue { get; set; }
+
+        public TemporalWorkerOptions AddWorkflow<TWorkflow>() => this;
+
+        public TemporalWorkerOptions AddActivity(System.Func<System.Threading.Tasks.Task> activity) => this;
+
+        public TemporalWorkerOptions AddActivity(System.Action activity) => this;
+    }
+
+    public sealed class TemporalWorker
+    {
+        public TemporalWorker(Temporalio.Client.ITemporalClient client, TemporalWorkerOptions options) { }
     }
 }
