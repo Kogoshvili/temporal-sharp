@@ -45,7 +45,8 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.HeavyCpuLoop,
             DiagnosticDescriptors.HardcodedTaskQueue,
             DiagnosticDescriptors.ConsecutiveLocalActivities,
-            DiagnosticDescriptors.LocalActivityBlockingIo);
+            DiagnosticDescriptors.LocalActivityBlockingIo,
+            DiagnosticDescriptors.BusyPollingVersionFlag);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -66,6 +67,12 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
                 c => AnalyzePollingLoop(c, state),
                 SyntaxKind.WhileStatement,
                 SyntaxKind.ForStatement);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeVersionFlagPolling(c, state),
+                SyntaxKind.WhileStatement,
+                SyntaxKind.ForStatement,
+                SyntaxKind.DoStatement);
 
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeHeavyCpuLoop(c, state),
@@ -168,6 +175,27 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.PollingLoop,
             LoopKeyword(node).GetLocation(),
             "loop"));
+    }
+
+    // TMP4108 — loop that busy-polls Workflow.TargetWorkerDeploymentVersionChanged
+    // on a timer instead of checking it at a workflow task boundary.
+    private static void AnalyzeVersionFlagPolling(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var node = context.Node;
+        if (!state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        if (!ContainsWorkflowDelayAwait(node, context.SemanticModel) ||
+            !ContainsVersionFlagRead(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.BusyPollingVersionFlag,
+            LoopKeyword(node).GetLocation()));
     }
 
     // TMP4104 — loop in workflow code with no await (CPU-heavy).
@@ -378,6 +406,39 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
+    private static bool ContainsWorkflowDelayAwait(SyntaxNode node, SemanticModel model)
+    {
+        foreach (var descendant in node.DescendantNodesAndSelf())
+        {
+            if (descendant is AwaitExpressionSyntax { Expression: InvocationExpressionSyntax invocation } &&
+                model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+                method.ContainingType is not null &&
+                SdkNames.IsWorkflowType(method.ContainingType) &&
+                method.Name == "DelayAsync")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsVersionFlagRead(SyntaxNode node, SemanticModel model)
+    {
+        foreach (var descendant in node.DescendantNodesAndSelf())
+        {
+            if (descendant is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "TargetWorkerDeploymentVersionChanged" } member &&
+                model.GetSymbolInfo(member).Symbol is IPropertySymbol property &&
+                property.ContainingType is not null &&
+                SdkNames.IsWorkflowType(property.ContainingType))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool IsConstantDuration(ExpressionSyntax expression)
     {
         if (expression is LiteralExpressionSyntax)
@@ -427,6 +488,7 @@ public sealed class BestPracticeAnalyzer : DiagnosticAnalyzer
         WhileStatementSyntax whileStatement => whileStatement.WhileKeyword,
         ForStatementSyntax forStatement => forStatement.ForKeyword,
         ForEachStatementSyntax forEachStatement => forEachStatement.ForEachKeyword,
+        DoStatementSyntax doStatement => doStatement.DoKeyword,
         _ => default,
     };
 

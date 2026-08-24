@@ -19,10 +19,23 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
         StringComparer.Ordinal,
         "Temporalio.Bridge");
 
+    private static readonly ImmutableHashSet<string> StandaloneActivityClientTypes = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "Temporalio.Client.ITemporalClient",
+        "Temporalio.Client.TemporalClient");
+
+    private static readonly ImmutableHashSet<string> StandaloneActivityMethods = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "ExecuteActivityAsync",
+        "StartActivityAsync",
+        "GetActivityHandle",
+        "GetAsyncActivityHandle");
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.ClientOrWorkerTypeInWorkflow,
-            DiagnosticDescriptors.InternalTemporalNamespace);
+            DiagnosticDescriptors.InternalTemporalNamespace,
+            DiagnosticDescriptors.StandaloneActivityInWorkflow);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -44,7 +57,34 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeQualifiedReference(c),
                 SyntaxKind.QualifiedName);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeStandaloneActivityInvocation(c, state),
+                SyntaxKind.InvocationExpression);
         });
+    }
+
+    // TMP3213 — standalone activity client APIs invoked from workflow code.
+    private static void AnalyzeStandaloneActivityInvocation(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (context.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method ||
+            method.ContainingType is null ||
+            !StandaloneActivityClientTypes.Contains(TypeNames.FullName(method.ContainingType)) ||
+            !StandaloneActivityMethods.Contains(method.Name))
+        {
+            return;
+        }
+
+        if (!state.IsWorkflowReachable(invocation, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.StandaloneActivityInWorkflow,
+            invocation.GetLocation(),
+            method.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
     }
 
     // TMP3212 — client/worker type referenced from workflow-reachable code.

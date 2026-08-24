@@ -466,6 +466,14 @@ internal static class DiagnosticDescriptors
         "Workflow code runs on the replay-deterministic workflow thread; referencing client or worker types pulls the worker process into the workflow and breaks determinism.",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor StandaloneActivityInWorkflow = Create(
+        "TMP3213",
+        SdkMisuseCategory,
+        "Standalone activity API called from workflow code",
+        "'{0}' is a standalone-activity client API; use Workflow.ExecuteActivityAsync inside a workflow",
+        "TemporalClient.ExecuteActivityAsync and StartActivityAsync run an activity independently of a workflow. Inside workflow code, invoke activities with Workflow.ExecuteActivityAsync instead.",
+        severity: DiagnosticSeverity.Error);
+
     internal static readonly DiagnosticDescriptor MixedWorkflowAndActivity = Create(
         "TMP3214",
         SdkMisuseCategory,
@@ -514,6 +522,14 @@ internal static class DiagnosticDescriptors
         "A workflow must have a parameterless constructor unless one is marked [WorkflowInit]; otherwise the worker cannot instantiate it and throws at startup.",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor WorkflowConstructorCommand = Create(
+        "TMP3210",
+        SdkMisuseCategory,
+        "Workflow constructor schedules a workflow command",
+        "'Workflow.{0}' is called from a workflow constructor; constructors cannot block or schedule commands",
+        "A workflow constructor (including [WorkflowInit]) runs before the workflow context is established and cannot schedule activities, timers, or other commands. Move the work into the workflow method or an activity.",
+        severity: DiagnosticSeverity.Error);
+
     internal static readonly DiagnosticDescriptor SwallowedContinueAsNew = Create(
         "TMP2123",
         SdkMisuseCategory,
@@ -560,6 +576,14 @@ internal static class DiagnosticDescriptors
         "Base exception thrown from an activity",
         "Activity throws a base exception; prefer Temporalio.Exceptions.ApplicationFailureException for a typed failure",
         "Throwing a bare Exception or SystemException from an activity loses failure semantics. Prefer ApplicationFailureException or a domain exception.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor WorkflowNonRetryableApplicationFailure = Create(
+        "TMP2135",
+        SdkMisuseCategory,
+        "nonRetryable set on an ApplicationFailureException thrown from a workflow",
+        "Do not set nonRetryable: true on ApplicationFailureException thrown from workflow code",
+        "nonRetryable is meaningful for activities (which may be retried), not workflows. Setting it on an ApplicationFailureException thrown from workflow code is misleading and has no effect.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor AssertInWorkflow = Create(
@@ -720,6 +744,14 @@ internal static class DiagnosticDescriptors
         "Local activity performs blocking or long-running I/O",
         "'{0}' runs in a local activity; local activities must be short and lightweight",
         "Local activities run on the worker's task queue and must complete quickly. Blocking I/O or long-running work such as Task.Delay, sockets, or file I/O makes them long-running; use a regular activity instead.",
+        severity: DiagnosticSeverity.Warning);
+
+    internal static readonly DiagnosticDescriptor BusyPollingVersionFlag = Create(
+        "TMP4108",
+        BestPracticeCategory,
+        "Busy-polling a worker-version flag on a timer",
+        "Loop polls Workflow.TargetWorkerDeploymentVersionChanged on a timer; check it at a workflow task boundary instead",
+        "Workflow.TargetWorkerDeploymentVersionChanged only refreshes after a workflow task completes, so polling it on a timer loop burns history without speeding up the version check. Check it at a natural workflow task boundary, or signal idle workflows to wake them.",
         severity: DiagnosticSeverity.Warning);
 
     private static DiagnosticDescriptor Create(

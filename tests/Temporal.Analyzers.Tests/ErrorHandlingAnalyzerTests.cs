@@ -154,4 +154,45 @@ public class ErrorHandlingAnalyzerTests
                 public static void Check() { System.Diagnostics.Debug.Assert(true); }
             }
             """);
+
+    [Fact]
+    public Task WorkflowNonRetryableApplicationFailure_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    throw {|TMP2135:new Temporalio.Exceptions.ApplicationFailureException("boom", nonRetryable: true)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task WorkflowRetryableApplicationFailure_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    throw new Temporalio.Exceptions.ApplicationFailureException("boom", nonRetryable: false);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task ActivityNonRetryableApplicationFailure_DoesNotReport()
+        => Verify(Stubs + """
+            public class A
+            {
+                [Temporalio.Activities.Activity]
+                public System.Threading.Tasks.Task Run()
+                {
+                    throw new Temporalio.Exceptions.ApplicationFailureException("boom", nonRetryable: true);
+                }
+            }
+            """);
 }

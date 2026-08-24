@@ -37,7 +37,18 @@ internal static class TestStubs
                 public string? TaskQueue { get; set; }
             }
             public interface ITemporalClient { }
-            public sealed class TemporalClient : ITemporalClient { }
+            public sealed class TemporalClient : ITemporalClient
+            {
+                public System.Threading.Tasks.Task ExecuteActivityAsync(string activity, object?[]? args, object? options)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public System.Threading.Tasks.Task StartActivityAsync(string activity, object?[]? args, object? options)
+                    => System.Threading.Tasks.Task.CompletedTask;
+
+                public object GetActivityHandle(string activityId) => new object();
+
+                public object GetAsyncActivityHandle(byte[] taskToken) => new object();
+            }
             public sealed class WorkflowHandle { }
             public sealed class ScheduleHandle { }
             public sealed class WorkflowClient
@@ -159,6 +170,8 @@ internal static class TestStubs
 
                 public static bool ContinueAsNewSuggested => false;
 
+                public static bool TargetWorkerDeploymentVersionChanged => false;
+
                 public static bool AllHandlersFinished => false;
 
                 public static System.Threading.Tasks.Task DelayAsync(int millisecondsDelay)
@@ -260,6 +273,8 @@ internal static class TestStubs
                 public ApplicationFailureException() { }
                 public ApplicationFailureException(string message) : base(message) { }
                 public ApplicationFailureException(string message, System.Exception innerException) : base(message, innerException) { }
+                public ApplicationFailureException(string message, bool nonRetryable) : base(message) { }
+                public ApplicationFailureException(string message, System.Exception innerException, bool nonRetryable) : base(message, innerException) { }
             }
 
             public static class TemporalException

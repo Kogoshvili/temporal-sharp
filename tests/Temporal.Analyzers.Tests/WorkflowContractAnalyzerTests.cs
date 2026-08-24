@@ -166,4 +166,68 @@ public class WorkflowContractAnalyzerTests
                 public static System.Threading.Tasks.Task Do() => System.Threading.Tasks.Task.CompletedTask;
             }
             """);
+
+    [Fact]
+    public Task ConstructorSchedulesBlockingCommand_Reports()
+        => Verify(TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowInit]
+                public W()
+                {
+                    {|TMP3210:Temporalio.Workflows.Workflow.ExecuteActivityAsync(
+                        "a",
+                        new object[] { },
+                        new Temporalio.Workflows.ActivityOptions())|};
+                }
+
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task ConstructorSchedulesDelay_Reports()
+        => Verify(TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                public W()
+                {
+                    {|TMP3210:Temporalio.Workflows.Workflow.DelayAsync(100)|};
+                }
+
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task ConstructorWithoutBlockingCommand_DoesNotReport()
+        => Verify(TestStubs.Attributes + TestStubs.Sdk + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                public W()
+                {
+                    var x = 1;
+                }
+
+                [Temporalio.Workflows.WorkflowRun]
+                public System.Threading.Tasks.Task Run() => System.Threading.Tasks.Task.CompletedTask;
+            }
+            """);
+
+    [Fact]
+    public Task NonWorkflowConstructorCallingWorkflowApi_DoesNotReport()
+        => Verify(TestStubs.Attributes + TestStubs.Sdk + """
+            public class Plain
+            {
+                public Plain()
+                {
+                    Temporalio.Workflows.Workflow.DelayAsync(100);
+                }
+            }
+            """);
 }

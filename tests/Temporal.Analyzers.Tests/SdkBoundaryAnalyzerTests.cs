@@ -134,4 +134,47 @@ public class SdkBoundaryAnalyzerTests
         };
         return test.RunAsync();
     }
+
+    [Fact]
+    public Task StandaloneActivityInWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Client.{|TMP3212:TemporalClient|} client = null;
+                    await {|TMP3213:client.ExecuteActivityAsync("a", null, null)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task StandaloneActivityStartInWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    Temporalio.Client.{|TMP3212:TemporalClient|} client = null;
+                    await {|TMP3213:client.StartActivityAsync("a", null, null)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task StandaloneActivityOutsideWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            public class Starter
+            {
+                public async System.Threading.Tasks.Task Start()
+                {
+                    var client = new Temporalio.Client.TemporalClient();
+                    await client.ExecuteActivityAsync("a", null, null);
+                }
+            }
+            """);
 }

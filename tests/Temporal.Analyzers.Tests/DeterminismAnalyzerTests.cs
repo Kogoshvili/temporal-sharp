@@ -1441,4 +1441,86 @@ public class DeterminismAnalyzerTests
                 public static System.Threading.Tasks.Task Go() => System.Threading.Tasks.Task.CompletedTask;
             }
             """);
+
+    [Fact]
+    public Task DataflowActionBlock_InWorkflow_Reports()
+        => Verify(Stubs + """
+            namespace System.Threading.Tasks.Dataflow
+            {
+                public sealed class ActionBlock<TInput>
+                {
+                    public ActionBlock(System.Action<TInput> action) { }
+                }
+            }
+
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    var block = {|TMP0142:new System.Threading.Tasks.Dataflow.ActionBlock<int>(x => { })|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task DataflowBlockOutsideWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            namespace System.Threading.Tasks.Dataflow
+            {
+                public sealed class ActionBlock<TInput>
+                {
+                    public ActionBlock(System.Action<TInput> action) { }
+                }
+            }
+
+            public class Plain
+            {
+                public void Run()
+                {
+                    var block = new System.Threading.Tasks.Dataflow.ActionBlock<int>(x => { });
+                }
+            }
+            """);
+
+    [Fact]
+    public Task EnvironmentExit_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0131:System.Environment.Exit(1)|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task EnvironmentFailFast_InWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class MyWorkflow
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public void Run()
+                {
+                    {|TMP0131:System.Environment.FailFast("boom")|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task EnvironmentExitOutsideWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            public class Plain
+            {
+                public void Run()
+                {
+                    System.Environment.Exit(1);
+                }
+            }
+            """);
 }

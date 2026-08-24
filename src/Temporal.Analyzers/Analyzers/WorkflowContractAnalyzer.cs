@@ -24,7 +24,8 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.InvalidActivity,
             DiagnosticDescriptors.MixedWorkflowAndActivity,
             DiagnosticDescriptors.WorkflowInitMismatch,
-            DiagnosticDescriptors.WorkflowParameterizedCtor);
+            DiagnosticDescriptors.WorkflowParameterizedCtor,
+            DiagnosticDescriptors.WorkflowConstructorCommand);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -99,6 +100,10 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 AnalyzeMissingActivity,
                 SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                AnalyzeWorkflowConstructor,
+                SyntaxKind.ConstructorDeclaration);
 
             startContext.RegisterCompilationEndAction(endContext =>
             {
@@ -227,6 +232,38 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.InvalidActivity,
             invocation.GetLocation(),
             $"target '{target.Name}' must be marked [Activity]"));
+    }
+
+    // TMP3210 — a workflow instance constructor schedules a blocking command.
+    // Static constructors are handled separately (TMP0177); the SDK forbids
+    // blocking/scheduling work from any constructor, including [WorkflowInit].
+    private static void AnalyzeWorkflowConstructor(SyntaxNodeAnalysisContext context)
+    {
+        var node = (ConstructorDeclarationSyntax)context.Node;
+        if (node.Modifiers.Any(SyntaxKind.StaticKeyword))
+        {
+            return;
+        }
+
+        var type = context.SemanticModel.GetDeclaredSymbol(node)?.ContainingType;
+        if (type is null || !WorkflowDetection.IsWorkflowType(type))
+        {
+            return;
+        }
+
+        foreach (var descendant in node.DescendantNodesAndSelf())
+        {
+            if (descendant is InvocationExpressionSyntax invocation &&
+                context.SemanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+                SdkNames.IsBlockingWorkflowCommand(method))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.WorkflowConstructorCommand,
+                    invocation.GetLocation(),
+                    method.Name));
+                return;
+            }
+        }
     }
 
     private static bool IsTaskReturning(IMethodSymbol method) =>

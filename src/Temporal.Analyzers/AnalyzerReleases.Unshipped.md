@@ -57,6 +57,10 @@ TMP4106 | BestPractice | Warning | Consecutive ExecuteLocalActivityAsync calls w
 TMP4107 | BestPractice | Warning | Local activity performs blocking or network I/O
 TMP2147 | SdkMisuse | Disabled | using directive for a namespace configured as unsafe for workflow code
 TMP0148 | Determinism | Info | Task.WhenAll in workflow code (use Workflow.WhenAllAsync)
+TMP3210 | SdkMisuse | Error | Workflow instance constructor schedules a blocking workflow command
+TMP3213 | SdkMisuse | Error | Standalone activity client API (ExecuteActivityAsync / StartActivityAsync / GetActivityHandle) called from workflow code
+TMP2135 | SdkMisuse | Warning | ApplicationFailureException thrown from workflow code with nonRetryable: true
+TMP4108 | BestPractice | Warning | Loop busy-polls Workflow.TargetWorkerDeploymentVersionChanged on a timer
 
 ### Removed Rules
 

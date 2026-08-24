@@ -376,4 +376,62 @@ public class BestPracticeAnalyzerTests
                 }
                 """,
             "root = true\n\n[*.cs]\ndotnet_diagnostic.TMP4104.severity = warning\n");
+
+    [Fact]
+    public Task BusyPollingVersionFlag_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    {|TMP4108:while|} (true)
+                    {
+                        if (Temporalio.Workflows.Workflow.TargetWorkerDeploymentVersionChanged)
+                        {
+                            return;
+                        }
+
+                        await Temporalio.Workflows.Workflow.DelayAsync(100);
+                    }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task VersionFlagCheckedAtBoundary_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    if (Temporalio.Workflows.Workflow.TargetWorkerDeploymentVersionChanged)
+                    {
+                        return;
+                    }
+
+                    await Temporalio.Workflows.Workflow.DelayAsync(100);
+                }
+            }
+            """);
+
+    [Fact]
+    public Task LoopWithoutDelayOrFlag_DoesNotReport()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    while (true)
+                    {
+                        await Temporalio.Workflows.Workflow.DelayAsync(100);
+                    }
+                }
+            }
+            """);
 }

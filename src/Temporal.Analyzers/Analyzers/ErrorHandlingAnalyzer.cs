@@ -25,7 +25,8 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
         ImmutableArray.Create(
             DiagnosticDescriptors.ThrowsBaseException,
             DiagnosticDescriptors.ActivityThrowsBaseException,
-            DiagnosticDescriptors.AssertInWorkflow);
+            DiagnosticDescriptors.AssertInWorkflow,
+            DiagnosticDescriptors.WorkflowNonRetryableApplicationFailure);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -57,6 +58,19 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
         var type = context.SemanticModel.GetTypeInfo(creation).Type;
         if (type is null)
         {
+            return;
+        }
+
+        // TMP2135 — nonRetryable is meaningful for activities, not workflows.
+        if (TypeNames.IsOrDerivesFrom(type, "Temporalio.Exceptions.ApplicationFailureException") &&
+            HasNonRetryableTrue(creation) &&
+            GetEnclosingValidator(context, throwStatement) is null &&
+            !IsHandledByCatch(throwStatement) &&
+            state.IsWorkflowReachable(throwStatement, context.SemanticModel))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.WorkflowNonRetryableApplicationFailure,
+                creation.GetLocation()));
             return;
         }
 
@@ -113,6 +127,29 @@ public sealed class ErrorHandlingAnalyzer : DiagnosticAnalyzer
                 tryStatement.Block.Contains(throwStatement))
             {
                 return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasNonRetryableTrue(ObjectCreationExpressionSyntax creation)
+    {
+        if (creation.ArgumentList is not { } argumentList)
+        {
+            return false;
+        }
+
+        foreach (var argument in argumentList.Arguments)
+        {
+            if (argument.NameColon?.Name.Identifier.ValueText is not ("nonRetryable" or "NonRetryable"))
+            {
+                continue;
+            }
+
+            if (argument.Expression is LiteralExpressionSyntax { Token.Value: bool value })
+            {
+                return value;
             }
         }
 

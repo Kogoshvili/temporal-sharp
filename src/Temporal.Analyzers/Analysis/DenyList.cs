@@ -42,6 +42,19 @@ internal static class DenyList
             ["System.WeakReference..ctor"] = DiagnosticDescriptors.WeakReference,
             ["System.WeakReference<T>..ctor"] = DiagnosticDescriptors.WeakReference,
             ["System.Runtime.CompilerServices.ConditionalWeakTable<TKey, TValue>..ctor"] = DiagnosticDescriptors.WeakReference,
+            // Dataflow blocks schedule work on the default task scheduler and
+            // coordinate via hidden producer/consumer tasks (see determinism-protection).
+            ["System.Threading.Tasks.Dataflow.ActionBlock<TInput>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.BufferBlock<T>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.TransformBlock<TInput, TOutput>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.TransformManyBlock<TInput, TOutput>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.BroadcastBlock<T>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.WriteOnceBlock<T>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.BatchBlock<T>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.BatchedJoinBlock<T1, T2>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.BatchedJoinBlock<T1, T2, T3>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.JoinBlock<T1, T2>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
+            ["System.Threading.Tasks.Dataflow.JoinBlock<T1, T2, T3>..ctor"] = DiagnosticDescriptors.BlockingPrimitive,
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
     // Constructors matched only when given at least one argument (e.g.
@@ -157,6 +170,8 @@ internal static class DenyList
             "System.Environment.OSVersion",
             "System.Environment.ProcessorCount",
             "System.Environment.GetFolderPath",
+            "System.Environment.Exit",
+            "System.Environment.FailFast",
             "System.IO.Path.GetTempPath",
             "System.Console.Read",
             "System.Console.ReadLine",
