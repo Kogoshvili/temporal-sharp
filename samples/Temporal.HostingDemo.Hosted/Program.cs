@@ -57,6 +57,10 @@ builder.Services.AddTemporalCodecServer(o =>
 // Exporting the SDK's runtime metrics (set either of these in appsettings.json):
 //   Temporal:Metrics:PrometheusBindAddress = "0.0.0.0:9000"
 //   Temporal:Metrics:OpenTelemetryUrl      = "http://localhost:4317"
+//
+// Forwarding the SDK runtime's Core (Rust bridge) logs into this app's logger:
+//   Temporal:Logging:Enabled = true (see appsettings.json). Core logs then flow
+//   through the "Temporalio.Core" category and respect Logging:LogLevel.
 
 // Print the workflow-start metrics recorded by the interceptor (Metrics:Enabled).
 builder.Services.AddHostedService<MetricsPrinter>();

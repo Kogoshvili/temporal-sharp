@@ -47,6 +47,7 @@ Tests (eight projects under `tests/`):
 
 - File-scoped namespaces enforced (`csharp_style_namespace_declarations = file_scoped:warning` in `.editorconfig` — an error under `TreatWarningsAsErrors`). 4-space indent, Allman braces.
 - Rule IDs are `TMP####`, grouped by category prefix (TMP0xxx determinism, TMP1xxx shared state, TMP2xxx/TMP3xxx SDK misuse, TMP4xxx best practice, TMP5xxx testing). Opt-in rules set `isEnabledByDefault: false`.
+- When adding a feature to `Temporal.Hosting`, also demonstrate it in the standalone samples: `samples/Temporal.HostingDemo.Hosted` (config-driven) and `samples/Temporal.HostingDemo.Raw` (hand-rolled equivalent without the starter).
 - Versioning is MinVer, derived from git `v*` tags (`MinVerTagPrefix=v` in `Directory.Build.props`); commits must include full history (CI uses `fetch-depth: 0`).
 - Suppression works via `#pragma warning disable TMPxxxx` or `.editorconfig` `dotnet_diagnostic.TMPxxxx.severity`; both apply in the analyzer and the CLI.
 

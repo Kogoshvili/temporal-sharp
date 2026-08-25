@@ -3,10 +3,12 @@ using Kogoshvili.Temporal.Codec;
 using Kogoshvili.Temporal.HostingDemo.Raw;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Temporalio.Client;
 using Temporalio.Client.Interceptors;
 using Temporalio.Converters;
 using Temporalio.Extensions.Hosting;
+using Temporalio.Runtime;
 using Temporalio.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -38,6 +40,26 @@ builder.Services.AddSingleton<RawMetricsInterceptor>();
 
 // 4. Register the client, attach the interceptor, and tune the RPC retry policy
 //    (Temporal:RpcRetry in the starter's appsettings.json).
+//
+//    Forward the SDK runtime's Core (Rust bridge) logs into this app's logger
+//    — the starter's Temporal:Logging:Enabled does this by building a runtime
+//    with LogForwardingOptions. Registering the runtime as a singleton shares
+//    it between the client and every worker.
+builder.Services.AddSingleton(sp =>
+{
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    return new TemporalRuntime(new TemporalRuntimeOptions(new TelemetryOptions
+    {
+        Logging = new LoggingOptions
+        {
+            Forwarding = new LogForwardingOptions
+            {
+                Logger = loggerFactory.CreateLogger("Temporalio.Core"),
+            },
+        },
+    }));
+});
+
 builder.Services.AddTemporalClient()
     .Configure(connect =>
     {
@@ -56,6 +78,7 @@ builder.Services.AddTemporalClient()
                 new ClaimCheckCodec(new FileSystemClaimCheckStore("claim-check"), thresholdBytes: 512)),
         };
     })
+    .Configure<TemporalRuntime>((connect, runtime) => connect.Runtime = runtime)
     .Configure<RawMetricsInterceptor>((connect, interceptor) =>
         connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
             .Concat(new IClientInterceptor[] { interceptor })
