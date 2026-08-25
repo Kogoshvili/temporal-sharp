@@ -4,8 +4,13 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.0-beta.8] - 2026-08-25
+
+- Clarify rule descriptions to match Temporal .NET SDK docs
+
 ## [1.0.0-beta.7] - 2026-08-24
 
+- Prepare v1.0.0-beta.7 release
 - Exempt external workflow cancel from TMP2124
 
 ## [1.0.0-beta.6] - 2026-08-24
