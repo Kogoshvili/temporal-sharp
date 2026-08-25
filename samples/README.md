@@ -8,11 +8,14 @@ Two companion projects demonstrate the worker starter:
 
 - **`Temporal.HostingDemo.Hosted`** — uses `Kogoshvili.Temporal.Hosting`
   (`AddTemporal` + `AddTemporalWorker`) with auto-discovery, metrics, an RPC
-  retry policy, and startup connection-waiting, all bound from `appsettings.json`.
+  retry policy, startup connection-waiting, a shared `DataConverter`
+  (encryption + claim-check), and an in-process codec server — all bound from
+  `appsettings.json`.
 - **`Temporal.HostingDemo.Raw`** — the same app written against the raw
   `Temporalio` / `Temporalio.Extensions.Hosting` SDK, showing exactly what the
   starter collapses into (`RawConnectionWaiter`, hand-rolled interceptor, manual
-  worker registration, `RpcRetryOptions`).
+  worker registration, `RpcRetryOptions`, and the `DataConverter` built by hand
+  from `Kogoshvili.Temporal.Codec`).
 
 Both connect to a **real Temporal server** by default. Start one first:
 
@@ -32,6 +35,20 @@ Because `ConnectionWait` is enabled by default, you can start the app before the
 server is up — it retries (with exponential backoff) until the server is
 reachable, then the workers start polling.
 
+### Codec server (Hosted demo)
+
+The Hosted demo also maps the Temporal codec-server endpoints (`/encode` and
+`/decode`) so the Web UI and CLI can decode the encrypted, claim-checked
+payloads it writes. View a workflow with the CLI:
+
+```sh
+temporal workflow show --codec-endpoint http://localhost:5000
+```
+
+or set the "Remote Codec Endpoint" in the Web UI to `http://localhost:5000`.
+Authentication (`AddTemporalCodecServer`) is left disabled by default — see
+`Program.cs` for the pass-access-token and cross-origin-credentials options.
+
 ### Running without a server (in-process dev server)
 
 Prefer not to run `temporal server start-dev`? The starter can run an in-process
@@ -49,6 +66,8 @@ skipped automatically. The Raw demo has no such toggle and always needs a server
 | `Temporal:Metrics` | `System.Diagnostics.Metrics` meter + Prometheus/OTel export. |
 | `Temporal:TestServer` | In-process dev server toggle (`Enabled`, `Port`). |
 | `Temporal:Tls` | mTLS / server-root CA configuration. |
+| `Temporal:DataConverter:Encryption` | AES-GCM payload encryption (`Enabled`, `Key`, `KeyId`). |
+| `Temporal:DataConverter:ClaimCheck` | Large-payload offload (`Enabled`, `ThresholdBytes`, `Directory`). |
 
 ## Analyzer sample
 

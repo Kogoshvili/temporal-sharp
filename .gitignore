@@ -11,9 +11,6 @@ artifacts/
 *.userosscache
 *.sln.docstates
 
-# Serena (agent tooling)
-.serena/
-
 # Test / coverage
 TestResults/
 *.trx
@@ -34,5 +31,7 @@ packages/
 .DS_Store
 Thumbs.db
 
-# Local planning notes
+# Local
 TODO.md
+.headroom/
+.serena/

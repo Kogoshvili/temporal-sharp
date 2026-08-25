@@ -16,6 +16,26 @@ Two tools, one rule engine:
 
 See [`RULES.md`](RULES.md) for the full rule catalog.
 
+## Libraries
+
+Alongside the tools, the suite ships a set of .NET libraries for building and
+operating Temporal workers:
+
+- **`Kogoshvili.Temporal.Hosting`** — a generic-host worker starter: config
+  binding, convention-based workflow/activity auto-discovery, a shared
+  `DataConverter` (encryption + claim-check), metrics, and a test-server toggle.
+- **`Kogoshvili.Temporal.Codec`** — composable payload codecs (AES-GCM
+  encryption, claim-check offloading, ordered chains).
+- **`Kogoshvili.Temporal.CodecServer`** — a ready-made HTTP codec server for the
+  Web UI/CLI, with JWT-bearer and OAuth2 authorization-code auth.
+- **`Kogoshvili.Temporal.Cloud`** — Azure/AWS credential resolution and
+  Blob/S3 claim-check stores.
+- **`Kogoshvili.Temporal.Configuration`** / **`Kogoshvili.Temporal.Testing`** —
+  shared connection config and a replay/regression harness.
+
+See [`samples/`](samples/) for runnable demos of the hosting starter and codec
+server.
+
 ## Install
 
 ```sh

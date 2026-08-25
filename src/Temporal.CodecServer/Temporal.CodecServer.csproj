@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Kogoshvili.Temporal.CodecServer</RootNamespace>
+    <PackageId>Kogoshvili.Temporal.CodecServer</PackageId>
+    <Description>Part of the Kogoshvili.Temporal tool suite — a ready-made HTTP codec server for the Temporal .NET SDK. Exposes the /encode and /decode endpoints used by the Temporal Web UI and CLI, with optional JWT-bearer (pass access token) and OAuth2 authorization-code (cross-origin credentials) auth. Not affiliated with or endorsed by Temporal Technologies.</Description>
+    <PackageTags>temporal;temporalio;codec-server;encryption;oauth;oidc;jwt;csharp;dotnet</PackageTags>
+    <PackageReleaseNotes>Initial release: codec server endpoint mapping with bearer and OIDC auth.</PackageReleaseNotes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Temporal.Codec\Temporal.Codec.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

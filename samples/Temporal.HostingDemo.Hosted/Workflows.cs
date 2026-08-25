@@ -44,3 +44,24 @@ public sealed class LifetimeProbeWorkflow
             $"static    : {staticResult}   (no instance)");
     }
 }
+
+/// <summary>
+/// Receives a payload large enough to trigger the claim-check codec
+/// (<c>Temporal:DataConverter:ClaimCheck:ThresholdBytes</c>): it is encrypted,
+/// then offloaded to the store, leaving only a reference in the workflow
+/// history. The codec server decodes it on demand for the Web UI / CLI.
+/// </summary>
+[Workflow]
+public sealed class ClaimCheckWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string largePayload)
+    {
+        var length = await Workflow.ExecuteActivityAsync(
+            () => StaticActivities.Measure(largePayload),
+            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) });
+
+        return $"Claim-check demo: activity received {length} characters " +
+            $"(first 40: \"{largePayload[..40]}\").";
+    }
+}

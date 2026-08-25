@@ -36,5 +36,11 @@ public sealed class DemoDriver : BackgroundService
             new() { Id = $"raw-probe-{Guid.NewGuid():N}", TaskQueue = "raw-queue" });
 
         logger.LogInformation("Lifetime probe:{NewLine}{Probe}", Environment.NewLine, await probeHandle.GetResultAsync());
+
+        var claimCheckHandle = await client.StartWorkflowAsync(
+            (ClaimCheckWorkflow workflow) => workflow.RunAsync(new string('x', 4096)),
+            new() { Id = $"raw-claimcheck-{Guid.NewGuid():N}", TaskQueue = "raw-queue" });
+
+        logger.LogInformation("Claim-check result: {Result}", await claimCheckHandle.GetResultAsync());
     }
 }

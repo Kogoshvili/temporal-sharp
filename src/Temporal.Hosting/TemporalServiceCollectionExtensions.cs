@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Temporalio.Client;
 using Temporalio.Client.Interceptors;
 using Temporalio.Common;
+using Temporalio.Converters;
 using Temporalio.Extensions.Hosting;
 using Temporalio.Runtime;
 using Temporalio.Worker;
@@ -260,6 +261,10 @@ public static class TemporalServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<TemporalOptions>, TemporalOptionsValidator>();
 
         var runtime = options.Metrics.Enabled ? CreateRuntime(options.Metrics) : null;
+        var payloadCodec = TemporalDataConverterFactory.BuildCodec(options.DataConverter);
+        var dataConverter = payloadCodec is null
+            ? DataConverter.Default
+            : DataConverter.Default with { PayloadCodec = payloadCodec };
 
         if (options.Metrics.Enabled)
         {
@@ -272,6 +277,14 @@ public static class TemporalServiceCollectionExtensions
             services.AddSingleton(runtime);
         }
 
+        // The payload codec is registered as a singleton so a codec server hosted
+        // in the same app (see Kogoshvili.Temporal.CodecServer) can resolve the
+        // exact same instance the client and workers encode/decode with.
+        if (payloadCodec is not null)
+        {
+            services.AddSingleton(payloadCodec);
+        }
+
         if (options.TestServer.Enabled)
         {
             // A single connect-options instance is shared between the lazy client
@@ -282,6 +295,7 @@ public static class TemporalServiceCollectionExtensions
             {
                 Namespace = options.Namespace,
                 Runtime = runtime,
+                DataConverter = dataConverter,
             };
             services.AddSingleton(testConnectOptions);
             services.AddSingleton<TemporalTestServerService>();
@@ -305,6 +319,8 @@ public static class TemporalServiceCollectionExtensions
             {
                 client.Configure(connect => connect.Runtime = runtime);
             }
+
+            client.Configure(connect => connect.DataConverter = dataConverter);
 
             if (options.Metrics.Enabled)
             {
@@ -423,5 +439,6 @@ public static class TemporalServiceCollectionExtensions
         target.Metrics = source.Metrics;
         target.TestServer = source.TestServer;
         target.ConnectionWait = source.ConnectionWait;
+        target.DataConverter = source.DataConverter;
     }
 }

@@ -1,12 +1,12 @@
+using Kogoshvili.Temporal.CodecServer;
 using Kogoshvili.Temporal.Hosting;
 using Kogoshvili.Temporal.HostingDemo.Hosted;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
-// The whole starter in one line: binds the "Temporal" section, wires metrics,
-// waits for the server (ConnectionWait), and auto-discovers every
+// The whole starter in one line: binds the "Temporal" section, wires the
+// shared DataConverter (encryption + claim-check from Temporal:DataConverter),
+// metrics, waits for the server (ConnectionWait), and auto-discovers every
 // [Workflow]/[Activity] type in this assembly — assigning the four activity
 // lifetimes by convention.
 //
@@ -20,6 +20,23 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services
     .AddTemporal(builder.Configuration)
     .AddTemporalWorker("hosted-queue");
+
+// Host the codec server in the same app. It exposes /encode and /decode over
+// HTTP, wrapping the *same* IPayloadCodec the client and workers use, so the
+// Temporal Web UI / CLI can decrypt the payloads this worker writes.
+//
+//     temporal workflow show --workflow-id <id> --codec-endpoint http://localhost:5000
+//
+// Point the Web UI at http://localhost:5000 via the codec-server (eyeglasses)
+// control. Uncomment the auth below to secure it for Temporal Cloud:
+builder.Services.AddTemporalCodecServer(o =>
+{
+    // o.Auth.PassAccessToken = true;                 // validate the UI's JWT
+    // o.Auth.IncludeCrossOriginCredentials = true;   // your own OAuth2 login flow
+    // o.Auth.OidcAuthority = "https://login.example.com";
+    // o.Auth.ClientId = "...";
+    // o.Auth.ClientSecret = "...";
+});
 
 // Other features, shown for reference rather than run:
 //
@@ -47,5 +64,14 @@ builder.Services.AddHostedService<MetricsPrinter>();
 // Self-start the demo workflows to prove the worker is live.
 builder.Services.AddHostedService<DemoDriver>();
 
-using var host = builder.Build();
-await host.RunAsync();
+var app = builder.Build();
+
+// CORS lets the browser (Temporal UI) call the codec server. Authentication
+// middleware is only needed if you enabled it above.
+app.UseCors();
+// app.UseAuthentication();
+// app.UseAuthorization();
+
+app.MapTemporalCodecServer();
+
+await app.RunAsync();

@@ -22,6 +22,9 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
   a `System.Diagnostics.Metrics.Meter`.
 - **`TemporalTestServerService`** — runs an in-process Temporal dev server when
   `Temporal:TestServer:Enabled` is `true`.
+- **Shared `DataConverter`** — composes the enabled payload codecs (encryption +
+  claim-check from `Temporal:DataConverter`) into a single `DataConverter` that
+  is applied to the client and therefore every worker.
 
 ## Configuration
 
@@ -55,6 +58,18 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
       "Timeout": "00:01:00",
       "InitialDelay": "00:00:01",
       "MaxDelay": "00:00:15"
+    },
+    "DataConverter": {
+      "Encryption": {
+        "Enabled": true,
+        "Key": "test-key-test-key-test-key-test!",
+        "KeyId": "demo"
+      },
+      "ClaimCheck": {
+        "Enabled": true,
+        "ThresholdBytes": 1048576,
+        "Directory": "claim-check"
+      }
     }
   }
 }
@@ -138,5 +153,24 @@ SDK's runtime metrics, set either `Metrics:PrometheusBindAddress`
 (e.g. `0.0.0.0:9000`) or `Metrics:OpenTelemetryUrl`
 (e.g. `http://localhost:4317`), which configures the underlying
 `TemporalRuntime` telemetry.
+
+### Payload codecs (DataConverter)
+
+`DataConverter` builds a shared `DataConverter` from the enabled codecs and
+applies it to the client (workers inherit it, so client and workers always
+encode consistently). Both codecs are opt-in:
+
+- **`DataConverter:Encryption`** — AES-GCM encrypts every payload before it is
+  sent to the server, with a key id for rotation. `Key` is an ASCII string of 16,
+  24, or 32 bytes (in production, source it from your KMS).
+- **`DataConverter:ClaimCheck`** — offloads payloads larger than
+  `ThresholdBytes` to a filesystem store, leaving a small reference in the
+  workflow history. Azure Blob and S3 stores ship in
+  `Kogoshvili.Temporal.Cloud`.
+
+The composed codec is registered as a singleton `IPayloadCodec`, so a
+[`Kogoshvili.Temporal.CodecServer`](https://www.nuget.org/packages/Kogoshvili.Temporal.CodecServer)
+hosted in the same app can expose `/encode` and `/decode` over HTTP for the
+Temporal Web UI and CLI using the exact same codec.
 
 Not affiliated with or endorsed by Temporal Technologies.

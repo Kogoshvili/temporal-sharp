@@ -14,4 +14,8 @@
     <PackageReference Include="Temporalio.Extensions.Hosting" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Temporal.Codec\Temporal.Codec.csproj" />
+  </ItemGroup>
+
 </Project>

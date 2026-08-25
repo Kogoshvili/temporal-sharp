@@ -36,5 +36,12 @@ public sealed class DemoDriver : BackgroundService
             new() { Id = $"hosted-probe-{Guid.NewGuid():N}", TaskQueue = "hosted-queue" });
 
         logger.LogInformation("Lifetime probe:{NewLine}{Probe}", Environment.NewLine, await probeHandle.GetResultAsync());
+
+        // A payload big enough to trigger claim-check offloading.
+        var claimCheckHandle = await client.StartWorkflowAsync(
+            (ClaimCheckWorkflow workflow) => workflow.RunAsync(new string('x', 4096)),
+            new() { Id = $"hosted-claimcheck-{Guid.NewGuid():N}", TaskQueue = "hosted-queue" });
+
+        logger.LogInformation("Claim-check result: {Result}", await claimCheckHandle.GetResultAsync());
     }
 }

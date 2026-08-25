@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Temporal.Configuration\Temporal.Configuration.csproj" />
+    <ProjectReference Include="..\Temporal.Codec\Temporal.Codec.csproj" />
   </ItemGroup>
 
   <ItemGroup>

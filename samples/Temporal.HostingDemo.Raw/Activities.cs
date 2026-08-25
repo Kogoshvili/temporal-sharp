@@ -37,4 +37,7 @@ public static class StaticActivities
 
     [Activity]
     public static string StaticProbe() => "static (no instance)";
+
+    [Activity]
+    public static int Measure(string payload) => payload.Length;
 }

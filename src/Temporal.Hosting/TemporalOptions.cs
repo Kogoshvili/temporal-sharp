@@ -17,4 +17,11 @@ public sealed class TemporalOptions : TemporalConnectionOptions
 
     /// <summary>Gets or sets the startup connection-wait configuration.</summary>
     public TemporalConnectionWaitOptions ConnectionWait { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets payload-codec configuration. The codecs built from this are
+    /// composed into a shared <c>DataConverter</c> applied to the client and all
+    /// workers.
+    /// </summary>
+    public TemporalDataConverterOptions DataConverter { get; set; } = new();
 }

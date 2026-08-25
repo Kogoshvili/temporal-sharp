@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Kogoshvili.Temporal — static-analysis + library tooling for the Temporal .NET SDK (`Temporalio`). Five NuGet packages + one CLI share the `Kogoshvili.Temporal` namespace. Not affiliated with Temporal Technologies.
+Kogoshvili.Temporal — static-analysis + library tooling for the Temporal .NET SDK (`Temporalio`). Eight NuGet packages + one CLI share the `Kogoshvili.Temporal` namespace. Not affiliated with Temporal Technologies.
 
 ## Build & test
 
@@ -11,20 +11,25 @@ Kogoshvili.Temporal — static-analysis + library tooling for the Temporal .NET 
 
 ## Architecture
 
-Five `src/` projects (two tools + three library packages):
+Eight `src/` projects (two tools + six library packages):
 
 - `Temporal.Analyzers` — Roslyn analyzer (**netstandard2.0**, must NOT reference the Temporal SDK). Rules in `Analyzers/*.cs`, metadata in `Diagnostics/DiagnosticDescriptors.cs`, fixes in `CodeFixes/`. Internals exposed to the CLI via `InternalsVisibleTo`.
 - `Temporal.Cli` — `temporal-sharp` dotnet tool (net8.0, `PackAsTool`). Loads solutions via MSBuildWorkspace (`Analysis/`) and re-runs the same analyzers; needs `Microsoft.Build.Locator`. Commands: `analyze` (default), `map` (workflow topology → mermaid/json/html/dot), `history` (download workflow histories for later replay), `docs`, `preset`.
 - `Temporal.Configuration` — shared connection config (net8.0): builds a `TemporalClient` from `appsettings.json` / `Temporal__*` env vars.
-- `Temporal.Hosting` — generic-host worker starter over `Temporalio.Extensions.Hosting` (auto-discovery, metrics, test-server toggle).
+- `Temporal.Hosting` — generic-host worker starter over `Temporalio.Extensions.Hosting` (auto-discovery, metrics, test-server toggle, shared `DataConverter`).
+- `Temporal.Codec` — composable `IPayloadCodec`s (encryption, claim-check, chains); no cloud deps.
+- `Temporal.CodecServer` — ASP.NET Core library mapping `/encode`/`/decode` with JWT-bearer + OIDC auth.
+- `Temporal.Cloud` — Azure/AWS credential resolution and Blob/S3 claim-check stores.
 - `Temporal.Testing` — replay/regression harness (`ReplayHarness`, `ReplayResult`, `Snapshot`) built on `WorkflowReplayer`.
 
-Only `Temporal.Analyzers` and `Temporal.Cli` are packed/published by CI; the other three are packable but not published. All five are net8.0 except the analyzer.
+Only `Temporal.Analyzers` and `Temporal.Cli` are packed/published by CI; the others are packable but not published. All are net8.0 except the analyzer.
 
-Tests (five projects under `tests/`):
+Tests (seven projects under `tests/`):
 - `Temporal.Analyzers.Tests` — Roslyn analyzer-testing framework; injects stub Temporal types by name from `TestStubs.cs` and never references the real SDK.
 - `Temporal.Cli.Tests` — docs/preset generation, call graph, topology.
 - `Temporal.{Configuration,Hosting,Testing}.Tests` — exercise the wrappers against the real `Temporalio` SDK.
+- `Temporal.Codec.Tests` — codec round-trips and store behavior.
+- `Temporal.CodecServer.Tests` — HTTP protocol, CORS, and auth via `TestHost`.
 
 `samples/Temporal.SampleApp` intentionally violates rules; its `.editorconfig` downgrades every rule to `warning` so the smoke-test build succeeds. `samples/Temporal.HostingDemo.{Raw,Hosted}` are standalone examples outside CI.
 

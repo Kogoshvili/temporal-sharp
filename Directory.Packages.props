@@ -26,6 +26,13 @@
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <PackageVersion Include="Temporalio" Version="1.18.0" />
     <PackageVersion Include="Temporalio.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="Google.Protobuf" Version="3.26.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.30" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.30" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="8.0.28" />
+    <PackageVersion Include="Azure.Identity" Version="1.21.0" />
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.2" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.4" />
 
     <!-- Override vulnerable transitive dependencies (pulled in by
          Microsoft.CodeAnalysis.Workspaces.MSBuild and the testing packages). -->

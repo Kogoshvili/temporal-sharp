@@ -1,9 +1,11 @@
 using System.Diagnostics.Metrics;
+using Kogoshvili.Temporal.Codec;
 using Kogoshvili.Temporal.HostingDemo.Raw;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Temporalio.Client;
 using Temporalio.Client.Interceptors;
+using Temporalio.Converters;
 using Temporalio.Extensions.Hosting;
 using Temporalio.Worker;
 
@@ -16,7 +18,9 @@ var builder = Host.CreateApplicationBuilder(args);
 //         .AddTemporalWorker("raw-queue");
 //
 // No Kogoshvili.Temporal.Hosting extension is used here — only the raw SDK's
-// own Temporalio / Temporalio.Extensions.Hosting building blocks.
+// own Temporalio / Temporalio.Extensions.Hosting building blocks (plus the
+// Kogoshvili.Temporal.Codec codec library, which the starter drives from the
+// Temporal:DataConverter configuration section).
 // =========================================================================
 
 // 1. Read connection settings by hand (AddTemporal(IConfiguration) does this).
@@ -40,6 +44,17 @@ builder.Services.AddTemporalClient()
         connect.TargetHost = targetHost;
         connect.Namespace = ns;
         connect.RpcRetry = new RpcRetryOptions { MaxRetries = 5 };
+
+        // The starter's Temporal:DataConverter config. Here we build the same
+        // thing by hand: encrypt every payload, then offload anything over the
+        // threshold to a filesystem claim-check store. The single DataConverter
+        // is set on the client, and workers inherit it.
+        connect.DataConverter = DataConverter.Default with
+        {
+            PayloadCodec = new CompositePayloadCodec(
+                new EncryptionCodec("test-key-test-key-test-key-test!", keyId: "demo"),
+                new ClaimCheckCodec(new FileSystemClaimCheckStore("claim-check"), thresholdBytes: 512)),
+        };
     })
     .Configure<RawMetricsInterceptor>((connect, interceptor) =>
         connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
@@ -55,6 +70,7 @@ builder.Services.AddHostedService<RawConnectionWaiter>();
 builder.Services.AddHostedTemporalWorker("raw-queue", deploymentOptions: (WorkerDeploymentOptions?)null)
     .AddWorkflow<GreetingWorkflow>()
     .AddWorkflow<LifetimeProbeWorkflow>()
+    .AddWorkflow<ClaimCheckWorkflow>()
     .AddScopedActivities<ScopedActivities>()
     .AddSingletonActivities<SingletonActivities>()
     .AddTransientActivities<TransientActivities>()
