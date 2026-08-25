@@ -15,8 +15,13 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
 - **`AddTemporal`** — registers a lazy `ITemporalClient` plus the starter
   services, bound from the `Temporal` configuration section or an options
   delegate.
-- **`AddTemporalWorker`** — registers a hosted worker and auto-discovers
-  `[Workflow]` and `[Activity]` types by convention.
+- **`AddTemporalWorker`** — registers a hosted worker for a task queue. Types
+  are registered explicitly on the returned builder (`AddWorkflow<T>()`,
+  `AddSingletonActivities<T>()`, ...) or via opt-in auto-discovery.
+- **`AddDiscoveredTypes`** — opt-in convention-based auto-discovery of
+  `[Workflow]`/`[Activity]` types for a worker.
+- **Per-queue tuning** — `Temporal:Workers:<queue>` applies concurrency,
+  graceful-shutdown, and cache knobs to a worker.
 - **`WorkerDiscovery`** — the auto-discovery engine, exposed for custom use.
 - **`TemporalMetricsInterceptor`** — records workflow-start counts/durations to
   a `System.Diagnostics.Metrics.Meter`.
@@ -63,6 +68,14 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
       "InitialDelay": "00:00:01",
       "MaxDelay": "00:00:15"
     },
+    "Workers": {
+      "my-task-queue": {
+        "MaxConcurrentActivities": 20,
+        "MaxConcurrentWorkflowTasks": 100,
+        "GracefulShutdownTimeout": "00:00:30",
+        "MaxCachedWorkflows": 1000
+      }
+    },
     "DataConverter": {
       "Encryption": {
         "Enabled": true,
@@ -93,18 +106,36 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
     .AddTemporal(builder.Configuration)
-    .AddTemporalWorker("my-task-queue");
+    .AddTemporalWorker("my-task-queue")
+    .AddDiscoveredTypes();
 
 using var host = builder.Build();
 await host.RunAsync();
 ```
 
-### Auto-discovery and activity lifetimes
+### Registration: explicit by default, discovery opt-in
 
-`AddTemporalWorker` scans the target assembly (default: the entry assembly)
-once at registration time and registers every non-abstract `[Workflow]` class
-and every class with an `[Activity]` method. Activity classes are registered as
-`scoped` by default, and static classes as `static`. Override per type with the
+`AddTemporalWorker` registers no types by itself — add them explicitly on the
+returned builder:
+
+```csharp
+builder.Services
+    .AddTemporal(builder.Configuration)
+    .AddTemporalWorker("sql-queue").AddSingletonActivities<SqlActivities>()
+    .AddTemporalWorker("blob-queue").AddScopedActivities<BlobActivities>();
+```
+
+To opt a worker into convention-based auto-discovery, chain
+`AddDiscoveredTypes()`:
+
+```csharp
+builder.Services.AddTemporalWorker("my-task-queue").AddDiscoveredTypes();
+```
+
+This scans the target assembly (default: the entry assembly) once at
+registration time and registers every non-abstract `[Workflow]` class and every
+class with an `[Activity]` method. Activity classes are registered as `scoped`
+by default, and static classes as `static`. Override per type with the
 `[ActivityLifetime]` attribute:
 
 ```csharp
@@ -120,8 +151,13 @@ When you need a specific assembly (e.g. under `dotnet test`, where the entry
 assembly is the test host), pass marker types instead:
 
 ```csharp
-builder.Services.AddTemporalWorker("my-task-queue", typeof(MyWorkflow), typeof(MyActivities));
+builder.Services.AddTemporalWorker("my-task-queue")
+    .AddDiscoveredTypes(typeof(MyWorkflow), typeof(MyActivities));
 ```
+
+Prefer explicit registration when a worker must run only a subset of an
+assembly's types (e.g. separate queues for rate-limited vs. general
+activities) — a worker should register only what it actually runs.
 
 ### Worker versioning
 
@@ -135,6 +171,22 @@ builder.Services.AddTemporalWorker(
     "my-task-queue",
     new WorkerDeploymentOptions(new WorkerDeploymentVersion("my-app", "1.0"), useWorkerVersioning: true));
 ```
+
+### Per-queue worker tuning
+
+Tune each worker from `Temporal:Workers:<task-queue>`. Every knob is optional;
+unset values leave the SDK default untouched. An explicit `configure` delegate
+passed to `AddTemporalWorker` overrides the appsettings value.
+
+| Key | SDK property |
+| --- | --- |
+| `MaxConcurrentActivities` | `TemporalWorkerOptions.MaxConcurrentActivities` |
+| `MaxConcurrentWorkflowTasks` | `TemporalWorkerOptions.MaxConcurrentWorkflowTasks` |
+| `MaxConcurrentLocalActivities` | `TemporalWorkerOptions.MaxConcurrentLocalActivities` |
+| `MaxConcurrentActivityTaskPolls` | `TemporalWorkerOptions.MaxConcurrentActivityTaskPolls` |
+| `MaxConcurrentWorkflowTaskPolls` | `TemporalWorkerOptions.MaxConcurrentWorkflowTaskPolls` |
+| `GracefulShutdownTimeout` | `TemporalWorkerOptions.GracefulShutdownTimeout` |
+| `MaxCachedWorkflows` | `TemporalWorkerOptions.MaxCachedWorkflows` |
 
 ### Connection retry and startup wait
 

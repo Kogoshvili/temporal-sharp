@@ -1,6 +1,4 @@
 using System.Diagnostics.Metrics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -86,112 +84,68 @@ public static class TemporalServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers a hosted Temporal worker for the given task queue, applying
-    /// convention-based auto-discovery of <c>[Workflow]</c> and
-    /// <c>[Activity]</c> types in the target assembly.
+    /// Registers a hosted Temporal worker for the given task queue. No workflow
+    /// or activity types are registered automatically — register them explicitly
+    /// on the returned builder (e.g. <c>AddWorkflow{T}()</c>,
+    /// <c>AddSingletonActivities{T}()</c>), or opt into convention-based
+    /// auto-discovery with <see cref="TemporalWorkerDiscoveryExtensions.AddDiscoveredTypes"/>.
     /// </summary>
     /// <param name="builder">Builder returned by <c>AddTemporal</c>.</param>
     /// <param name="taskQueue">Task queue the worker polls.</param>
-    /// <param name="assembly">Assembly to scan for workflow/activity types. Defaults to the entry assembly.</param>
     /// <param name="configure">Optional worker options configuration.</param>
     /// <returns>The underlying Temporal worker options builder for further configuration.</returns>
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this TemporalBuilder builder,
         string taskQueue,
-        Assembly? assembly = null,
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.Services.AddTemporalWorker(taskQueue, assembly, configure);
+        return builder.Services.AddTemporalWorker(taskQueue, configure);
     }
 
     /// <summary>
     /// Registers a hosted Temporal worker that opts into worker versioning via
-    /// <see cref="WorkerDeploymentOptions"/> (public preview), applying
-    /// convention-based auto-discovery.
+    /// <see cref="WorkerDeploymentOptions"/> (public preview).
     /// </summary>
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this TemporalBuilder builder,
         string taskQueue,
         WorkerDeploymentOptions deploymentOptions,
-        Assembly? assembly = null,
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.Services.AddTemporalWorker(taskQueue, deploymentOptions, assembly, configure);
+        return builder.Services.AddTemporalWorker(taskQueue, deploymentOptions, configure);
     }
 
     /// <summary>
-    /// Registers a hosted Temporal worker that auto-discovers types from the
-    /// assemblies of the given marker types. Use this instead of the assembly
-    /// overload when the entry assembly is not the worker assembly (e.g. under
-    /// <c>dotnet test</c>).
-    /// </summary>
-    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
-        this TemporalBuilder builder,
-        string taskQueue,
-        Type markerType,
-        params Type[] markerTypes)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-        return builder.Services.AddTemporalWorker(taskQueue, markerType, markerTypes);
-    }
-
-    /// <summary>
-    /// Registers a hosted Temporal worker that auto-discovers types from the
-    /// assemblies of the given marker types and applies a worker options
-    /// configuration delegate.
-    /// </summary>
-    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
-        this TemporalBuilder builder,
-        string taskQueue,
-        Type markerType,
-        Action<TemporalWorkerServiceOptions> configure,
-        params Type[] markerTypes)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-        return builder.Services.AddTemporalWorker(taskQueue, markerType, configure, markerTypes);
-    }
-
-    /// <summary>
-    /// Registers a hosted Temporal worker for the given task queue, applying
-    /// convention-based auto-discovery of <c>[Workflow]</c> and
-    /// <c>[Activity]</c> types in the target assembly.
+    /// Registers a hosted Temporal worker for the given task queue. No workflow
+    /// or activity types are registered automatically — register them explicitly
+    /// on the returned builder, or opt into auto-discovery with
+    /// <see cref="TemporalWorkerDiscoveryExtensions.AddDiscoveredTypes"/>.
     /// </summary>
     /// <param name="services">Service collection.</param>
     /// <param name="taskQueue">Task queue the worker polls.</param>
-    /// <param name="assembly">Assembly to scan for workflow/activity types. Defaults to the entry assembly.</param>
     /// <param name="configure">Optional worker options configuration.</param>
     /// <returns>The underlying Temporal worker options builder for further configuration.</returns>
-    [MethodImpl(MethodImplOptions.NoInlining)]
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this IServiceCollection services,
         string taskQueue,
-        Assembly? assembly = null,
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrEmpty(taskQueue);
 
-        return AddTemporalWorkerCore(
-            services,
-            taskQueue,
-            deploymentOptions: null,
-            ResolveAssemblies(assembly, Array.Empty<Type>(), Assembly.GetCallingAssembly()),
-            configure);
+        return AddTemporalWorkerCore(services, taskQueue, deploymentOptions: null, configure);
     }
 
     /// <summary>
     /// Registers a hosted Temporal worker that opts into worker versioning via
-    /// <see cref="WorkerDeploymentOptions"/> (public preview), applying
-    /// convention-based auto-discovery.
+    /// <see cref="WorkerDeploymentOptions"/> (public preview).
     /// </summary>
-    [MethodImpl(MethodImplOptions.NoInlining)]
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this IServiceCollection services,
         string taskQueue,
         WorkerDeploymentOptions deploymentOptions,
-        Assembly? assembly = null,
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -203,59 +157,7 @@ public static class TemporalServiceCollectionExtensions
             throw new ArgumentException("Deployment version must be set when using worker versioning.", nameof(deploymentOptions));
         }
 
-        return AddTemporalWorkerCore(
-            services,
-            taskQueue,
-            deploymentOptions,
-            ResolveAssemblies(assembly, Array.Empty<Type>(), Assembly.GetCallingAssembly()),
-            configure);
-    }
-
-    /// <summary>
-    /// Registers a hosted Temporal worker that auto-discovers types from the
-    /// assemblies of the given marker types.
-    /// </summary>
-    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
-        this IServiceCollection services,
-        string taskQueue,
-        Type markerType,
-        params Type[] markerTypes)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentException.ThrowIfNullOrEmpty(taskQueue);
-        ArgumentNullException.ThrowIfNull(markerType);
-
-        return AddTemporalWorkerCore(
-            services,
-            taskQueue,
-            deploymentOptions: null,
-            ResolveAssemblies(null, Prepend(markerType, markerTypes), Assembly.GetCallingAssembly()),
-            configure: null);
-    }
-
-    /// <summary>
-    /// Registers a hosted Temporal worker that auto-discovers types from the
-    /// assemblies of the given marker types and applies a worker options
-    /// configuration delegate.
-    /// </summary>
-    public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
-        this IServiceCollection services,
-        string taskQueue,
-        Type markerType,
-        Action<TemporalWorkerServiceOptions> configure,
-        params Type[] markerTypes)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentException.ThrowIfNullOrEmpty(taskQueue);
-        ArgumentNullException.ThrowIfNull(markerType);
-        ArgumentNullException.ThrowIfNull(configure);
-
-        return AddTemporalWorkerCore(
-            services,
-            taskQueue,
-            deploymentOptions: null,
-            ResolveAssemblies(null, Prepend(markerType, markerTypes), Assembly.GetCallingAssembly()),
-            configure);
+        return AddTemporalWorkerCore(services, taskQueue, deploymentOptions, configure);
     }
 
     private static TemporalBuilder RegisterCore(IServiceCollection services, TemporalOptions options)
@@ -361,34 +263,21 @@ public static class TemporalServiceCollectionExtensions
         IServiceCollection services,
         string taskQueue,
         WorkerDeploymentOptions? deploymentOptions,
-        IReadOnlyCollection<Assembly> assemblies,
         Action<TemporalWorkerServiceOptions>? configure)
     {
         var worker = services.AddHostedTemporalWorker(taskQueue, deploymentOptions);
 
-        foreach (var workflowType in assemblies.SelectMany(WorkerDiscovery.FindWorkflowTypes))
+        // Apply per-queue tuning from Temporal:Workers:<queue>. Registered before
+        // the user's configure delegate so an explicit configure wins over the
+        // appsettings values.
+        worker.ConfigureOptions().Configure<IServiceProvider>((options, provider) =>
         {
-            worker.AddWorkflow(workflowType);
-        }
-
-        foreach (var activityType in assemblies.SelectMany(WorkerDiscovery.FindActivityTypes))
-        {
-            switch (WorkerDiscovery.GetActivityLifetime(activityType))
+            var temporal = provider.GetRequiredService<IOptions<TemporalOptions>>().Value;
+            if (temporal.Workers is { } workers && workers.TryGetValue(taskQueue, out var tuning))
             {
-                case ActivityLifetime.Singleton:
-                    worker.AddSingletonActivities(activityType);
-                    break;
-                case ActivityLifetime.Transient:
-                    worker.AddTransientActivities(activityType);
-                    break;
-                case ActivityLifetime.Static:
-                    worker.AddStaticActivities(activityType);
-                    break;
-                default:
-                    worker.AddScopedActivities(activityType);
-                    break;
+                ApplyWorkerTuning(options, tuning);
             }
-        }
+        });
 
         if (configure is not null)
         {
@@ -398,30 +287,42 @@ public static class TemporalServiceCollectionExtensions
         return worker;
     }
 
-    private static IReadOnlyCollection<Assembly> ResolveAssemblies(
-        Assembly? assembly,
-        Type[] markerTypes,
-        Assembly callingAssembly)
+    private static void ApplyWorkerTuning(TemporalWorkerServiceOptions options, TemporalWorkerTuningOptions tuning)
     {
-        if (assembly is not null)
+        if (tuning.MaxConcurrentActivities is { } maxConcurrentActivities)
         {
-            return new[] { assembly };
+            options.MaxConcurrentActivities = maxConcurrentActivities;
         }
 
-        if (markerTypes.Length > 0)
+        if (tuning.MaxConcurrentWorkflowTasks is { } maxConcurrentWorkflowTasks)
         {
-            return markerTypes.Select(type => type.Assembly).Distinct().ToArray();
+            options.MaxConcurrentWorkflowTasks = maxConcurrentWorkflowTasks;
         }
 
-        return new[] { Assembly.GetEntryAssembly() ?? callingAssembly };
-    }
+        if (tuning.MaxConcurrentLocalActivities is { } maxConcurrentLocalActivities)
+        {
+            options.MaxConcurrentLocalActivities = maxConcurrentLocalActivities;
+        }
 
-    private static Type[] Prepend(Type first, Type[] rest)
-    {
-        var types = new Type[rest.Length + 1];
-        types[0] = first;
-        Array.Copy(rest, 0, types, 1, rest.Length);
-        return types;
+        if (tuning.MaxConcurrentActivityTaskPolls is { } maxConcurrentActivityTaskPolls)
+        {
+            options.MaxConcurrentActivityTaskPolls = maxConcurrentActivityTaskPolls;
+        }
+
+        if (tuning.MaxConcurrentWorkflowTaskPolls is { } maxConcurrentWorkflowTaskPolls)
+        {
+            options.MaxConcurrentWorkflowTaskPolls = maxConcurrentWorkflowTaskPolls;
+        }
+
+        if (tuning.GracefulShutdownTimeout is { } gracefulShutdownTimeout)
+        {
+            options.GracefulShutdownTimeout = gracefulShutdownTimeout;
+        }
+
+        if (tuning.MaxCachedWorkflows is { } maxCachedWorkflows)
+        {
+            options.MaxCachedWorkflows = maxCachedWorkflows;
+        }
     }
 
     private static TemporalRuntime CreateRuntime(
@@ -481,5 +382,6 @@ public static class TemporalServiceCollectionExtensions
         target.TestServer = source.TestServer;
         target.ConnectionWait = source.ConnectionWait;
         target.DataConverter = source.DataConverter;
+        target.Workers = source.Workers;
     }
 }

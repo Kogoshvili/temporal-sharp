@@ -151,12 +151,27 @@ public class TemporalServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddTemporalWorker_MarkerTypes_AutoDiscoversAndRegistersByLifetime()
+    public void AddTemporalWorker_WithoutDiscovery_RegistersNothing()
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddTemporal();
-        services.AddTemporalWorker("queue", typeof(GreetingWorkflow));
+        services.AddTemporalWorker("queue");
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<TemporalWorkerServiceOptions>>().Get("queue");
+
+        Assert.Empty(options.Workflows);
+        Assert.Empty(options.Activities);
+    }
+
+    [Fact]
+    public void AddTemporalWorker_AddDiscoveredTypes_MarkerType_RegistersByLifetime()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddTemporal();
+        services.AddTemporalWorker("queue").AddDiscoveredTypes(typeof(GreetingWorkflow));
 
         Assert.Contains(services, d => d.ServiceType == typeof(InstanceActivity) && d.Lifetime == ServiceLifetime.Scoped);
         Assert.Contains(services, d => d.ServiceType == typeof(SingletonActivity) && d.Lifetime == ServiceLifetime.Singleton);
@@ -169,6 +184,88 @@ public class TemporalServiceCollectionExtensionsTests
         Assert.Contains(options.Workflows, w => w.Type == typeof(GreetingWorkflow));
         Assert.Contains(options.Activities, a => a.Name == "Run");
         Assert.Contains(options.Activities, a => a.Name == "StaticRun");
+    }
+
+    [Fact]
+    public void AddTemporalWorker_AddDiscoveredTypes_Assembly_RegistersTypes()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddTemporal();
+        services.AddTemporalWorker("queue").AddDiscoveredTypes(typeof(GreetingWorkflow).Assembly);
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<TemporalWorkerServiceOptions>>().Get("queue");
+
+        Assert.Contains(options.Workflows, w => w.Type == typeof(GreetingWorkflow));
+        Assert.Contains(options.Activities, a => a.Name == "Run");
+    }
+
+    [Fact]
+    public void AddTemporalWorker_Tuning_AppliesConfiguredValues()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Temporal:TargetHost"] = "host:7233",
+                ["Temporal:Workers:queue:MaxConcurrentActivities"] = "20",
+                ["Temporal:Workers:queue:GracefulShutdownTimeout"] = "00:00:30",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddTemporal(configuration);
+        services.AddTemporalWorker("queue");
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<TemporalWorkerServiceOptions>>().Get("queue");
+
+        Assert.Equal(20, options.MaxConcurrentActivities);
+        Assert.Equal(TimeSpan.FromSeconds(30), options.GracefulShutdownTimeout);
+    }
+
+    [Fact]
+    public void AddTemporalWorker_Tuning_LeavesUnsetOptionsUntouched()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Temporal:TargetHost"] = "host:7233",
+                ["Temporal:Workers:queue:MaxConcurrentActivities"] = "20",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddTemporal(configuration);
+        services.AddTemporalWorker("queue");
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<TemporalWorkerServiceOptions>>().Get("queue");
+
+        Assert.Equal(20, options.MaxConcurrentActivities);
+        Assert.Null(options.MaxConcurrentWorkflowTasks);
+        Assert.Equal(10000, options.MaxCachedWorkflows);
+    }
+
+    [Fact]
+    public void AddTemporalWorker_ConfigureOverridesTuning()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Temporal:TargetHost"] = "host:7233",
+                ["Temporal:Workers:queue:MaxConcurrentActivities"] = "20",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddTemporal(configuration);
+        services.AddTemporalWorker("queue", o => o.MaxConcurrentActivities = 5);
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<TemporalWorkerServiceOptions>>().Get("queue");
+
+        Assert.Equal(5, options.MaxConcurrentActivities);
     }
 
     [Fact]

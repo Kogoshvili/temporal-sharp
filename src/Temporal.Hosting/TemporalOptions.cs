@@ -27,4 +27,11 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     /// workers.
     /// </summary>
     public TemporalDataConverterOptions DataConverter { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets per-queue worker tuning, keyed by task queue name and bound
+    /// from <c>Temporal:Workers</c>. Applies to the worker registered for the
+    /// matching queue via <c>AddTemporalWorker</c>.
+    /// </summary>
+    public Dictionary<string, TemporalWorkerTuningOptions>? Workers { get; set; }
 }

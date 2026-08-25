@@ -17,7 +17,8 @@ var builder = Host.CreateApplicationBuilder(args);
 // Everything below is what Kogoshvili.Temporal.Hosting collapses into
 //
 //     builder.Services.AddTemporal(builder.Configuration)
-//         .AddTemporalWorker("raw-queue");
+//         .AddTemporalWorker("raw-queue")
+//         .AddDiscoveredTypes();
 //
 // No Kogoshvili.Temporal.Hosting extension is used here — only the raw SDK's
 // own Temporalio / Temporalio.Extensions.Hosting building blocks (plus the
@@ -89,7 +90,8 @@ builder.Services.AddTemporalClient()
 builder.Services.AddHostedService<RawConnectionWaiter>();
 
 // 6. Register every workflow and activity by hand, choosing each lifetime
-//    explicitly. The starter's auto-discovery + [ActivityLifetime] do this.
+//    explicitly. The starter's opt-in AddDiscoveredTypes() + [ActivityLifetime]
+//    do this for you.
 builder.Services.AddHostedTemporalWorker("raw-queue", deploymentOptions: (WorkerDeploymentOptions?)null)
     .AddWorkflow<GreetingWorkflow>()
     .AddWorkflow<LifetimeProbeWorkflow>()
