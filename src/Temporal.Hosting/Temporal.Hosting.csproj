@@ -15,6 +15,12 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <PackageReference Include="Temporalio" />
     <PackageReference Include="Temporalio.Extensions.Hosting" />
+    <PackageReference Include="Temporalio.Extensions.OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Api" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Temporal.Hosting.Tests" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,15 +7,16 @@ Demo projects showing the `Kogoshvili.Temporal` libraries in action.
 Two companion projects demonstrate the worker starter:
 
 - **`Temporal.HostingDemo.Hosted`** — uses `Kogoshvili.Temporal.Hosting`
-  (`AddTemporal` + `AddTemporalWorker`) with auto-discovery, metrics, an RPC
-  retry policy, startup connection-waiting, a shared `DataConverter`
+  (`AddTemporal` + `AddTemporalWorker`) with auto-discovery, metrics, tracing,
+  an RPC retry policy, startup connection-waiting, a shared `DataConverter`
   (encryption + claim-check), and an in-process codec server — all bound from
   `appsettings.json`.
 - **`Temporal.HostingDemo.Raw`** — the same app written against the raw
   `Temporalio` / `Temporalio.Extensions.Hosting` SDK, showing exactly what the
-  starter collapses into (`RawConnectionWaiter`, hand-rolled interceptor, manual
-  worker registration, `RpcRetryOptions`, and the `DataConverter` built by hand
-  from `Kogoshvili.Temporal.Codec`).
+  starter collapses into (`RawConnectionWaiter`, hand-rolled metrics interceptor
+  and the SDK `TracingInterceptor`, manual worker registration,
+  `RpcRetryOptions`, and the `DataConverter` built by hand from
+  `Kogoshvili.Temporal.Codec`).
 
 Both connect to a **real Temporal server** by default. Start one first:
 
@@ -63,7 +64,8 @@ skipped automatically. The Raw demo has no such toggle and always needs a server
 | `Temporal:TargetHost` | Server `host:port` to connect to. |
 | `Temporal:RpcRetry` | Connection-level RPC retry policy (intervals, multiplier, max retries/elapsed). |
 | `Temporal:ConnectionWait` | Startup wait/retry before workers poll (`Enabled`, `Timeout`, `InitialDelay`, `MaxDelay`). |
-| `Temporal:Metrics` | `System.Diagnostics.Metrics` meter + Prometheus/OTel export. |
+| `Temporal:Metrics` | `System.Diagnostics.Metrics` meter with client/activity interceptors + Prometheus/OTel Core export. |
+| `Temporal:Tracing` | Wires the SDK `TracingInterceptor` (`ActivitySource` spans) across client and workers. |
 | `Temporal:TestServer` | In-process dev server toggle (`Enabled`, `Port`). |
 | `Temporal:Tls` | mTLS / server-root CA config, from `file`, `environment`, `azureKeyVault`, or `awsSecretsManager` sources. |
 | `Temporal:DataConverter:Encryption` | AES-GCM payload encryption (`Enabled`, `Key`, `KeyId`). |

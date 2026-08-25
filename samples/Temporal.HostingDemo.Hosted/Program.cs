@@ -65,6 +65,19 @@ builder.Services.AddTemporalCodecServer(o =>
 //   Temporal:Metrics:PrometheusBindAddress = "0.0.0.0:9000"
 //   Temporal:Metrics:OpenTelemetryUrl      = "http://localhost:4317"
 //
+// Tracing (Temporal:Tracing:Enabled = true wires the SDK's TracingInterceptor
+// onto the client and every worker; spans are emitted via ActivitySource):
+//   In production, subscribe the sources with an OpenTelemetry tracer provider:
+//       builder.Services.AddOpenTelemetry().WithTracing(t => t
+//           .AddSource(TracingInterceptor.ClientSource.Name,
+//                      TracingInterceptor.WorkflowsSource.Name,
+//                      TracingInterceptor.ActivitiesSource.Name)
+//           .AddOtlpExporter());
+//   The TracePrinter below shows the same spans on the console without OTel.
+//   Temporal:Tracing:BaggageTagKeys = ["tenant"] attaches baggage.tenant as a
+//   span attribute; Temporal:Tracing:UseDefaultInterceptor = false swaps the
+//   built-in interceptor for your own (Interceptors = [...]).
+//
 // Forwarding the SDK runtime's Core (Rust bridge) logs into this app's logger:
 //   Temporal:Logging:Enabled = true (see appsettings.json). Core logs then flow
 //   through the "Temporalio.Core" category and respect Logging:LogLevel.
@@ -75,6 +88,9 @@ builder.Services.AddTemporalCodecServer(o =>
 
 // Print the workflow-start metrics recorded by the interceptor (Metrics:Enabled).
 builder.Services.AddHostedService<MetricsPrinter>();
+
+// Print the spans created by the tracing interceptor (Tracing:Enabled).
+builder.Services.AddHostedService<TracePrinter>();
 
 // Self-start the demo workflows to prove the worker is live.
 builder.Services.AddHostedService<DemoDriver>();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Kogoshvili.Temporal.Codec;
 using Kogoshvili.Temporal.HostingDemo.Raw;
@@ -8,6 +9,7 @@ using Temporalio.Client;
 using Temporalio.Client.Interceptors;
 using Temporalio.Converters;
 using Temporalio.Extensions.Hosting;
+using Temporalio.Extensions.OpenTelemetry;
 using Temporalio.Runtime;
 using Temporalio.Worker;
 
@@ -35,9 +37,11 @@ var ns = builder.Configuration["Temporal:Namespace"] ?? "default";
 //    an in-process dev server via Temporal:TestServer:Enabled = true.)
 
 // 3. Register a metrics meter + hand-rolled interceptor (what Metrics:Enabled
-//    gives you as TemporalMetricsInterceptor).
+//    gives you), and the SDK's tracing interceptor (what Tracing:Enabled gives
+//    you).
 builder.Services.AddSingleton(_ => new Meter("Temporal.HostingDemo.Raw"));
 builder.Services.AddSingleton<RawMetricsInterceptor>();
+builder.Services.AddSingleton<TracingInterceptor>();
 
 // 4. Register the client, attach the interceptor, and tune the RPC retry policy
 //    (Temporal:RpcRetry in the starter's appsettings.json).
@@ -83,6 +87,10 @@ builder.Services.AddTemporalClient()
     .Configure<RawMetricsInterceptor>((connect, interceptor) =>
         connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
             .Concat(new IClientInterceptor[] { interceptor })
+            .ToArray())
+    .Configure<TracingInterceptor>((connect, interceptor) =>
+        connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
+            .Concat(new IClientInterceptor[] { interceptor })
             .ToArray());
 
 // 5. Wait for the server before workers poll (the starter's
@@ -103,6 +111,22 @@ builder.Services.AddHostedTemporalWorker("raw-queue", deploymentOptions: (Worker
 
 // 7. Self-start the demo workflows to prove the worker is live.
 builder.Services.AddHostedService<DemoDriver>();
+
+// 8. Observe the tracing interceptor's spans with a plain ActivityListener (the
+//    starter's Tracing:Enabled wires the same TracingInterceptor). In production,
+//    subscribe the sources with an OpenTelemetry tracer provider instead.
+using var traceListener = new ActivityListener
+{
+    ShouldListenTo = source =>
+        source.Name == TracingInterceptor.ClientSource.Name
+        || source.Name == TracingInterceptor.WorkflowsSource.Name
+        || source.Name == TracingInterceptor.ActivitiesSource.Name,
+    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+    SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+    ActivityStopped = activity =>
+        Console.WriteLine($"[trace] {activity.OperationName} ({activity.Duration.TotalMilliseconds:0.##} ms)"),
+};
+ActivitySource.AddActivityListener(traceListener);
 
 using var host = builder.Build();
 await host.RunAsync();

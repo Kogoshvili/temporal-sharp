@@ -12,6 +12,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Temporalio" />
     <PackageReference Include="Temporalio.Extensions.Hosting" />
+    <PackageReference Include="Temporalio.Extensions.OpenTelemetry" />
   </ItemGroup>
 
   <ItemGroup>

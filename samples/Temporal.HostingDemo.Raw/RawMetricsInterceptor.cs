@@ -7,8 +7,9 @@ namespace Kogoshvili.Temporal.HostingDemo.Raw;
 
 /// <summary>
 /// Hand-rolled client interceptor that records workflow-start counts and
-/// durations. The starter ships this as <c>TemporalMetricsInterceptor</c> and
-/// wires it up for you via <c>Metrics:Enabled</c>.
+/// durations. The starter ships an equivalent built-in interceptor (internal)
+/// and wires it up for you via <c>Metrics:Enabled</c>, expanding it to signal,
+/// query, update, cancel, and terminate operations plus activity executions.
 /// </summary>
 public sealed class RawMetricsInterceptor : IClientInterceptor
 {

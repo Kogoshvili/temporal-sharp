@@ -6,9 +6,10 @@ using Microsoft.Extensions.Options;
 namespace Kogoshvili.Temporal.HostingDemo.Hosted;
 
 /// <summary>
-/// A tiny <see cref="MeterListener"/> that prints the workflow-start metrics
-/// recorded by <see cref="TemporalMetricsInterceptor"/> to the console, so the
-/// starter's metrics feature is visible without Prometheus/OpenTelemetry.
+/// A tiny <see cref="MeterListener"/> that prints the client/activity metrics
+/// recorded by the starter's built-in metrics interceptor
+/// (<c>Metrics:Enabled</c>) to the console, so the metrics feature is visible
+/// without Prometheus/OpenTelemetry.
 /// </summary>
 public sealed class MetricsPrinter : IHostedService
 {

@@ -12,6 +12,9 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     /// <summary>Gets or sets metrics configuration.</summary>
     public TemporalMetricsOptions Metrics { get; set; } = new();
 
+    /// <summary>Gets or sets tracing configuration.</summary>
+    public TemporalTracingOptions Tracing { get; set; } = new();
+
     /// <summary>Gets or sets Core log-forwarding configuration.</summary>
     public TemporalLoggingOptions Logging { get; set; } = new();
 

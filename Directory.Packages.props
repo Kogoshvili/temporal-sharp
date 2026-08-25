@@ -26,6 +26,8 @@
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <PackageVersion Include="Temporalio" Version="1.18.0" />
     <PackageVersion Include="Temporalio.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="Temporalio.Extensions.OpenTelemetry" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Api" Version="1.16.0" />
     <PackageVersion Include="Google.Protobuf" Version="3.26.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.30" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.30" />

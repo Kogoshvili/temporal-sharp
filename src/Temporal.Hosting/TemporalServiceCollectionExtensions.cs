@@ -177,7 +177,26 @@ public static class TemporalServiceCollectionExtensions
         if (options.Metrics.Enabled)
         {
             services.AddSingleton(sp => new Meter(sp.GetRequiredService<IOptions<TemporalOptions>>().Value.Metrics.MeterName));
-            services.AddSingleton<TemporalMetricsInterceptor>();
+            if (options.Metrics.UseDefaultInterceptor)
+            {
+                services.AddSingleton(sp =>
+                {
+                    var temporal = sp.GetRequiredService<IOptions<TemporalOptions>>().Value;
+                    return new TemporalMetricsInterceptor(
+                        sp.GetRequiredService<Meter>(),
+                        temporal.Namespace,
+                        temporal.Metrics.BaggageTagKeys);
+                });
+            }
+        }
+
+        if (options.Tracing.Enabled && options.Tracing.UseDefaultInterceptor)
+        {
+            services.AddSingleton(sp =>
+            {
+                var temporal = sp.GetRequiredService<IOptions<TemporalOptions>>().Value;
+                return new BaggageTracingInterceptor(temporal.Tracing.BaggageTagKeys);
+            });
         }
 
         if (needsRuntime)
@@ -219,9 +238,22 @@ public static class TemporalServiceCollectionExtensions
             services.AddSingleton<ITemporalClient>(sp =>
             {
                 var connect = sp.GetRequiredService<TemporalClientConnectOptions>();
-                if (sp.GetService<TemporalMetricsInterceptor>() is { } interceptor)
+                var interceptors = new List<IClientInterceptor>();
+                if (options.Metrics.Enabled && options.Metrics.UseDefaultInterceptor
+                    && sp.GetService<TemporalMetricsInterceptor>() is { } metrics)
                 {
-                    connect.Interceptors = new IClientInterceptor[] { interceptor };
+                    interceptors.Add(metrics);
+                }
+
+                if (options.Tracing.Enabled && options.Tracing.UseDefaultInterceptor
+                    && sp.GetService<BaggageTracingInterceptor>() is { } tracing)
+                {
+                    interceptors.Add(tracing);
+                }
+
+                if (interceptors.Count > 0)
+                {
+                    connect.Interceptors = interceptors.ToArray();
                 }
 
                 return TemporalClient.CreateLazy(connect);
@@ -238,12 +270,14 @@ public static class TemporalServiceCollectionExtensions
 
             client.Configure(connect => connect.DataConverter = dataConverter);
 
-            if (options.Metrics.Enabled)
+            if (options.Metrics.Enabled && options.Metrics.UseDefaultInterceptor)
             {
-                client.Configure<TemporalMetricsInterceptor>((connect, interceptor) =>
-                    connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
-                        .Concat(new IClientInterceptor[] { interceptor })
-                        .ToArray());
+                client.Configure<TemporalMetricsInterceptor>(AppendClientInterceptor);
+            }
+
+            if (options.Tracing.Enabled && options.Tracing.UseDefaultInterceptor)
+            {
+                client.Configure<BaggageTracingInterceptor>(AppendClientInterceptor);
             }
 
             // Resolve cloud TLS certificate material before the connection waiter
@@ -365,6 +399,14 @@ public static class TemporalServiceCollectionExtensions
         }));
     }
 
+    private static void AppendClientInterceptor<T>(TemporalClientConnectOptions connect, T interceptor)
+        where T : IClientInterceptor
+    {
+        connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
+            .Concat(new IClientInterceptor[] { interceptor })
+            .ToArray();
+    }
+
     private static void Validate(TemporalOptions options)
     {
         TemporalOptionsValidation.Validate(options);
@@ -378,6 +420,7 @@ public static class TemporalServiceCollectionExtensions
         target.Tls = source.Tls;
         target.RpcRetry = source.RpcRetry;
         target.Metrics = source.Metrics;
+        target.Tracing = source.Tracing;
         target.Logging = source.Logging;
         target.TestServer = source.TestServer;
         target.ConnectionWait = source.ConnectionWait;

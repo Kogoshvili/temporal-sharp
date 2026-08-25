@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Temporalio.Client;
 using Temporalio.Extensions.Hosting;
+using Temporalio.Extensions.OpenTelemetry;
 
 namespace Kogoshvili.Temporal.Hosting.Tests;
 
@@ -56,6 +57,65 @@ public class TemporalServiceCollectionExtensionsTests
         });
 
         Assert.Contains(services, d => d.ServiceType == typeof(Temporalio.Runtime.TemporalRuntime));
+    }
+
+    [Fact]
+    public void AddTemporal_MetricsUseDefaultInterceptorFalse_RegistersMeterWithoutInterceptor()
+    {
+        var services = new ServiceCollection();
+        services.AddTemporal(new TemporalOptions
+        {
+            Metrics = new TemporalMetricsOptions { Enabled = true, UseDefaultInterceptor = false },
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetService<Meter>());
+        Assert.Null(provider.GetService<TemporalMetricsInterceptor>());
+        Assert.Null(provider.GetRequiredService<IOptions<TemporalClientConnectOptions>>().Value.Interceptors);
+    }
+
+    [Fact]
+    public void AddTemporal_TracingEnabled_RegistersTracingInterceptorOnClient()
+    {
+        var services = new ServiceCollection();
+        services.AddTemporal(new TemporalOptions
+        {
+            Tracing = new TemporalTracingOptions { Enabled = true },
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetService<BaggageTracingInterceptor>());
+        var connect = provider.GetRequiredService<IOptions<TemporalClientConnectOptions>>().Value;
+        Assert.NotNull(connect.Interceptors);
+        Assert.Contains(connect.Interceptors!, i => i is TracingInterceptor);
+    }
+
+    [Fact]
+    public void AddTemporal_TracingUseDefaultInterceptorFalse_DoesNotWireInterceptor()
+    {
+        var services = new ServiceCollection();
+        services.AddTemporal(new TemporalOptions
+        {
+            Tracing = new TemporalTracingOptions { Enabled = true, UseDefaultInterceptor = false },
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Null(provider.GetService<BaggageTracingInterceptor>());
+        Assert.Null(provider.GetRequiredService<IOptions<TemporalClientConnectOptions>>().Value.Interceptors);
+    }
+
+    [Fact]
+    public void AddTemporal_TracingDisabled_RegistersNoTracingInterceptor()
+    {
+        var services = new ServiceCollection();
+        services.AddTemporal();
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Null(provider.GetService<BaggageTracingInterceptor>());
     }
 
     [Fact]
