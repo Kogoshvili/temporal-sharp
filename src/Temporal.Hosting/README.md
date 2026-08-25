@@ -49,6 +49,10 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
       "PrometheusBindAddress": null,
       "OpenTelemetryUrl": null
     },
+    "Logging": {
+      "Enabled": true,
+      "Category": "Temporalio.Core"
+    },
     "TestServer": {
       "Enabled": true,
       "Port": 0
@@ -190,6 +194,26 @@ SDK's runtime metrics, set either `Metrics:PrometheusBindAddress`
 (e.g. `0.0.0.0:9000`) or `Metrics:OpenTelemetryUrl`
 (e.g. `http://localhost:4317`), which configures the underlying
 `TemporalRuntime` telemetry.
+
+### Core log forwarding
+
+`Logging:Enabled` forwards the SDK runtime's Core (Rust bridge) logs into the
+application's `ILogger` pipeline under `Logging:Category` (default
+`Temporalio.Core`), so they respect the usual `Logging:LogLevel` filters:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Temporalio.Core": "Debug"
+    }
+  }
+}
+```
+
+This requires an `ILoggerFactory` in the container (present by default in a
+generic host) and creates a dedicated `TemporalRuntime`. It is opt-in because
+constructing a runtime spawns its own Core thread pool.
 
 ### Payload codecs (DataConverter)
 

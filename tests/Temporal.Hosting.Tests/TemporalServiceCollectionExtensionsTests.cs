@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Temporalio.Client;
@@ -278,6 +279,55 @@ public class TemporalServiceCollectionExtensionsTests
         Assert.True(result.Failed);
     }
 
+    [Fact]
+    public void AddTemporal_LoggingEnabled_RegistersRuntime()
+    {
+        var services = new ServiceCollection();
+        services.AddTemporal(new TemporalOptions { Logging = new TemporalLoggingOptions { Enabled = true } });
+
+        Assert.Contains(services, d => d.ServiceType == typeof(Temporalio.Runtime.TemporalRuntime));
+    }
+
+    [Fact]
+    public void AddTemporal_LoggingEnabled_ForwardsCoreLogger()
+    {
+        var services = new ServiceCollection();
+        var factory = new CapturingLoggerFactory();
+        services.AddSingleton<ILoggerFactory>(factory);
+        services.AddTemporal(new TemporalOptions { Logging = new TemporalLoggingOptions { Enabled = true } });
+
+        using var provider = services.BuildServiceProvider();
+        var runtime = provider.GetService<Temporalio.Runtime.TemporalRuntime>();
+
+        Assert.NotNull(runtime);
+        Assert.Contains("Temporalio.Core", factory.Categories);
+    }
+
+    [Fact]
+    public void AddTemporal_LoggingEnabled_NoLoggerFactory_Throws()
+    {
+        var services = new ServiceCollection();
+        services.AddTemporal(new TemporalOptions { Logging = new TemporalLoggingOptions { Enabled = true } });
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Throws<InvalidOperationException>(() => provider.GetService<Temporalio.Runtime.TemporalRuntime>());
+    }
+
+    [Fact]
+    public void AddTemporal_LoggingEnabled_SetsClientRuntimeAndLoggerFactory()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddTemporal(new TemporalOptions { Logging = new TemporalLoggingOptions { Enabled = true } });
+
+        using var provider = services.BuildServiceProvider();
+        var connectOptions = provider.GetRequiredService<IOptions<TemporalClientConnectOptions>>().Value;
+
+        Assert.NotNull(connectOptions.Runtime);
+        Assert.NotSame(NullLoggerFactory.Instance, connectOptions.LoggerFactory);
+    }
+
     private static IEnumerable<Exception> Flatten(Exception exception)
     {
         if (exception is AggregateException aggregate)
@@ -375,5 +425,41 @@ public class TemporalTestServerServiceTests
 
         await service.StartAsync(CancellationToken.None);
         await service.StopAsync(CancellationToken.None);
+    }
+}
+
+internal sealed class CapturingLoggerFactory : ILoggerFactory, ILoggerProvider, ILogger
+{
+    public List<string> Categories { get; } = new();
+
+    public ILogger CreateLogger(string categoryName)
+    {
+        Categories.Add(categoryName);
+        return this;
+    }
+
+    public void AddProvider(ILoggerProvider provider)
+    {
+    }
+
+    public void Dispose()
+    {
+    }
+
+    IDisposable ILogger.BeginScope<TState>(TState state) => NullDisposable.Instance;
+
+    bool ILogger.IsEnabled(LogLevel logLevel) => true;
+
+    void ILogger.Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+    }
+
+    private sealed class NullDisposable : IDisposable
+    {
+        public static readonly NullDisposable Instance = new();
+
+        public void Dispose()
+        {
+        }
     }
 }

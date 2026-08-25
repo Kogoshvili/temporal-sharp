@@ -3,6 +3,8 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Temporalio.Client;
 using Temporalio.Client.Interceptors;
@@ -260,7 +262,11 @@ public static class TemporalServiceCollectionExtensions
     {
         services.AddSingleton<IValidateOptions<TemporalOptions>, TemporalOptionsValidator>();
 
-        var runtime = options.Metrics.Enabled ? CreateRuntime(options.Metrics) : null;
+        var exportMetrics = !string.IsNullOrWhiteSpace(options.Metrics.PrometheusBindAddress)
+            || !string.IsNullOrWhiteSpace(options.Metrics.OpenTelemetryUrl);
+        var forwardLogs = options.Logging.Enabled;
+        var needsRuntime = exportMetrics || forwardLogs;
+
         var payloadCodec = TemporalDataConverterFactory.BuildCodec(options.DataConverter);
         var dataConverter = payloadCodec is null
             ? DataConverter.Default
@@ -272,9 +278,9 @@ public static class TemporalServiceCollectionExtensions
             services.AddSingleton<TemporalMetricsInterceptor>();
         }
 
-        if (runtime is not null)
+        if (needsRuntime)
         {
-            services.AddSingleton(runtime);
+            services.AddSingleton(sp => CreateRuntime(options.Metrics, options.Logging, sp.GetService<ILoggerFactory>()));
         }
 
         // The payload codec is registered as a singleton so a codec server hosted
@@ -291,13 +297,21 @@ public static class TemporalServiceCollectionExtensions
             // and the test-server service. The lazy connection reads TargetHost on
             // first connect, so the service can fill it in once the dev server has
             // bound an (ephemeral) port.
-            var testConnectOptions = new TemporalClientConnectOptions
+            services.AddSingleton(sp =>
             {
-                Namespace = options.Namespace,
-                Runtime = runtime,
-                DataConverter = dataConverter,
-            };
-            services.AddSingleton(testConnectOptions);
+                var connect = new TemporalClientConnectOptions
+                {
+                    Namespace = options.Namespace,
+                    DataConverter = dataConverter,
+                };
+                if (needsRuntime)
+                {
+                    connect.Runtime = sp.GetRequiredService<TemporalRuntime>();
+                }
+
+                connect.LoggerFactory = sp.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
+                return connect;
+            });
             services.AddSingleton<TemporalTestServerService>();
             services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TemporalTestServerService>());
             services.AddSingleton<ITemporalClient>(sp =>
@@ -315,9 +329,9 @@ public static class TemporalServiceCollectionExtensions
         {
             var client = services.AddTemporalClient();
             client.Configure(connect => ClientOptionsFactory.Apply(connect, options));
-            if (runtime is not null)
+            if (needsRuntime)
             {
-                client.Configure(connect => connect.Runtime = runtime);
+                client.Configure<TemporalRuntime>((connect, runtime) => connect.Runtime = runtime);
             }
 
             client.Configure(connect => connect.DataConverter = dataConverter);
@@ -410,9 +424,12 @@ public static class TemporalServiceCollectionExtensions
         return types;
     }
 
-    private static TemporalRuntime? CreateRuntime(TemporalMetricsOptions metrics)
+    private static TemporalRuntime CreateRuntime(
+        TemporalMetricsOptions metrics,
+        TemporalLoggingOptions logging,
+        ILoggerFactory? loggerFactory)
     {
-        MetricsOptions metricsOptions;
+        MetricsOptions? metricsOptions = null;
         if (!string.IsNullOrWhiteSpace(metrics.PrometheusBindAddress))
         {
             metricsOptions = new MetricsOptions(new PrometheusOptions(metrics.PrometheusBindAddress));
@@ -421,12 +438,30 @@ public static class TemporalServiceCollectionExtensions
         {
             metricsOptions = new MetricsOptions(new OpenTelemetryOptions(metrics.OpenTelemetryUrl));
         }
-        else
+
+        LoggingOptions? loggingOptions = null;
+        if (logging.Enabled)
         {
-            return null;
+            if (loggerFactory is null)
+            {
+                throw new InvalidOperationException(
+                    "Temporal:Logging is enabled but no ILoggerFactory is registered in the service container.");
+            }
+
+            loggingOptions = new LoggingOptions
+            {
+                Forwarding = new LogForwardingOptions
+                {
+                    Logger = loggerFactory.CreateLogger(logging.Category),
+                },
+            };
         }
 
-        return new TemporalRuntime(new TemporalRuntimeOptions(new TelemetryOptions { Metrics = metricsOptions }));
+        return new TemporalRuntime(new TemporalRuntimeOptions(new TelemetryOptions
+        {
+            Metrics = metricsOptions,
+            Logging = loggingOptions,
+        }));
     }
 
     private static void Validate(TemporalOptions options)
@@ -442,6 +477,7 @@ public static class TemporalServiceCollectionExtensions
         target.Tls = source.Tls;
         target.RpcRetry = source.RpcRetry;
         target.Metrics = source.Metrics;
+        target.Logging = source.Logging;
         target.TestServer = source.TestServer;
         target.ConnectionWait = source.ConnectionWait;
         target.DataConverter = source.DataConverter;

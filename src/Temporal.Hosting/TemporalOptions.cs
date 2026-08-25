@@ -12,6 +12,9 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     /// <summary>Gets or sets metrics configuration.</summary>
     public TemporalMetricsOptions Metrics { get; set; } = new();
 
+    /// <summary>Gets or sets Core log-forwarding configuration.</summary>
+    public TemporalLoggingOptions Logging { get; set; } = new();
+
     /// <summary>Gets or sets the test-server toggle.</summary>
     public TemporalTestServerOptions TestServer { get; set; } = new();
 
