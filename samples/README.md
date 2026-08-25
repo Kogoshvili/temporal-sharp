@@ -65,7 +65,7 @@ skipped automatically. The Raw demo has no such toggle and always needs a server
 | `Temporal:ConnectionWait` | Startup wait/retry before workers poll (`Enabled`, `Timeout`, `InitialDelay`, `MaxDelay`). |
 | `Temporal:Metrics` | `System.Diagnostics.Metrics` meter + Prometheus/OTel export. |
 | `Temporal:TestServer` | In-process dev server toggle (`Enabled`, `Port`). |
-| `Temporal:Tls` | mTLS / server-root CA configuration. |
+| `Temporal:Tls` | mTLS / server-root CA config, from `file`, `environment`, `azureKeyVault`, or `awsSecretsManager` sources. |
 | `Temporal:DataConverter:Encryption` | AES-GCM payload encryption (`Enabled`, `Key`, `KeyId`). |
 | `Temporal:DataConverter:ClaimCheck` | Large-payload offload (`Enabled`, `ThresholdBytes`, `Directory`). |
 

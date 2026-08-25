@@ -16,15 +16,7 @@ internal static class TemporalOptionsValidation
                 "Temporal:TestServer:Port must be zero or greater.");
         }
 
-        if (options.Tls is { Disabled: true } tls &&
-            (tls.Domain is not null ||
-             tls.ServerRootCACertPath is not null ||
-             tls.ClientCertPath is not null ||
-             tls.ClientPrivateKeyPath is not null))
-        {
-            throw new InvalidOperationException(
-                "TLS cannot be disabled while certificate options are configured.");
-        }
+        options.Tls?.Validate();
 
         if (options.DataConverter.Encryption.Enabled)
         {

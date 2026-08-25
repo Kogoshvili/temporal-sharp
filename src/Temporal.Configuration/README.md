@@ -8,7 +8,11 @@ all behave the same way.
 ## What it provides
 
 - **`TemporalConnectionOptions`** — target host, namespace, API key, TLS.
-- **`TemporalTlsOptions`** — mTLS certificate paths and expected domain.
+- **`TemporalTlsOptions`** — mTLS certificates from files, environment
+  variables, or (via `Kogoshvili.Temporal.Cloud`) Azure Key Vault / AWS Secrets
+  Manager.
+- **`ITlsCertificateSource`** / **`TlsCertificateMaterial`** — pluggable
+  certificate resolution.
 - **`ClientOptionsFactory`** — maps options to `TemporalClientConnectOptions`.
 - **`TemporalConfig`** — loads options from `appsettings.json` + `Temporal__*`
   environment variables and builds an authenticated `ITemporalClient`.
@@ -33,6 +37,51 @@ all behave the same way.
 Environment variables override the file (`Temporal__TargetHost`,
 `Temporal__Namespace`, `Temporal__ApiKey`, `Temporal__Tls__ClientCertPath`,
 …).
+
+## TLS sources
+
+`TemporalTlsOptions.Source` selects where certificates come from:
+
+- **`file`** (default) — PEM files at `ServerRootCACertPath`, `ClientCertPath`,
+  and `ClientPrivateKeyPath`.
+- **`environment`** — inline `ServerRootCACert`/`ClientCert`/`ClientPrivateKey`
+  strings (base64 or raw PEM), typically injected as environment variables:
+
+  ```json
+  {
+    "Temporal": {
+      "Tls": {
+        "Source": "environment",
+        "ClientCert": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t…",
+        "ClientPrivateKey": "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0t…"
+      }
+    }
+  }
+  ```
+
+- **`azureKeyVault`** / **`awsSecretsManager`** — fetched at startup by the
+  hosting starter. These are not resolved by `ClientOptionsFactory` (which is
+  synchronous); register the matching source from `Kogoshvili.Temporal.Cloud`
+  and let `TemporalCertificateLoader` apply it.
+
+```csharp
+// Register the cloud source, then select it in config:
+builder.Services.AddAzureKeyVaultCertificateSource();
+```
+
+```json
+{
+  "Temporal": {
+    "Tls": {
+      "Source": "azureKeyVault",
+      "AzureKeyVault": {
+        "VaultUri": "https://my-vault.vault.azure.net",
+        "CertificateName": "temporal-client"
+      }
+    }
+  }
+}
+```
 
 ## Usage
 

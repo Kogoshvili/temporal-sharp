@@ -330,6 +330,11 @@ public static class TemporalServiceCollectionExtensions
                         .ToArray());
             }
 
+            // Resolve cloud TLS certificate material before the connection waiter
+            // connects (and therefore before any worker polls). Registered before
+            // the waiter so hosted services start in the right order.
+            services.AddSingleton<IHostedService, TemporalCertificateLoader>();
+
             // Wait for the server to be reachable before workers poll. Registered
             // here (during AddTemporal) so it starts before any worker service.
             services.AddSingleton<IHostedService, TemporalConnectionWaiter>();

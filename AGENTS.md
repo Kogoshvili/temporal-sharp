@@ -19,17 +19,18 @@ Eight `src/` projects (two tools + six library packages):
 - `Temporal.Hosting` — generic-host worker starter over `Temporalio.Extensions.Hosting` (auto-discovery, metrics, test-server toggle, shared `DataConverter`).
 - `Temporal.Codec` — composable `IPayloadCodec`s (encryption, claim-check, chains); no cloud deps.
 - `Temporal.CodecServer` — ASP.NET Core library mapping `/encode`/`/decode` with JWT-bearer + OIDC auth.
-- `Temporal.Cloud` — Azure/AWS credential resolution and Blob/S3 claim-check stores.
+- `Temporal.Cloud` — Azure/AWS credential resolution, Blob/S3 claim-check stores, and Azure Key Vault / AWS Secrets Manager TLS certificate sources.
 - `Temporal.Testing` — replay/regression harness (`ReplayHarness`, `ReplayResult`, `Snapshot`) built on `WorkflowReplayer`.
 
 Only `Temporal.Analyzers` and `Temporal.Cli` are packed/published by CI; the others are packable but not published. All are net8.0 except the analyzer.
 
-Tests (seven projects under `tests/`):
+Tests (eight projects under `tests/`):
 - `Temporal.Analyzers.Tests` — Roslyn analyzer-testing framework; injects stub Temporal types by name from `TestStubs.cs` and never references the real SDK.
 - `Temporal.Cli.Tests` — docs/preset generation, call graph, topology.
 - `Temporal.{Configuration,Hosting,Testing}.Tests` — exercise the wrappers against the real `Temporalio` SDK.
 - `Temporal.Codec.Tests` — codec round-trips and store behavior.
 - `Temporal.CodecServer.Tests` — HTTP protocol, CORS, and auth via `TestHost`.
+- `Temporal.Cloud.Tests` — PFX→PEM conversion and certificate-source behavior.
 
 `samples/Temporal.SampleApp` intentionally violates rules; its `.editorconfig` downgrades every rule to `warning` so the smoke-test build succeeds. `samples/Temporal.HostingDemo.{Raw,Hosted}` are standalone examples outside CI.
 
@@ -52,3 +53,18 @@ Tests (seven projects under `tests/`):
 ## Release
 
 `release.yml` (manual, version input) updates `CHANGELOG.md` via `scripts/update-changelog.sh`, then commits+tags `v<version>`; `publish.yml` builds/tests/packs and pushes to NuGet (OIDC) on the tag. The changelog update and tag are one commit to keep MinVer's derived version correct.
+
+
+<!-- headroom:memory-instructions -->
+## Memory
+
+Use the `headroom_memory` MCP server for persistent cross-session knowledge.
+
+**Before** answering questions about prior decisions, conventions, project context,
+architecture, user preferences, org info, codenames, debugging history, or anything
+from past sessions — call `memory_search` first.
+
+**After** making durable decisions, discovering conventions, or learning important
+facts — call `memory_save` to persist them for future sessions.
+
+Memory is your first source of truth for anything not visible in the current conversation.

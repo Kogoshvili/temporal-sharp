@@ -145,6 +145,43 @@ retrying with exponential backoff (`InitialDelay` → `MaxDelay`) until success 
 default and ignored when the test server is used. Options are re-validated on
 every configuration reload via `IValidateOptions<TemporalOptions>`.
 
+### TLS sources
+
+`Temporal:Tls:Source` selects where client certificates come from:
+
+- **`file`** (default) — PEM files at `Tls:ClientCertPath`,
+  `Tls:ClientPrivateKeyPath`, and `Tls:ServerRootCACertPath`.
+- **`environment`** — inline `Tls:ClientCert` / `Tls:ClientPrivateKey` /
+  `Tls:ServerRootCACert` strings (base64 or raw PEM), typically injected as
+  environment variables (`Temporal__Tls__ClientCert=…`).
+- **`azureKeyVault`** / **`awsSecretsManager`** — fetched asynchronously at
+  startup by `TemporalCertificateLoader` before the connection waiter and
+  workers start. Register the source from `Kogoshvili.Temporal.Cloud` and
+  configure its section:
+
+```csharp
+builder.Services.AddAzureKeyVaultCertificateSource(); // or AddAwsSecretsManagerCertificateSource()
+```
+
+```json
+{
+  "Temporal": {
+    "Tls": {
+      "Source": "azureKeyVault",
+      "AzureKeyVault": {
+        "VaultUri": "https://my-vault.vault.azure.net",
+        "CertificateName": "temporal-client"
+      }
+    }
+  }
+}
+```
+
+Azure Key Vault stores certificates as PFX; `AzureKeyVaultCertificateSource`
+converts them to the PEM form the SDK requires. The `file` and `environment`
+sources are resolved synchronously by `ClientOptionsFactory`, so they also work
+with the `temporal-sharp` CLI and the testing harness.
+
 ### Metrics
 
 `Metrics:Enabled` registers a `System.Diagnostics.Metrics.Meter` and a client

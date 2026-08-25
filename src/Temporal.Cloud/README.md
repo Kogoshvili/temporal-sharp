@@ -13,6 +13,54 @@ claim-check payload stores backed by Azure Blob Storage and Amazon S3. Pair with
 - **`AzureBlobClaimCheckStore`** — an `IClaimCheckStore` over an Azure Blob
   container.
 - **`S3ClaimCheckStore`** — an `IClaimCheckStore` over an Amazon S3 bucket.
+- **`AzureKeyVaultCertificateSource`** — resolves the mTLS client certificate
+  from an Azure Key Vault PFX secret, converting it to PEM.
+- **`AwsSecretsManagerCertificateSource`** — resolves the mTLS client
+  certificate and key from AWS Secrets Manager.
+
+## TLS certificate sources
+
+For Temporal Cloud mTLS, register a cloud certificate source and select it with
+`Temporal:Tls:Source`:
+
+```csharp
+builder.Services.AddAzureKeyVaultCertificateSource();
+// or: builder.Services.AddAwsSecretsManagerCertificateSource();
+```
+
+```json
+{
+  "Temporal": {
+    "Tls": {
+      "Source": "azureKeyVault",
+      "AzureKeyVault": {
+        "VaultUri": "https://my-vault.vault.azure.net",
+        "CertificateName": "temporal-client"
+      }
+    }
+  }
+}
+```
+
+For AWS:
+
+```json
+{
+  "Temporal": {
+    "Tls": {
+      "Source": "awsSecretsManager",
+      "AwsSecretsManager": {
+        "Region": "us-east-1",
+        "CertificateSecretId": "temporal-client-cert",
+        "PrivateKeySecretId": "temporal-client-key"
+      }
+    }
+  }
+}
+```
+
+The hosting starter (`Kogoshvili.Temporal.Hosting`) resolves these at startup via
+`TemporalCertificateLoader`.
 
 ## Usage
 
