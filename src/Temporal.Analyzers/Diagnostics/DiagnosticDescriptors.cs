@@ -138,7 +138,7 @@ internal static class DiagnosticDescriptors
         DeterminismCategory,
         "Workflow code uses raw task scheduling",
         "'{0}' runs on the non-deterministic task scheduler; use Workflow.WhenAnyAsync or CancellationTokenSource.Cancel instead",
-        "Task.WhenAny<T> and CancellationTokenSource.CancelAsync schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAnyAsync and use .Cancel() instead of CancellationTokenSource.CancelAsync().",
+        "The enumerable and typed-result overloads of Task.WhenAny<T>, and CancellationTokenSource.CancelAsync, schedule continuations on the default TaskScheduler rather than the deterministic workflow scheduler. Prefer Workflow.WhenAnyAsync and use .Cancel() instead of CancellationTokenSource.CancelAsync().",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor TaskWhenAll = Create(
@@ -233,7 +233,7 @@ internal static class DiagnosticDescriptors
         DeterminismCategory,
         "Workflow time compared to a persisted value",
         "'{0}' compares workflow time to a persisted timestamp; use a workflow timer for deadlines",
-        "Workflow.UtcNow advances with workflow history, not wall-clock time, so it cannot test whether a real-world deadline has passed. Use a workflow timer, or persist the comparison time as workflow state.",
+        "Workflow.UtcNow returns the wall-clock time of the last workflow task, so it does not advance while the workflow is waiting and cannot test whether a real-world deadline has passed. Use a workflow timer, or persist the comparison time as workflow state.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor PollingLoop = Create(
@@ -455,7 +455,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Continue-as-new invoked inside an update or signal handler",
         "'{0}' is invoked inside a [WorkflowUpdate]/[WorkflowSignal] handler; continue-as-new must be raised from the main workflow method",
-        "Continue-as-new replaces the workflow execution and is only valid from the main workflow method. Raising it from an update or signal handler is rejected at run time.",
+        "Continue-as-new replaces the workflow execution and is only valid from the main workflow method. Raising it from an update or signal handler is unsupported and can interrupt in-flight work.",
         severity: DiagnosticSeverity.Error);
 
     internal static readonly DiagnosticDescriptor ClientOrWorkerTypeInWorkflow = Create(
@@ -495,7 +495,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Signal handler schedules workflow commands",
         "'{0}' is called inside a signal handler; signal handlers should return quickly without scheduling commands",
-        "Signal handlers are invoked inline during workflow execution; scheduling activities, child workflows, or delays from them keeps the workflow blocked.",
+        "Signal handlers are invoked inline during workflow execution; scheduling activities, child workflows, or delays from them can keep the workflow blocked. Prefer setting state in the handler and doing the work in the main workflow method.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor CompleteWithPendingHandlers = Create(
@@ -575,7 +575,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "Base exception thrown from an activity",
         "Activity throws a base exception; prefer Temporalio.Exceptions.ApplicationFailureException for a typed failure",
-        "Throwing a bare Exception or SystemException from an activity loses failure semantics. Prefer ApplicationFailureException or a domain exception.",
+        "Any exception thrown from an activity is converted to an ApplicationFailure. Prefer ApplicationFailureException or a domain exception so the retry policy (for example, NonRetryableErrorTypes) can distinguish it.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor WorkflowNonRetryableApplicationFailure = Create(
@@ -583,7 +583,7 @@ internal static class DiagnosticDescriptors
         SdkMisuseCategory,
         "nonRetryable set on an ApplicationFailureException thrown from a workflow",
         "Do not set nonRetryable: true on ApplicationFailureException thrown from workflow code",
-        "nonRetryable is meaningful for activities (which may be retried), not workflows. Setting it on an ApplicationFailureException thrown from workflow code is misleading and has no effect.",
+        "nonRetryable only affects activity retry behavior. Setting it on an ApplicationFailureException thrown from workflow code is misleading because a workflow that fails with an ApplicationFailureException is not retried.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor AssertInWorkflow = Create(
@@ -751,7 +751,7 @@ internal static class DiagnosticDescriptors
         BestPracticeCategory,
         "Busy-polling a worker-version flag on a timer",
         "Loop polls Workflow.TargetWorkerDeploymentVersionChanged on a timer; check it at a workflow task boundary instead",
-        "Workflow.TargetWorkerDeploymentVersionChanged only refreshes after a workflow task completes, so polling it on a timer loop burns history without speeding up the version check. Check it at a natural workflow task boundary, or signal idle workflows to wake them.",
+        "Workflow.TargetWorkerDeploymentVersionChanged only refreshes after a workflow task completes. Check it at a natural workflow task boundary; use a timer only to wake an otherwise-idle workflow.",
         severity: DiagnosticSeverity.Warning);
 
     internal static readonly DiagnosticDescriptor MissingReplayTest = Create(
