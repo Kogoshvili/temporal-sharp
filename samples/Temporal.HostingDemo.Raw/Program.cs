@@ -5,7 +5,6 @@ using Microsoft.Extensions.Hosting;
 using Temporalio.Client;
 using Temporalio.Client.Interceptors;
 using Temporalio.Extensions.Hosting;
-using Temporalio.Testing;
 using Temporalio.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -24,31 +23,34 @@ var builder = Host.CreateApplicationBuilder(args);
 var targetHost = builder.Configuration["Temporal:TargetHost"] ?? "localhost:7233";
 var ns = builder.Configuration["Temporal:Namespace"] ?? "default";
 
-// 2. Start an in-process dev server (what Temporal:TestServer:Enabled does).
-//    The starter runs a hosted service that does this, then shares the resolved
-//    ephemeral port with the lazy client automatically.
-await using var environment = await WorkflowEnvironment.StartLocalAsync(
-    new WorkflowEnvironmentStartLocalOptions { TargetHost = "127.0.0.1:0", Namespace = ns });
-targetHost = environment.Client.Connection.Options.TargetHost;
+// 2. (No in-process dev server here — this demo connects to a real server.
+//    Start one first with `temporal server start-dev`. The starter can still run
+//    an in-process dev server via Temporal:TestServer:Enabled = true.)
 
 // 3. Register a metrics meter + hand-rolled interceptor (what Metrics:Enabled
 //    gives you as TemporalMetricsInterceptor).
 builder.Services.AddSingleton(_ => new Meter("Temporal.HostingDemo.Raw"));
 builder.Services.AddSingleton<RawMetricsInterceptor>();
 
-// 4. Register the client and attach the interceptor manually.
+// 4. Register the client, attach the interceptor, and tune the RPC retry policy
+//    (Temporal:RpcRetry in the starter's appsettings.json).
 builder.Services.AddTemporalClient()
     .Configure(connect =>
     {
         connect.TargetHost = targetHost;
         connect.Namespace = ns;
+        connect.RpcRetry = new RpcRetryOptions { MaxRetries = 5 };
     })
     .Configure<RawMetricsInterceptor>((connect, interceptor) =>
         connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
             .Concat(new IClientInterceptor[] { interceptor })
             .ToArray());
 
-// 5. Register every workflow and activity by hand, choosing each lifetime
+// 5. Wait for the server before workers poll (the starter's
+//    TemporalConnectionWaiter, configured by Temporal:ConnectionWait).
+builder.Services.AddHostedService<RawConnectionWaiter>();
+
+// 6. Register every workflow and activity by hand, choosing each lifetime
 //    explicitly. The starter's auto-discovery + [ActivityLifetime] do this.
 builder.Services.AddHostedTemporalWorker("raw-queue", deploymentOptions: (WorkerDeploymentOptions?)null)
     .AddWorkflow<GreetingWorkflow>()
@@ -58,7 +60,7 @@ builder.Services.AddHostedTemporalWorker("raw-queue", deploymentOptions: (Worker
     .AddTransientActivities<TransientActivities>()
     .AddStaticActivities(typeof(StaticActivities));
 
-// 6. Self-start the demo workflows to prove the worker is live.
+// 7. Self-start the demo workflows to prove the worker is live.
 builder.Services.AddHostedService<DemoDriver>();
 
 using var host = builder.Build();

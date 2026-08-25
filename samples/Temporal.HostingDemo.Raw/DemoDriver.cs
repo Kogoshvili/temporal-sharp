@@ -22,7 +22,7 @@ public sealed class DemoDriver : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Give the worker's pollers a moment to connect to the dev server.
+        // Give the worker's pollers a moment to connect to the server.
         await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken).ConfigureAwait(false);
 
         var greetingHandle = await client.StartWorkflowAsync(

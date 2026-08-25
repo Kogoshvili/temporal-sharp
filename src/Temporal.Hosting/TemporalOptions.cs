@@ -14,4 +14,7 @@ public sealed class TemporalOptions : TemporalConnectionOptions
 
     /// <summary>Gets or sets the test-server toggle.</summary>
     public TemporalTestServerOptions TestServer { get; set; } = new();
+
+    /// <summary>Gets or sets the startup connection-wait configuration.</summary>
+    public TemporalConnectionWaitOptions ConnectionWait { get; set; } = new();
 }

@@ -18,6 +18,25 @@ public static class ClientOptionsFactory
         connect.Namespace = options.Namespace;
         connect.ApiKey = options.ApiKey;
         connect.Tls = BuildTls(options.Tls);
+        connect.RpcRetry = BuildRpcRetry(options.RpcRetry);
+    }
+
+    private static RpcRetryOptions? BuildRpcRetry(TemporalRpcRetryOptions? rpcRetry)
+    {
+        if (rpcRetry is null)
+        {
+            return null;
+        }
+
+        return new RpcRetryOptions
+        {
+            InitialInterval = rpcRetry.InitialInterval,
+            RandomizationFactor = rpcRetry.RandomizationFactor,
+            Multiplier = rpcRetry.Multiplier,
+            MaxInterval = rpcRetry.MaxInterval,
+            MaxElapsedTime = rpcRetry.MaxElapsedTime,
+            MaxRetries = rpcRetry.MaxRetries,
+        };
     }
 
     private static TlsOptions? BuildTls(TemporalTlsOptions? tls)

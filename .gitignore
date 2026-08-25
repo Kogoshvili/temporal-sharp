@@ -11,6 +11,9 @@ artifacts/
 *.userosscache
 *.sln.docstates
 
+# Serena (agent tooling)
+.serena/
+
 # Test / coverage
 TestResults/
 *.trx

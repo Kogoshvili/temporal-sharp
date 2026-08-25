@@ -257,6 +257,8 @@ public static class TemporalServiceCollectionExtensions
 
     private static TemporalBuilder RegisterCore(IServiceCollection services, TemporalOptions options)
     {
+        services.AddSingleton<IValidateOptions<TemporalOptions>, TemporalOptionsValidator>();
+
         var runtime = options.Metrics.Enabled ? CreateRuntime(options.Metrics) : null;
 
         if (options.Metrics.Enabled)
@@ -311,6 +313,10 @@ public static class TemporalServiceCollectionExtensions
                         .Concat(new IClientInterceptor[] { interceptor })
                         .ToArray());
             }
+
+            // Wait for the server to be reachable before workers poll. Registered
+            // here (during AddTemporal) so it starts before any worker service.
+            services.AddSingleton<IHostedService, TemporalConnectionWaiter>();
         }
 
         return new TemporalBuilder(services);
@@ -404,22 +410,7 @@ public static class TemporalServiceCollectionExtensions
 
     private static void Validate(TemporalOptions options)
     {
-        if (options.TestServer.Port < 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(options),
-                "Temporal:TestServer:Port must be zero or greater.");
-        }
-
-        if (options.Tls is { Disabled: true } tls &&
-            (tls.Domain is not null ||
-             tls.ServerRootCACertPath is not null ||
-             tls.ClientCertPath is not null ||
-             tls.ClientPrivateKeyPath is not null))
-        {
-            throw new InvalidOperationException(
-                "TLS cannot be disabled while certificate options are configured.");
-        }
+        TemporalOptionsValidation.Validate(options);
     }
 
     private static void CopyTo(TemporalOptions source, TemporalOptions target)
@@ -428,7 +419,9 @@ public static class TemporalServiceCollectionExtensions
         target.Namespace = source.Namespace;
         target.ApiKey = source.ApiKey;
         target.Tls = source.Tls;
+        target.RpcRetry = source.RpcRetry;
         target.Metrics = source.Metrics;
         target.TestServer = source.TestServer;
+        target.ConnectionWait = source.ConnectionWait;
     }
 }

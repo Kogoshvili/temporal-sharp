@@ -32,6 +32,14 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
     "Namespace": "default",
     "ApiKey": null,
     "Tls": null,
+    "RpcRetry": {
+      "InitialInterval": "00:00:00.100",
+      "RandomizationFactor": 0.2,
+      "Multiplier": 1.5,
+      "MaxInterval": "00:00:05",
+      "MaxElapsedTime": "00:00:10",
+      "MaxRetries": 10
+    },
     "Metrics": {
       "Enabled": true,
       "MeterName": "Temporal.Hosting",
@@ -41,6 +49,12 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
     "TestServer": {
       "Enabled": true,
       "Port": 0
+    },
+    "ConnectionWait": {
+      "Enabled": true,
+      "Timeout": "00:01:00",
+      "InitialDelay": "00:00:01",
+      "MaxDelay": "00:00:15"
     }
   }
 }
@@ -102,6 +116,19 @@ builder.Services.AddTemporalWorker(
     "my-task-queue",
     new WorkerDeploymentOptions(new WorkerDeploymentVersion("my-app", "1.0"), useWorkerVersioning: true));
 ```
+
+### Connection retry and startup wait
+
+`RpcRetry` maps onto the SDK's connection-level `RpcRetryOptions`, controlling
+the retry policy for server calls (`InitialInterval`, `Multiplier`, `MaxRetries`,
+and so on). Set it to `null` (the default) to keep the SDK defaults.
+
+`ConnectionWait` makes the starter wait for the server to be reachable before
+workers poll: on startup a hosted service connects the shared lazy client,
+retrying with exponential backoff (`InitialDelay` → `MaxDelay`) until success or
+`Timeout` (set `Timeout` to `null` to retry indefinitely). It is enabled by
+default and ignored when the test server is used. Options are re-validated on
+every configuration reload via `IValidateOptions<TemporalOptions>`.
 
 ### Metrics
 

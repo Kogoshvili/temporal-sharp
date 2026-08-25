@@ -181,8 +181,181 @@ public class TemporalServiceCollectionExtensionsTests
         Assert.Throws<ArgumentException>(() => services.AddTemporalWorker("queue", deployment));
     }
 
+    [Fact]
+    public void AddTemporal_NoTestServer_RegistersConnectionWaiter()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddTemporal();
+
+        Assert.Contains(services, d =>
+            d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(TemporalConnectionWaiter));
+    }
+
+    [Fact]
+    public void AddTemporal_TestServerEnabled_DoesNotRegisterConnectionWaiter()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddTemporal(new TemporalOptions { TestServer = new TemporalTestServerOptions { Enabled = true } });
+
+        Assert.DoesNotContain(services, d =>
+            d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(TemporalConnectionWaiter));
+    }
+
+    [Fact]
+    public void AddTemporal_Configuration_RpcRetry_ReachesConnectOptions()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Temporal:TargetHost"] = "host:7233",
+                ["Temporal:RpcRetry:MaxRetries"] = "5",
+                ["Temporal:RpcRetry:MaxElapsedTime"] = "00:00:30",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddTemporal(configuration);
+
+        using var provider = services.BuildServiceProvider();
+        var connectOptions = provider.GetRequiredService<IOptions<TemporalClientConnectOptions>>().Value;
+
+        Assert.NotNull(connectOptions.RpcRetry);
+        Assert.Equal(5, connectOptions.RpcRetry!.MaxRetries);
+        Assert.Equal(TimeSpan.FromSeconds(30), connectOptions.RpcRetry.MaxElapsedTime);
+    }
+
+    [Fact]
+    public void AddTemporal_Configuration_InvalidReload_ThrowsOptionsValidationException()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"temporal-hosting-{Guid.NewGuid():N}.json");
+        WriteJson(path, "host-1:7233");
+        try
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddJsonFile(path, optional: false, reloadOnChange: true)
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddTemporal(configuration);
+
+            using var provider = services.BuildServiceProvider();
+            var monitor = provider.GetRequiredService<IOptionsMonitor<TemporalOptions>>();
+
+            Assert.Equal("host-1:7233", monitor.CurrentValue.TargetHost);
+
+            File.WriteAllText(path, """{ "Temporal": { "TestServer": { "Port": -1 } } }""");
+
+            // The invalid value is rejected by the options pipeline on reload.
+            // Depending on timing it surfaces synchronously from Reload() (wrapped
+            // by the change-token callback) or on the next CurrentValue access.
+            var reloadException = Record.Exception(() => configuration.Reload());
+            if (reloadException is null)
+            {
+                Assert.Throws<OptionsValidationException>(() => monitor.CurrentValue);
+            }
+            else
+            {
+                Assert.Contains(Flatten(reloadException), e => e is OptionsValidationException);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void TemporalOptionsValidator_InvalidPort_ReturnsFailedResult()
+    {
+        var validator = new TemporalOptionsValidator();
+
+        var result = validator.Validate(
+            null,
+            new TemporalOptions { TestServer = new TemporalTestServerOptions { Port = -1 } });
+
+        Assert.True(result.Failed);
+    }
+
+    private static IEnumerable<Exception> Flatten(Exception exception)
+    {
+        if (exception is AggregateException aggregate)
+        {
+            return aggregate.Flatten().InnerExceptions.SelectMany(Flatten);
+        }
+
+        return new[] { exception };
+    }
+
     private static void WriteJson(string path, string targetHost) =>
         File.WriteAllText(path, $$"""{ "Temporal": { "TargetHost": "{{targetHost}}" } }""");
+}
+
+public class TemporalConnectionWaiterTests
+{
+    [Fact]
+    public async Task StartAsync_WhenDisabled_DoesNotConnect()
+    {
+        var client = CreateLazyClient("127.0.0.1:1");
+        var monitor = CreateMonitor(new TemporalConnectionWaitOptions { Enabled = false });
+
+        var waiter = new TemporalConnectionWaiter(monitor, client, NullLogger<TemporalConnectionWaiter>.Instance);
+
+        await waiter.StartAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenTestServerEnabled_DoesNotConnect()
+    {
+        var client = CreateLazyClient("127.0.0.1:1");
+        var monitor = CreateMonitor(
+            new TemporalConnectionWaitOptions { Enabled = true },
+            testServerEnabled: true);
+
+        var waiter = new TemporalConnectionWaiter(monitor, client, NullLogger<TemporalConnectionWaiter>.Instance);
+
+        await waiter.StartAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task StartAsync_TimesOut_WhenServerUnreachable()
+    {
+        var client = CreateLazyClient("127.0.0.1:1", failFast: true);
+        var monitor = CreateMonitor(new TemporalConnectionWaitOptions
+        {
+            Enabled = true,
+            Timeout = TimeSpan.FromSeconds(1),
+            InitialDelay = TimeSpan.FromMilliseconds(50),
+            MaxDelay = TimeSpan.FromMilliseconds(50),
+        });
+
+        var waiter = new TemporalConnectionWaiter(monitor, client, NullLogger<TemporalConnectionWaiter>.Instance);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => waiter.StartAsync(CancellationToken.None));
+    }
+
+    private static ITemporalClient CreateLazyClient(string targetHost, bool failFast = false) =>
+        TemporalClient.CreateLazy(new TemporalClientConnectOptions(targetHost)
+        {
+            Namespace = "default",
+            RpcRetry = failFast ? new RpcRetryOptions { MaxRetries = 0 } : null,
+        });
+
+    private static IOptionsMonitor<TemporalOptions> CreateMonitor(
+        TemporalConnectionWaitOptions connectionWait,
+        bool testServerEnabled = false)
+    {
+        var services = new ServiceCollection();
+        services.AddOptions<TemporalOptions>().Configure(options =>
+        {
+            options.ConnectionWait = connectionWait;
+            options.TestServer = new TemporalTestServerOptions { Enabled = testServerEnabled };
+        });
+
+        var provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<IOptionsMonitor<TemporalOptions>>();
+    }
 }
 
 public class TemporalTestServerServiceTests

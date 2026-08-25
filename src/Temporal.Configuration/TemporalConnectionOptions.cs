@@ -22,4 +22,10 @@ public class TemporalConnectionOptions
 
     /// <summary>Gets or sets TLS connection options, or <c>null</c> for no TLS.</summary>
     public TemporalTlsOptions? Tls { get; set; }
+
+    /// <summary>
+    /// Gets or sets the RPC retry policy applied to the connection, or
+    /// <c>null</c> to leave the SDK defaults unchanged.
+    /// </summary>
+    public TemporalRpcRetryOptions? RpcRetry { get; set; }
 }
