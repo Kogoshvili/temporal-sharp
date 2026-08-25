@@ -55,25 +55,3 @@ Tests (eight projects under `tests/`):
 
 `release.yml` (manual, version input) updates `CHANGELOG.md` via `scripts/update-changelog.sh`, then commits+tags `v<version>`; `publish.yml` builds/tests/packs and pushes to NuGet (OIDC) on the tag. The changelog update and tag are one commit to keep MinVer's derived version correct.
 
-
-<!-- headroom:memory-instructions -->
-## Memory
-
-Use the `headroom_memory` MCP server for persistent cross-session knowledge.
-
-**Before** answering questions about prior decisions, conventions, project context,
-architecture, user preferences, org info, codenames, debugging history, or anything
-from past sessions — call `memory_search` (exposed to opencode as `headroom_memory_memory_search`) first.
-
-**After** making durable decisions, discovering conventions, or learning important
-facts — call `memory_save` (exposed to opencode as `headroom_memory_memory_save`) to persist them for future sessions.
-
-Memory is your first source of truth for anything not visible in the current conversation.
-
-## Headroom tool naming
-
-OpenCode namespaces MCP tools as `<server>_<tool>`, so Headroom's tool names
-differ from their bare names:
-
-- `headroom_memory` server → `headroom_memory_memory_search` / `headroom_memory_memory_save` (bare: `memory_search` / `memory_save`).
-- `headroom` compression server → `headroom_headroom_compress` / `headroom_headroom_retrieve` / `headroom_headroom_stats` (bare: `headroom_compress` / `headroom_retrieve` / `headroom_stats`; the "headroom" doubling is normal namespacing, not a bug).
