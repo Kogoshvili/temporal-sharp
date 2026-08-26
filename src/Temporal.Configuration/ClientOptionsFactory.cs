@@ -9,9 +9,10 @@ namespace Kogoshvili.Temporal.Configuration;
 public static class ClientOptionsFactory
 {
     /// <summary>
-    /// Applies connection options (target host, namespace, API key, TLS, and
-    /// RPC retry) to a connect-options instance. TLS is resolved synchronously
-    /// for the <c>file</c> and <c>environment</c> sources; cloud sources
+    /// Applies connection options (target host, namespace, API key, TLS, RPC
+    /// retry, keep-alive, HTTP proxy, DNS load balancing, and gRPC compression)
+    /// to a connect-options instance. TLS is resolved synchronously for the
+    /// <c>file</c> and <c>environment</c> sources; cloud sources
     /// (<c>azureKeyVault</c>/<c>awsSecretsManager</c>) are skipped here and
     /// resolved asynchronously by the hosting starter's certificate loader.
     /// </summary>
@@ -22,6 +23,25 @@ public static class ClientOptionsFactory
         connect.ApiKey = options.ApiKey;
         connect.Tls = BuildTls(options.Tls);
         connect.RpcRetry = BuildRpcRetry(options.RpcRetry);
+        if (options.KeepAlive is { } keepAlive)
+        {
+            connect.KeepAlive = BuildKeepAlive(keepAlive);
+        }
+
+        if (options.HttpConnectProxy is { } proxy)
+        {
+            connect.HttpConnectProxy = BuildHttpConnectProxy(proxy);
+        }
+
+        if (options.DnsLoadBalancing is { } dns)
+        {
+            connect.DnsLoadBalancing = BuildDnsLoadBalancing(dns);
+        }
+
+        if (options.GrpcCompression is { } grpcCompression)
+        {
+            connect.GrpcCompression = BuildGrpcCompression(grpcCompression);
+        }
     }
 
     /// <summary>
@@ -96,6 +116,35 @@ public static class ClientOptionsFactory
             MaxRetries = rpcRetry.MaxRetries,
         };
     }
+
+    private static KeepAliveOptions BuildKeepAlive(TemporalKeepAliveOptions keepAlive) =>
+        new()
+        {
+            Interval = keepAlive.Interval,
+            Timeout = keepAlive.Timeout,
+        };
+
+    private static HttpConnectProxyOptions? BuildHttpConnectProxy(TemporalHttpConnectProxyOptions proxy) =>
+        proxy.TargetHost is null
+            ? null
+            : new HttpConnectProxyOptions(proxy.TargetHost)
+            {
+                BasicAuth = proxy.Username is null || proxy.Password is null
+                    ? null
+                    : (proxy.Username, proxy.Password),
+            };
+
+    private static DnsLoadBalancingOptions BuildDnsLoadBalancing(TemporalDnsLoadBalancingOptions dns) =>
+        new() { ResolutionInterval = dns.ResolutionInterval };
+
+    private static GrpcCompression BuildGrpcCompression(TemporalGrpcCompressionOptions compression) =>
+        compression.Mode switch
+        {
+            TemporalGrpcCompressionOptions.Gzip => new GrpcCompression.Gzip(),
+            TemporalGrpcCompressionOptions.None => new GrpcCompression.None(),
+            _ => throw new InvalidOperationException(
+                $"Temporal:GrpcCompression:Mode must be '{TemporalGrpcCompressionOptions.Gzip}' or '{TemporalGrpcCompressionOptions.None}'."),
+        };
 
     private static byte[]? ReadAllBytes(string? path) =>
         path is null ? null : File.ReadAllBytes(path);

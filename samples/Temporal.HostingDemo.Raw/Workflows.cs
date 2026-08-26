@@ -3,6 +3,29 @@ using Temporalio.Workflows;
 
 namespace Kogoshvili.Temporal.HostingDemo.Raw;
 
+/// <summary>
+/// The hand-rolled equivalent of the starter's
+/// <c>ActivityOptionsRegistry</c>, which is seeded from
+/// <c>Temporal:ActivityOptions</c> in <c>appsettings.json</c>. Workflows cannot
+/// use dependency injection, so presets live in static state that is fixed
+/// before any workflow runs (deterministic during replay).
+/// </summary>
+public static class ActivityOptionsPresets
+{
+    public static ActivityOptions Default { get; } =
+        new() { ScheduleToCloseTimeout = TimeSpan.FromMinutes(5), HeartbeatTimeout = TimeSpan.FromSeconds(30) };
+
+    public static ActivityOptions Get(string name) => name switch
+    {
+        "long-running" => new ActivityOptions
+        {
+            ScheduleToCloseTimeout = TimeSpan.FromMinutes(30),
+            HeartbeatTimeout = TimeSpan.FromMinutes(1),
+        },
+        _ => throw new KeyNotFoundException($"No preset named '{name}'."),
+    };
+}
+
 [Workflow]
 public sealed class GreetingWorkflow
 {
@@ -11,7 +34,7 @@ public sealed class GreetingWorkflow
     {
         return await Workflow.ExecuteActivityAsync(
             () => StaticActivities.Greet(name),
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) });
+            ActivityOptionsPresets.Default);
     }
 }
 
@@ -57,7 +80,7 @@ public sealed class ClaimCheckWorkflow
     {
         var length = await Workflow.ExecuteActivityAsync(
             () => StaticActivities.Measure(largePayload),
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) });
+            ActivityOptionsPresets.Get("long-running"));
 
         return $"Claim-check demo: activity received {length} characters " +
             $"(first 40: \"{largePayload[..40]}\").";

@@ -164,6 +164,10 @@ public static class TemporalServiceCollectionExtensions
     {
         services.AddSingleton<IValidateOptions<TemporalOptions>, TemporalOptionsValidator>();
 
+        // Seed the static activity-options registry before any worker starts so
+        // workflows can resolve presets deterministically during replay.
+        SeedActivityOptionsRegistry(options.ActivityOptions);
+
         var exportMetrics = !string.IsNullOrWhiteSpace(options.Metrics.PrometheusBindAddress)
             || !string.IsNullOrWhiteSpace(options.Metrics.OpenTelemetryUrl);
         var forwardLogs = options.Logging.Enabled;
@@ -299,6 +303,8 @@ public static class TemporalServiceCollectionExtensions
         WorkerDeploymentOptions? deploymentOptions,
         Action<TemporalWorkerServiceOptions>? configure)
     {
+        GetOrAddWorkerTaskQueueRegistry(services).Register(taskQueue);
+
         var worker = services.AddHostedTemporalWorker(taskQueue, deploymentOptions);
 
         // Apply per-queue tuning from Temporal:Workers:<queue>. Registered before
@@ -419,6 +425,10 @@ public static class TemporalServiceCollectionExtensions
         target.ApiKey = source.ApiKey;
         target.Tls = source.Tls;
         target.RpcRetry = source.RpcRetry;
+        target.KeepAlive = source.KeepAlive;
+        target.HttpConnectProxy = source.HttpConnectProxy;
+        target.DnsLoadBalancing = source.DnsLoadBalancing;
+        target.GrpcCompression = source.GrpcCompression;
         target.Metrics = source.Metrics;
         target.Tracing = source.Tracing;
         target.Logging = source.Logging;
@@ -426,5 +436,47 @@ public static class TemporalServiceCollectionExtensions
         target.ConnectionWait = source.ConnectionWait;
         target.DataConverter = source.DataConverter;
         target.Workers = source.Workers;
+        target.ActivityOptions = source.ActivityOptions;
+        target.HealthChecks = source.HealthChecks;
+    }
+
+    private static void SeedActivityOptionsRegistry(TemporalActivityOptions? activityOptions)
+    {
+        if (activityOptions is null)
+        {
+            return;
+        }
+
+        var defaultOptions = ActivityOptionsFactory.Build(activityOptions.Default);
+        var presets = new Dictionary<string, Temporalio.Workflows.ActivityOptions>(StringComparer.Ordinal);
+
+        if (activityOptions.Presets is { } named)
+        {
+            foreach (var (name, preset) in named)
+            {
+                if (ActivityOptionsFactory.Build(preset) is { } options)
+                {
+                    presets[name] = options;
+                }
+            }
+        }
+
+        ActivityOptionsRegistry.Replace(defaultOptions, presets);
+    }
+
+    private static TemporalWorkerTaskQueueRegistry GetOrAddWorkerTaskQueueRegistry(IServiceCollection services)
+    {
+        foreach (var descriptor in services)
+        {
+            if (descriptor.ServiceType == typeof(TemporalWorkerTaskQueueRegistry)
+                && descriptor.ImplementationInstance is TemporalWorkerTaskQueueRegistry registry)
+            {
+                return registry;
+            }
+        }
+
+        var created = new TemporalWorkerTaskQueueRegistry();
+        services.AddSingleton(created);
+        return created;
     }
 }

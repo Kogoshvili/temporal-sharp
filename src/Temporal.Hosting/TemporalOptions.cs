@@ -37,4 +37,18 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     /// matching queue via <c>AddTemporalWorker</c>.
     /// </summary>
     public Dictionary<string, TemporalWorkerTuningOptions>? Workers { get; set; }
+
+    /// <summary>
+    /// Gets or sets activity-options presets bound from
+    /// <c>Temporal:ActivityOptions</c> and exposed to workflows via
+    /// <see cref="ActivityOptionsRegistry"/>.
+    /// </summary>
+    public TemporalActivityOptions? ActivityOptions { get; set; }
+
+    /// <summary>
+    /// Gets or sets health-check configuration, bound from
+    /// <c>Temporal:HealthChecks</c>. The check itself is registered opt-in via
+    /// <c>AddTemporalHealthChecks()</c>.
+    /// </summary>
+    public TemporalHealthChecksOptions HealthChecks { get; set; } = new();
 }

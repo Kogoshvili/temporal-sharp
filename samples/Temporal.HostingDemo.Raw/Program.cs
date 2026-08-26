@@ -72,6 +72,14 @@ builder.Services.AddTemporalClient()
         connect.Namespace = ns;
         connect.RpcRetry = new RpcRetryOptions { MaxRetries = 5 };
 
+        // Connection transport options — the starter binds these from
+        // Temporal:KeepAlive / Temporal:HttpConnectProxy /
+        // Temporal:DnsLoadBalancing / Temporal:GrpcCompression in appsettings.json.
+        connect.KeepAlive = new KeepAliveOptions { Interval = TimeSpan.FromSeconds(30), Timeout = TimeSpan.FromSeconds(15) };
+        // connect.HttpConnectProxy = new HttpConnectProxyOptions("proxy:8080");
+        // connect.DnsLoadBalancing = new DnsLoadBalancingOptions { ResolutionInterval = TimeSpan.FromSeconds(30) };
+        connect.GrpcCompression = new GrpcCompression.Gzip();
+
         // The starter's Temporal:DataConverter config. Here we build the same
         // thing by hand: encrypt every payload, then offload anything over the
         // threshold to a filesystem claim-check store. The single DataConverter
@@ -112,7 +120,20 @@ builder.Services.AddHostedTemporalWorker("raw-queue", deploymentOptions: (Worker
 // 7. Self-start the demo workflows to prove the worker is live.
 builder.Services.AddHostedService<DemoDriver>();
 
-// 8. Observe the tracing interceptor's spans with a plain ActivityListener (the
+// 8. Health checks — the starter's AddTemporalHealthChecks() + /health endpoint
+//    wraps exactly this: verify the shared connection is serving, then describe
+//    each task queue and check it has at least one poller (a connected worker).
+//
+//      var serving = await client.Connection.CheckHealthAsync();
+//      var desc = await client.Connection.WorkflowService.DescribeTaskQueueAsync(
+//          new DescribeTaskQueueRequest { Namespace = ns, TaskQueue = new TaskQueue { Name = "raw-queue" }, ReportPollers = true });
+//      var healthy = serving && desc.Pollers.Count > 0;
+//
+//    A console host has no /health endpoint, so the result would be surfaced
+//    through a HealthCheckService (Microsoft.Extensions.Diagnostics.HealthChecks)
+//    instead of an HTTP route.
+
+// 9. Observe the tracing interceptor's spans with a plain ActivityListener (the
 //    starter's Tracing:Enabled wires the same TracingInterceptor). In production,
 //    subscribe the sources with an OpenTelemetry tracer provider instead.
 using var traceListener = new ActivityListener

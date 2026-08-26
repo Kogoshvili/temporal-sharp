@@ -50,6 +50,19 @@ or set the "Remote Codec Endpoint" in the Web UI to `http://localhost:5000`.
 Authentication (`AddTemporalCodecServer`) is left disabled by default — see
 `Program.cs` for the pass-access-token and cross-origin-credentials options.
 
+### Health checks (Hosted demo)
+
+The Hosted demo registers `AddTemporalHealthChecks()` and maps a liveness
+endpoint:
+
+```sh
+curl http://localhost:5000/health
+```
+
+It reports `Healthy` when the Temporal server is serving and every registered
+task queue (`hosted-queue`) has at least one poller, and `Degraded`/`Unhealthy`
+otherwise. Toggle it with `Temporal:HealthChecks:Enabled`.
+
 ### Running without a server (in-process dev server)
 
 Prefer not to run `temporal server start-dev`? The starter can run an in-process
@@ -63,6 +76,10 @@ skipped automatically. The Raw demo has no such toggle and always needs a server
 | --- | --- |
 | `Temporal:TargetHost` | Server `host:port` to connect to. |
 | `Temporal:RpcRetry` | Connection-level RPC retry policy (intervals, multiplier, max retries/elapsed). |
+| `Temporal:KeepAlive` | HTTP/2 keep-alive ping interval and timeout. |
+| `Temporal:HttpConnectProxy` | Optional HTTP CONNECT proxy (`TargetHost`, `Username`, `Password`). |
+| `Temporal:DnsLoadBalancing` | Optional periodic DNS re-resolution (`ResolutionInterval`). |
+| `Temporal:GrpcCompression` | Transport gRPC compression (`Mode`: `"gzip"` or `"none"`). |
 | `Temporal:ConnectionWait` | Startup wait/retry before workers poll (`Enabled`, `Timeout`, `InitialDelay`, `MaxDelay`). |
 | `Temporal:Metrics` | `System.Diagnostics.Metrics` meter with client/activity interceptors + Prometheus/OTel Core export. |
 | `Temporal:Tracing` | Wires the SDK `TracingInterceptor` (`ActivitySource` spans) across client and workers. |
@@ -70,6 +87,8 @@ skipped automatically. The Raw demo has no such toggle and always needs a server
 | `Temporal:Tls` | mTLS / server-root CA config, from `file`, `environment`, `azureKeyVault`, or `awsSecretsManager` sources. |
 | `Temporal:DataConverter:Encryption` | AES-GCM payload encryption (`Enabled`, `Key`, `KeyId`). |
 | `Temporal:DataConverter:ClaimCheck` | Large-payload offload (`Enabled`, `ThresholdBytes`, `Directory`). |
+| `Temporal:ActivityOptions` | Default + named `ActivityOptions` presets consumed from workflows via `ActivityOptionsRegistry`. |
+| `Temporal:HealthChecks` | Client/worker liveness check toggle (`Enabled`). |
 
 ## Analyzer sample
 

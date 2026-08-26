@@ -28,4 +28,27 @@ public class TemporalConnectionOptions
     /// <c>null</c> to leave the SDK defaults unchanged.
     /// </summary>
     public TemporalRpcRetryOptions? RpcRetry { get; set; }
+
+    /// <summary>
+    /// Gets or sets HTTP/2 keep-alive options, or <c>null</c> to leave the SDK
+    /// defaults unchanged.
+    /// </summary>
+    public TemporalKeepAliveOptions? KeepAlive { get; set; }
+
+    /// <summary>
+    /// Gets or sets HTTP CONNECT proxy options, or <c>null</c> to connect directly.
+    /// </summary>
+    public TemporalHttpConnectProxyOptions? HttpConnectProxy { get; set; }
+
+    /// <summary>
+    /// Gets or sets DNS load-balancing options, or <c>null</c> to disable load
+    /// balancing.
+    /// </summary>
+    public TemporalDnsLoadBalancingOptions? DnsLoadBalancing { get; set; }
+
+    /// <summary>
+    /// Gets or sets transport-level gRPC compression options, or <c>null</c> to
+    /// keep the SDK default (gzip).
+    /// </summary>
+    public TemporalGrpcCompressionOptions? GrpcCompression { get; set; }
 }

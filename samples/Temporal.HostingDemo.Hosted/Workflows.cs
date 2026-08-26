@@ -1,3 +1,4 @@
+using Kogoshvili.Temporal.Hosting;
 using Temporalio.Activities;
 using Temporalio.Workflows;
 
@@ -9,9 +10,11 @@ public sealed class GreetingWorkflow
     [WorkflowRun]
     public async Task<string> RunAsync(string name)
     {
+        // Resolve the default activity-options preset configured under
+        // Temporal:ActivityOptions:Default (ScheduleToCloseTimeout + heartbeat).
         return await Workflow.ExecuteActivityAsync(
             () => StaticActivities.Greet(name),
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) });
+            ActivityOptionsRegistry.GetDefault()!);
     }
 }
 
@@ -57,9 +60,10 @@ public sealed class ClaimCheckWorkflow
     [WorkflowRun]
     public async Task<string> RunAsync(string largePayload)
     {
+        // Named preset from Temporal:ActivityOptions:Presets:long-running.
         var length = await Workflow.ExecuteActivityAsync(
             () => StaticActivities.Measure(largePayload),
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) });
+            ActivityOptionsRegistry.Get("long-running"));
 
         return $"Claim-check demo: activity received {length} characters " +
             $"(first 40: \"{largePayload[..40]}\").";

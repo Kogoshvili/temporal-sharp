@@ -1,6 +1,7 @@
 using Kogoshvili.Temporal.CodecServer;
 using Kogoshvili.Temporal.Hosting;
 using Kogoshvili.Temporal.HostingDemo.Hosted;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +46,11 @@ builder.Services.AddTemporalCodecServer(o =>
     // o.Auth.ClientSecret = "...";
 });
 
+// Health checks for the client and every registered worker (client liveness +
+// per-queue poller counts), exposed at /health below. Disable at runtime via
+// Temporal:HealthChecks:Enabled = false.
+builder.Services.AddTemporalHealthChecks();
+
 // Other features, shown for reference rather than run:
 //
 // In-process dev server (no external server needed; ConnectionWait is skipped):
@@ -85,6 +91,19 @@ builder.Services.AddTemporalCodecServer(o =>
 // Per-queue worker tuning (see the Temporal:Workers section in appsettings.json):
 //   Temporal:Workers:hosted-queue:MaxConcurrentActivities = 20
 //   Temporal:Workers:hosted-queue:GracefulShutdownTimeout = 00:00:30
+//
+// Connection transport options (see appsettings.json; null = SDK default):
+//   Temporal:KeepAlive:{Interval,Timeout}                 — HTTP/2 keep-alive pings
+//   Temporal:HttpConnectProxy:{TargetHost,Username,Password} — HTTP CONNECT proxy
+//   Temporal:DnsLoadBalancing:{ResolutionInterval}        — periodic DNS re-resolution
+//   Temporal:GrpcCompression:{Mode}                       — "gzip" | "none"
+//
+// Activity-options presets (see Temporal:ActivityOptions in appsettings.json):
+//   Workflows resolve them via ActivityOptionsRegistry.GetDefault()/Get(name).
+//
+// Health checks: AddTemporalHealthChecks registers a /health check that reports
+//   the client connection liveness and per-queue poller counts; disable it at
+//   runtime with Temporal:HealthChecks:Enabled = false.
 
 // Print the workflow-start metrics recorded by the interceptor (Metrics:Enabled).
 builder.Services.AddHostedService<MetricsPrinter>();
@@ -104,5 +123,8 @@ app.UseCors();
 // app.UseAuthorization();
 
 app.MapTemporalCodecServer();
+
+// Liveness endpoint: client reachability + per-queue poller counts.
+app.MapHealthChecks("/health");
 
 await app.RunAsync();

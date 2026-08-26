@@ -76,4 +76,66 @@ public class ClientOptionsFactoryTests
 
         Assert.Null(connect.RpcRetry);
     }
+
+    [Fact]
+    public void Apply_MapsConnectionTransportOptions_WhenConfigured()
+    {
+        var options = new TemporalConnectionOptions
+        {
+            KeepAlive = new TemporalKeepAliveOptions
+            {
+                Interval = TimeSpan.FromSeconds(45),
+                Timeout = TimeSpan.FromSeconds(10),
+            },
+            HttpConnectProxy = new TemporalHttpConnectProxyOptions
+            {
+                TargetHost = "proxy:8080",
+                Username = "user",
+                Password = "pass",
+            },
+            DnsLoadBalancing = new TemporalDnsLoadBalancingOptions
+            {
+                ResolutionInterval = TimeSpan.FromSeconds(60),
+            },
+            GrpcCompression = new TemporalGrpcCompressionOptions { Mode = TemporalGrpcCompressionOptions.None },
+        };
+
+        var connect = new TemporalClientConnectOptions();
+        ClientOptionsFactory.Apply(connect, options);
+
+        Assert.NotNull(connect.KeepAlive);
+        Assert.Equal(TimeSpan.FromSeconds(45), connect.KeepAlive!.Interval);
+        Assert.Equal(TimeSpan.FromSeconds(10), connect.KeepAlive.Timeout);
+        Assert.NotNull(connect.HttpConnectProxy);
+        Assert.Equal("proxy:8080", connect.HttpConnectProxy!.TargetHost);
+        Assert.Equal(("user", "pass"), connect.HttpConnectProxy.BasicAuth);
+        Assert.NotNull(connect.DnsLoadBalancing);
+        Assert.Equal(TimeSpan.FromSeconds(60), connect.DnsLoadBalancing!.ResolutionInterval);
+        Assert.IsType<GrpcCompression.None>(connect.GrpcCompression);
+    }
+
+    [Fact]
+    public void Apply_LeavesTransportDefaults_WhenNotConfigured()
+    {
+        var connect = new TemporalClientConnectOptions();
+        ClientOptionsFactory.Apply(connect, new TemporalConnectionOptions());
+
+        Assert.NotNull(connect.KeepAlive);
+        Assert.Null(connect.HttpConnectProxy);
+        Assert.Null(connect.DnsLoadBalancing);
+        Assert.IsType<GrpcCompression.Gzip>(connect.GrpcCompression);
+    }
+
+    [Fact]
+    public void Apply_InvalidGrpcCompressionMode_Throws()
+    {
+        var options = new TemporalConnectionOptions
+        {
+            GrpcCompression = new TemporalGrpcCompressionOptions { Mode = "lz4" },
+        };
+
+        var connect = new TemporalClientConnectOptions();
+
+        Assert.Throws<InvalidOperationException>(() => ClientOptionsFactory.Apply(connect, options));
+    }
 }

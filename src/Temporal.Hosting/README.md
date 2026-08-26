@@ -22,6 +22,14 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
   `[Workflow]`/`[Activity]` types for a worker.
 - **Per-queue tuning** — `Temporal:Workers:<queue>` applies concurrency,
   graceful-shutdown, and cache knobs to a worker.
+- **Connection transport options** — `Temporal:KeepAlive`,
+  `Temporal:HttpConnectProxy`, `Temporal:DnsLoadBalancing`, and
+  `Temporal:GrpcCompression` map onto the SDK's connection options.
+- **Activity-options presets** — `Temporal:ActivityOptions` defines a default
+  and named `ActivityOptions` presets, resolved from workflows via the static
+  `ActivityOptionsRegistry` (workflows cannot use DI).
+- **Health checks** — `AddTemporalHealthChecks()` registers an `IHealthCheck`
+  that reports client liveness and per-queue poller counts.
 - **`WorkerDiscovery`** — the auto-discovery engine, exposed for custom use.
 - **Metrics** — a `System.Diagnostics.Metrics.Meter` plus interceptors that
   record high-level client operations and activity executions (with
@@ -53,6 +61,15 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
       "MaxInterval": "00:00:05",
       "MaxElapsedTime": "00:00:10",
       "MaxRetries": 10
+    },
+    "KeepAlive": {
+      "Interval": "00:00:30",
+      "Timeout": "00:00:15"
+    },
+    "HttpConnectProxy": null,
+    "DnsLoadBalancing": null,
+    "GrpcCompression": {
+      "Mode": "gzip"
     },
     "Metrics": {
       "Enabled": true,
@@ -100,6 +117,21 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
         "ThresholdBytes": 1048576,
         "Directory": "claim-check"
       }
+    },
+    "ActivityOptions": {
+      "Default": {
+        "ScheduleToCloseTimeout": "00:05:00",
+        "HeartbeatTimeout": "00:00:30"
+      },
+      "Presets": {
+        "long-running": {
+          "ScheduleToCloseTimeout": "00:30:00",
+          "HeartbeatTimeout": "00:01:00"
+        }
+      }
+    },
+    "HealthChecks": {
+      "Enabled": true
     }
   }
 }
@@ -201,6 +233,35 @@ passed to `AddTemporalWorker` overrides the appsettings value.
 | `GracefulShutdownTimeout` | `TemporalWorkerOptions.GracefulShutdownTimeout` |
 | `MaxCachedWorkflows` | `TemporalWorkerOptions.MaxCachedWorkflows` |
 
+### Activity-options presets
+
+`Temporal:ActivityOptions` seeds a default and named `ActivityOptions` presets
+(timeouts, retry policy, cancellation type, task queue). Workflows resolve them
+through the static `ActivityOptionsRegistry` — workflows run in the replay
+sandbox and cannot use DI, so the registry is populated once at `AddTemporal`
+time and only read during execution:
+
+```csharp
+[Workflow]
+public sealed class MyWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string name)
+    {
+        await Workflow.ExecuteActivityAsync(
+            () => MyActivities.DoIt(name),
+            ActivityOptionsRegistry.Get("long-running")); // or .GetDefault()
+
+        return "done";
+    }
+}
+```
+
+Each preset must set `ScheduleToCloseTimeout` or `StartToCloseTimeout` (the
+SDK's own rule); unset properties leave the SDK defaults, and an unset `Retry`
+means "retry forever". Presets are captured at startup and are **not**
+live-reloaded, to keep workflow replay deterministic.
+
 ### Connection retry and startup wait
 
 `RpcRetry` maps onto the SDK's connection-level `RpcRetryOptions`, controlling
@@ -211,8 +272,64 @@ and so on). Set it to `null` (the default) to keep the SDK defaults.
 workers poll: on startup a hosted service connects the shared lazy client,
 retrying with exponential backoff (`InitialDelay` → `MaxDelay`) until success or
 `Timeout` (set `Timeout` to `null` to retry indefinitely). It is enabled by
-default and ignored when the test server is used. Options are re-validated on
-every configuration reload via `IValidateOptions<TemporalOptions>`.
+default and ignored when the test server is used.
+
+### Configuration reload
+
+Options are bound through `IOptionsMonitor<TemporalOptions>`, so the options
+**value** reflects `appsettings.json` changes, and
+`IValidateOptions<TemporalOptions>` re-validates on every reload — an invalid
+new value is rejected with `OptionsValidationException` on next access.
+
+However, reload is **validate-only**, not *apply*: the client connection,
+workers, codecs, and runtime are constructed once from a snapshot at
+registration/startup and are **not** reconfigured when the value changes. The
+Temporal .NET SDK treats connection and worker options as snapshots too — the
+hosted `TemporalWorkerService` clones its options once at construction and never
+subscribes to changes, and the only runtime-mutable connection properties are
+`ApiKey`, `RpcMetadata`, and `RpcBinaryMetadata`. Exceptions:
+
+- `TemporalHealthCheck` reads the current value per invocation, so
+  `HealthChecks:Enabled` toggles live.
+- `ActivityOptions` presets are seeded once and deliberately not live-reloaded
+  (see below).
+
+True live reload (reconnecting the client and restarting workers on change) is
+not implemented; see the repository TODO.
+
+### Connection transport options
+
+Beyond `RpcRetry`, the remaining connection-level SDK knobs are exposed from
+configuration (each `null` = leave the SDK default untouched):
+
+| Key | SDK property |
+| --- | --- |
+| `Temporal:KeepAlive` (`Interval`, `Timeout`) | `KeepAliveOptions` |
+| `Temporal:HttpConnectProxy` (`TargetHost`, `Username`, `Password`) | `HttpConnectProxyOptions` |
+| `Temporal:DnsLoadBalancing` (`ResolutionInterval`) | `DnsLoadBalancingOptions` |
+| `Temporal:GrpcCompression:Mode` (`"gzip"` or `"none"`) | `GrpcCompression` |
+
+### Health checks
+
+`AddTemporalHealthChecks()` registers an `IHealthCheck` (named `temporal`) that
+verifies the shared client connection is serving and, for every task queue
+registered via `AddTemporalWorker`, that the queue has at least one poller
+(a connected worker). It reports `Unhealthy` when the server is unreachable,
+`Degraded` when a queue has no pollers, and `Healthy` otherwise, with per-queue
+poller counts in the result data:
+
+```csharp
+builder.Services.AddTemporalHealthChecks();
+```
+
+```csharp
+app.MapHealthChecks("/health"); // ASP.NET Core endpoint
+```
+
+Disable it at runtime (without removing the registration) via
+`Temporal:HealthChecks:Enabled = false`. Poller discovery uses the raw
+`DescribeTaskQueue` RPC; the `ReportPollers` request field is marked obsolete
+in SDK 1.18 but remains the only way to observe poller liveness.
 
 ### TLS sources
 
