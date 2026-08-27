@@ -96,7 +96,7 @@ public class ActivityOptionsPresetTests
             HeartbeatTimeout = TimeSpan.FromSeconds(30),
             CancellationType = ActivityCancellationType.WaitCancellationCompleted,
             TaskQueue = "other-queue",
-            Retry = new ActivityRetryPolicyOptions
+            Retry = new RetryPolicyOptions
             {
                 InitialInterval = TimeSpan.FromSeconds(2),
                 MaximumAttempts = 3,

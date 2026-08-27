@@ -1,4 +1,3 @@
-using Temporalio.Common;
 using Temporalio.Workflows;
 
 namespace Kogoshvili.Temporal.Hosting;
@@ -51,41 +50,9 @@ internal static class ActivityOptionsFactory
 
         if (preset.Retry is { } retry)
         {
-            options.RetryPolicy = BuildRetry(retry);
+            options.RetryPolicy = RetryPolicyFactory.Build(retry);
         }
 
         return options;
-    }
-
-    private static RetryPolicy BuildRetry(ActivityRetryPolicyOptions retry)
-    {
-        var policy = new RetryPolicy();
-
-        if (retry.InitialInterval is { } initialInterval)
-        {
-            policy.InitialInterval = initialInterval;
-        }
-
-        if (retry.BackoffCoefficient is { } backoffCoefficient)
-        {
-            policy.BackoffCoefficient = backoffCoefficient;
-        }
-
-        if (retry.MaximumInterval is { } maximumInterval)
-        {
-            policy.MaximumInterval = maximumInterval;
-        }
-
-        if (retry.MaximumAttempts is { } maximumAttempts)
-        {
-            policy.MaximumAttempts = maximumAttempts;
-        }
-
-        if (retry.NonRetryableErrorTypes is { } nonRetryable)
-        {
-            policy.NonRetryableErrorTypes = nonRetryable;
-        }
-
-        return policy;
     }
 }

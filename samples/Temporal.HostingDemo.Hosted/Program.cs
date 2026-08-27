@@ -113,6 +113,11 @@ builder.Services.AddTemporalHealthChecks();
 // Activity-options presets (see Temporal:ActivityOptions in appsettings.json):
 //   Workflows resolve them via ActivityOptionsRegistry.GetDefault()/Get(name).
 //
+// Workflow start/execution options + ID conventions (see Temporal:Workflows in
+// appsettings.json): inject WorkflowOptionsRegistry and call Build() to merge
+// the Default preset, the per-type ByType override, and the Id:Format
+// convention, then override anything per-call (see DemoDriver).
+//
 // Health checks: AddTemporalHealthChecks registers a /health check that reports
 //   the client connection liveness and per-queue poller counts; disable it at
 //   runtime with Temporal:HealthChecks:Enabled = false.

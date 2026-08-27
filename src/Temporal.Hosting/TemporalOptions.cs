@@ -46,6 +46,13 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     public TemporalActivityOptions? ActivityOptions { get; set; }
 
     /// <summary>
+    /// Gets or sets workflow start/execution configuration bound from
+    /// <c>Temporal:Workflows</c> (default + per-type presets and ID conventions),
+    /// exposed to callers via <see cref="WorkflowOptionsRegistry"/>.
+    /// </summary>
+    public TemporalWorkflowOptions? Workflows { get; set; }
+
+    /// <summary>
     /// Gets or sets health-check configuration, bound from
     /// <c>Temporal:HealthChecks</c>. The check itself is registered opt-in via
     /// <c>AddTemporalHealthChecks()</c>.

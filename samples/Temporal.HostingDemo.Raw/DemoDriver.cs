@@ -25,6 +25,10 @@ public sealed class DemoDriver : BackgroundService
         // Give the worker's pollers a moment to connect to the server.
         await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken).ConfigureAwait(false);
 
+        // NOTE: the starter's WorkflowOptionsRegistry (Temporal:Workflows) merges
+        // a Default preset, a per-type ByType override, and an Id:Format template.
+        // The hand-rolled equivalent is exactly what's written below — construct
+        // a WorkflowOptions inline with the desired timeouts/retry and ID.
         var greetingHandle = await client.StartWorkflowAsync(
             (GreetingWorkflow workflow) => workflow.RunAsync("raw"),
             new() { Id = $"raw-greeting-{Guid.NewGuid():N}", TaskQueue = "raw-queue" });

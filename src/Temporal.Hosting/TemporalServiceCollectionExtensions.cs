@@ -173,6 +173,10 @@ public static class TemporalServiceCollectionExtensions
         // workflows can resolve presets deterministically during replay.
         SeedActivityOptionsRegistry(options.ActivityOptions);
 
+        // Workflow-options resolution is client-side (DI-enabled callers), so it
+        // is an injected singleton rather than a static registry.
+        services.AddSingleton<WorkflowOptionsRegistry>();
+
         var exportMetrics = !string.IsNullOrWhiteSpace(options.Metrics.PrometheusBindAddress)
             || !string.IsNullOrWhiteSpace(options.Metrics.OpenTelemetryUrl);
         var forwardLogs = options.Logging.Enabled;
@@ -500,6 +504,7 @@ public static class TemporalServiceCollectionExtensions
         target.DataConverter = source.DataConverter;
         target.Workers = source.Workers;
         target.ActivityOptions = source.ActivityOptions;
+        target.Workflows = source.Workflows;
         target.HealthChecks = source.HealthChecks;
     }
 

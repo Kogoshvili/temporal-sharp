@@ -28,6 +28,9 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
 - **Activity-options presets** — `Temporal:ActivityOptions` defines a default
   and named `ActivityOptions` presets, resolved from workflows via the static
   `ActivityOptionsRegistry` (workflows cannot use DI).
+- **Workflow-options presets & ID conventions** — `Temporal:Workflows` defines a
+  default and per-type `WorkflowOptions` presets plus a workflow-ID template,
+  resolved via the injected `WorkflowOptionsRegistry` (caller overrides win).
 - **Health checks** — `AddTemporalHealthChecks()` registers an `IHealthCheck`
   that reports client liveness and per-queue poller counts.
 - **`WorkerDiscovery`** — the auto-discovery engine, exposed for custom use.
@@ -133,6 +136,19 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
         "long-running": {
           "ScheduleToCloseTimeout": "00:30:00",
           "HeartbeatTimeout": "00:01:00"
+        }
+      }
+    },
+    "Workflows": {
+      "Id": { "Format": "{Type}-{Guid:N}" },
+      "Default": {
+        "RunTimeout": "00:05:00",
+        "TaskTimeout": "00:00:10",
+        "IdConflictPolicy": "UseExisting"
+      },
+      "ByType": {
+        "MoneyTransferWorkflow": {
+          "RunTimeout": "00:30:00"
         }
       }
     },
@@ -285,6 +301,47 @@ Each preset must set `ScheduleToCloseTimeout` or `StartToCloseTimeout` (the
 SDK's own rule); unset properties leave the SDK defaults, and an unset `Retry`
 means "retry forever". Presets are captured at startup and are **not**
 live-reloaded, to keep workflow replay deterministic.
+
+### Workflow-options presets and ID conventions
+
+`Temporal:Workflows` configures how workflows are *started* (client-side), as
+opposed to `ActivityOptions` which configures how activities *execute*. It
+defines a default preset, per-workflow-type overrides, and a workflow-ID
+template. Unlike `ActivityOptions` (a static registry, because sandboxed
+workflows cannot use DI), this is an injected `WorkflowOptionsRegistry`:
+
+```csharp
+public class MyService
+{
+    private readonly ITemporalClient _client;
+    private readonly WorkflowOptionsRegistry _workflows;
+
+    public MyService(ITemporalClient client, WorkflowOptionsRegistry workflows)
+    {
+        _client = client;
+        _workflows = workflows;
+    }
+
+    public async Task StartAsync(string workflowId = null)
+    {
+        var options = _workflows.Build(
+            "MoneyTransferWorkflow",
+            "my-task-queue",
+            workflowId: workflowId,               // optional; convention applies if null
+            configure: o => o.RunTimeout = TimeSpan.FromMinutes(60)); // final override, always wins
+
+        await _client.StartWorkflowAsync("MoneyTransferWorkflow", args, options);
+    }
+}
+```
+
+Precedence (lowest to highest): SDK defaults → `Default` preset → `ByType`
+override → the caller's explicit `workflowId` and `configure`. The preset
+exposes `RunTimeout`, `TaskTimeout`, `ExecutionTimeout`, `IdConflictPolicy`,
+`StartDelay`, and `Retry`; `Id` and `TaskQueue` are intentionally not
+defaultable (they are per-call). The `Id:Format` template supports `{Type}`,
+`{Queue}`, and `{Guid}` (plus `{Guid:N}`/`{Guid:D}`/`{Guid:B}`); with no format
+and no explicit ID, the SDK generates a random UUID.
 
 ### Connection retry and startup wait
 
