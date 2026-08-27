@@ -30,7 +30,8 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
   `ActivityOptionsRegistry` (workflows cannot use DI).
 - **Workflow-options presets & ID conventions** — `Temporal:Workflows` defines a
   default and per-type `WorkflowOptions` presets plus a workflow-ID template,
-  resolved via the injected `WorkflowOptionsRegistry` (caller overrides win).
+  surfaced through the typed `IWorkflowOps` facade (start/signal/query/result/
+  terminate/cancel/restart/list); caller overrides win.
 - **Health checks** — `AddTemporalHealthChecks()` registers an `IHealthCheck`
   that reports client liveness and per-queue poller counts.
 - **`WorkerDiscovery`** — the auto-discovery engine, exposed for custom use.
@@ -142,12 +143,14 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
     "Workflows": {
       "Id": { "Format": "{Type}-{Guid:N}" },
       "Default": {
+        "TaskQueue": "orders-queue",
         "RunTimeout": "00:05:00",
         "TaskTimeout": "00:00:10",
         "IdConflictPolicy": "UseExisting"
       },
       "ByType": {
         "MoneyTransferWorkflow": {
+          "TaskQueue": "payments-queue",
           "RunTimeout": "00:30:00"
         }
       }
@@ -307,41 +310,67 @@ live-reloaded, to keep workflow replay deterministic.
 `Temporal:Workflows` configures how workflows are *started* (client-side), as
 opposed to `ActivityOptions` which configures how activities *execute*. It
 defines a default preset, per-workflow-type overrides, and a workflow-ID
-template. Unlike `ActivityOptions` (a static registry, because sandboxed
-workflows cannot use DI), this is an injected `WorkflowOptionsRegistry`:
+template. The `IWorkflowOps` facade wraps the client and these options behind a
+single typed API — workflow type comes from the generic argument, and the task
+queue / workflow ID / timeouts resolve from config (each overridable per call):
 
 ```csharp
 public class MyService
 {
-    private readonly ITemporalClient _client;
-    private readonly WorkflowOptionsRegistry _workflows;
+    private readonly IWorkflowOps workflows;
 
-    public MyService(ITemporalClient client, WorkflowOptionsRegistry workflows)
+    public MyService(IWorkflowOps workflows) => this.workflows = workflows;
+
+    public async Task RunAsync()
     {
-        _client = client;
-        _workflows = workflows;
-    }
+        // Type from the generic; queue, ID, and timeouts from Temporal:Workflows.
+        var handle = await workflows.StartAsync<MoneyTransferWorkflow, string>(
+            w => w.RunAsync("acct-1", "acct-2", 100m));
 
-    public async Task StartAsync(string workflowId = null)
-    {
-        var options = _workflows.Build(
-            "MoneyTransferWorkflow",
-            "my-task-queue",
-            workflowId: workflowId,               // optional; convention applies if null
-            configure: o => o.RunTimeout = TimeSpan.FromMinutes(60)); // final override, always wins
+        var result = await handle.GetResultAsync();
 
-        await _client.StartWorkflowAsync("MoneyTransferWorkflow", args, options);
+        // Override anything per-call (explicit args always win):
+        await workflows.StartAsync<MoneyTransferWorkflow>(
+            w => w.RunAsync("acct-3", "acct-4", 50m),
+            taskQueue: "vip-payments",
+            workflowId: "vip-transfer-0001");
+
+        // Signal / query / result / terminate / cancel / list / restart:
+        await workflows.SignalAsync<MoneyTransferWorkflow>("vip-transfer-0001", w => w.ApproveAsync("a42"));
+        var status = await workflows.QueryAsync<MoneyTransferWorkflow, string>("vip-transfer-0001", w => w.Status());
+        await workflows.TerminateAsync("vip-transfer-0001", reason: "rollback");
+        await foreach (var exec in workflows.ListAsync("WorkflowType = 'MoneyTransferWorkflow'"))
+            Console.WriteLine(exec.Id);
+
+        // String-based (no workflow type) overloads mirror the typed ones:
+        await workflows.StartAsync("MoneyTransferWorkflow", new object?[] { "acct-1", "acct-2", 100m });
     }
 }
 ```
 
+For workflows that take a single input object (the common "parameter object"
+convention), the run argument can be passed directly without a lambda:
+
+```csharp
+public sealed record MoneyTransferInput(string From, string To, decimal Amount);
+
+await workflows.StartAsync<MoneyTransferWorkflow, MoneyTransferInput>(
+    new MoneyTransferInput("acct-1", "acct-2", 100m));
+```
+
+Here `TParams` is the workflow's single run parameter (i.e.
+`RunAsync(MoneyTransferInput)`). Use the lambda overloads for workflows with
+multiple run parameters.
+
 Precedence (lowest to highest): SDK defaults → `Default` preset → `ByType`
-override → the caller's explicit `workflowId` and `configure`. The preset
-exposes `RunTimeout`, `TaskTimeout`, `ExecutionTimeout`, `IdConflictPolicy`,
-`StartDelay`, and `Retry`; `Id` and `TaskQueue` are intentionally not
-defaultable (they are per-call). The `Id:Format` template supports `{Type}`,
-`{Queue}`, and `{Guid}` (plus `{Guid:N}`/`{Guid:D}`/`{Guid:B}`); with no format
-and no explicit ID, the SDK generates a random UUID.
+override → the caller's explicit `taskQueue`/`workflowId`/`configure`. The
+preset exposes `RunTimeout`, `TaskTimeout`, `ExecutionTimeout`,
+`IdConflictPolicy`, `StartDelay`, `Retry`, and `TaskQueue` (the start queue).
+The task queue is resolved from `ByType` then `Default`; if none is set and none
+is passed explicitly, the start throws an `InvalidOperationException` with a
+clear message rather than failing obscurely. The `Id:Format` template supports
+`{Type}`, `{Queue}`, and `{Guid}` (plus `{Guid:N}`/`{Guid:D}`/`{Guid:B}`); with
+no format and no explicit ID, the SDK generates a random UUID.
 
 ### Connection retry and startup wait
 

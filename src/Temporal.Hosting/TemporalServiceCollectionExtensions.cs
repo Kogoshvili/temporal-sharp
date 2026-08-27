@@ -176,6 +176,7 @@ public static class TemporalServiceCollectionExtensions
         // Workflow-options resolution is client-side (DI-enabled callers), so it
         // is an injected singleton rather than a static registry.
         services.AddSingleton<WorkflowOptionsRegistry>();
+        services.AddSingleton<IWorkflowOps, WorkflowOps>();
 
         var exportMetrics = !string.IsNullOrWhiteSpace(options.Metrics.PrometheusBindAddress)
             || !string.IsNullOrWhiteSpace(options.Metrics.OpenTelemetryUrl);

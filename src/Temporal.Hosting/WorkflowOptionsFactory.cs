@@ -46,5 +46,10 @@ internal static class WorkflowOptionsFactory
         {
             options.RetryPolicy = RetryPolicyFactory.Build(retry);
         }
+
+        if (preset.TaskQueue is { } taskQueue)
+        {
+            options.TaskQueue = taskQueue;
+        }
     }
 }

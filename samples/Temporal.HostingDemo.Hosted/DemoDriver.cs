@@ -1,7 +1,6 @@
 using Kogoshvili.Temporal.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Temporalio.Client;
 
 namespace Kogoshvili.Temporal.HostingDemo.Hosted;
 
@@ -12,13 +11,11 @@ namespace Kogoshvili.Temporal.HostingDemo.Hosted;
 /// </summary>
 public sealed class DemoDriver : BackgroundService
 {
-    private readonly ITemporalClient client;
-    private readonly WorkflowOptionsRegistry workflows;
+    private readonly IWorkflowOps workflows;
     private readonly ILogger<DemoDriver> logger;
 
-    public DemoDriver(ITemporalClient client, WorkflowOptionsRegistry workflows, ILogger<DemoDriver> logger)
+    public DemoDriver(IWorkflowOps workflows, ILogger<DemoDriver> logger)
     {
-        this.client = client;
         this.workflows = workflows;
         this.logger = logger;
     }
@@ -28,31 +25,26 @@ public sealed class DemoDriver : BackgroundService
         // Give the worker's pollers a moment to connect to the server.
         await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken).ConfigureAwait(false);
 
-        // Start via WorkflowOptionsRegistry: Temporal:Workflows:Default +
-        // Temporal:Workflows:ByType:GreetingWorkflow presets are merged, the
-        // Temporal:Workflows:Id:Format convention supplies the workflow ID, and
-        // the final configure delegate overrides everything.
-        var greetingOptions = workflows.Build(
-            "GreetingWorkflow",
-            "hosted-queue",
-            configure: o => o.TaskTimeout = TimeSpan.FromSeconds(30));
-
-        var greetingHandle = await client.StartWorkflowAsync(
-            (GreetingWorkflow workflow) => workflow.RunAsync("hosted"),
-            greetingOptions);
+        // Minimal start via IWorkflowOps: workflow type comes from the generic,
+        // the task queue from Temporal:Workflows:Default:TaskQueue, the workflow
+        // ID from Temporal:Workflows:Id:Format, and timeouts from the
+        // Default/ByType presets. An explicit per-call argument overrides any of
+        // them (see the claim-check start below).
+        var greetingHandle = await workflows.StartAsync<GreetingWorkflow, string>(
+            workflow => workflow.RunAsync("hosted"));
 
         logger.LogInformation("Greeting result: {Greeting}", await greetingHandle.GetResultAsync());
 
-        var probeHandle = await client.StartWorkflowAsync(
-            (LifetimeProbeWorkflow workflow) => workflow.RunAsync(),
-            new() { Id = $"hosted-probe-{Guid.NewGuid():N}", TaskQueue = "hosted-queue" });
+        var probeHandle = await workflows.StartAsync<LifetimeProbeWorkflow, string>(
+            workflow => workflow.RunAsync());
 
         logger.LogInformation("Lifetime probe:{NewLine}{Probe}", Environment.NewLine, await probeHandle.GetResultAsync());
 
-        // A payload big enough to trigger claim-check offloading.
-        var claimCheckHandle = await client.StartWorkflowAsync(
-            (ClaimCheckWorkflow workflow) => workflow.RunAsync(new string('x', 4096)),
-            new() { Id = $"hosted-claimcheck-{Guid.NewGuid():N}", TaskQueue = "hosted-queue" });
+        // Override the task queue and workflow ID per-call (both always win).
+        var claimCheckHandle = await workflows.StartAsync<ClaimCheckWorkflow, string>(
+            workflow => workflow.RunAsync(new string('x', 4096)),
+            taskQueue: "hosted-queue",
+            workflowId: $"hosted-claimcheck-{Guid.NewGuid():N}");
 
         logger.LogInformation("Claim-check result: {Result}", await claimCheckHandle.GetResultAsync());
     }

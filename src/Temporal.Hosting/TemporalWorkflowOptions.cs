@@ -48,6 +48,14 @@ public sealed class WorkflowOptionsPreset
 
     /// <summary>Gets or sets the retry policy, or <c>null</c> to never retry (the SDK default).</summary>
     public RetryPolicyOptions? Retry { get; set; }
+
+    /// <summary>
+    /// Gets or sets the task queue the workflow is started on. When set on the
+    /// <c>Default</c> preset it is the fallback queue; when set on a <c>ByType</c>
+    /// entry it overrides the default for that workflow type. An explicit
+    /// per-call queue always wins.
+    /// </summary>
+    public string? TaskQueue { get; set; }
 }
 
 /// <summary>

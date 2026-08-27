@@ -157,6 +157,74 @@ public class WorkflowOptionsRegistryTests
     }
 
     [Fact]
+    public void Build_NoQueueAnywhere_Throws()
+    {
+        var registry = CreateRegistry(new TemporalWorkflowOptions());
+
+        var exception = Assert.Throws<InvalidOperationException>(() => registry.Build("MyWorkflow"));
+
+        Assert.Contains("task queue", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("MyWorkflow", exception.Message);
+    }
+
+    [Fact]
+    public void Build_DefaultQueue_Resolved()
+    {
+        var registry = CreateRegistry(new TemporalWorkflowOptions
+        {
+            Default = new WorkflowOptionsPreset { TaskQueue = "default-queue" },
+        });
+
+        var options = registry.Build("MyWorkflow");
+
+        Assert.Equal("default-queue", options.TaskQueue);
+    }
+
+    [Fact]
+    public void Build_PerTypeQueueOverridesDefault()
+    {
+        var registry = CreateRegistry(new TemporalWorkflowOptions
+        {
+            Default = new WorkflowOptionsPreset { TaskQueue = "default-queue" },
+            ByType = new Dictionary<string, WorkflowOptionsPreset>
+            {
+                ["MyWorkflow"] = new WorkflowOptionsPreset { TaskQueue = "payments-queue" },
+            },
+        });
+
+        var options = registry.Build("MyWorkflow");
+
+        Assert.Equal("payments-queue", options.TaskQueue);
+    }
+
+    [Fact]
+    public void Build_ExplicitQueueWinsOverConfig()
+    {
+        var registry = CreateRegistry(new TemporalWorkflowOptions
+        {
+            Default = new WorkflowOptionsPreset { TaskQueue = "default-queue" },
+        });
+
+        var options = registry.Build("MyWorkflow", taskQueue: "explicit-queue");
+
+        Assert.Equal("explicit-queue", options.TaskQueue);
+    }
+
+    [Fact]
+    public void Build_IdConvention_UsesResolvedQueue()
+    {
+        var registry = CreateRegistry(new TemporalWorkflowOptions
+        {
+            Id = new WorkflowIdOptions { Format = "{Queue}-{Guid:N}" },
+            Default = new WorkflowOptionsPreset { TaskQueue = "default-queue" },
+        });
+
+        var options = registry.Build("MyWorkflow");
+
+        Assert.Matches(@"^default-queue-[0-9a-f]{32}$", options.Id!);
+    }
+
+    [Fact]
     public void AddTemporal_Configuration_BindsWorkflowsAndRegistersRegistry()
     {
         var configuration = new ConfigurationBuilder()
