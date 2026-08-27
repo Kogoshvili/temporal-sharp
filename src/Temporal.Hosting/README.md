@@ -35,6 +35,9 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
 - **Workflow settings** — `Temporal:WorkflowSettings` lets a workflow read its own
   typed configuration via `WorkflowSettings.GetAsync<TSettings>()`, useful when
   the caller can't supply the value.
+- **Saga/compensation** — a `Saga` helper (a port of the Java SDK's `Saga`) that
+  collects compensation operations and unwinds them LIFO on failure, with
+  sequential/parallel modes and stop-or-continue error handling.
 - **Health checks** — `AddTemporalHealthChecks()` registers an `IHealthCheck`
   that reports client liveness and per-queue poller counts.
 - **`WorkerDiscovery`** — the auto-discovery engine, exposed for custom use.
