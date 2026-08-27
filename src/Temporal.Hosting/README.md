@@ -39,6 +39,11 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
 - **Saga/compensation** — a `Saga` helper (a port of the Java SDK's `Saga`) that
   collects compensation operations and unwinds them LIFO on failure, with
   sequential/parallel modes and stop-or-continue error handling.
+- **Long-running activity heartbeats** — a `HeartbeatingActivity` base class that
+  wraps heartbeat, cancellation-checking, and checkpoint resume
+  (`Heartbeat`, `CheckCancellation`, `LoadProgressAsync<T>`), plus an opt-in
+  `StartAutoHeartbeat()` background loop that keeps the activity alive and relays
+  the last checkpoint rather than clobbering it with an empty ping.
 - **Health checks** — `AddTemporalHealthChecks()` registers an `IHealthCheck`
   that reports client liveness and per-queue poller counts.
 - **`WorkerDiscovery`** — the auto-discovery engine, exposed for custom use.

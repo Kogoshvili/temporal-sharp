@@ -53,5 +53,12 @@ public sealed class DemoDriver : BackgroundService
             new() { Id = $"raw-saga-{Guid.NewGuid():N}", TaskQueue = "raw-queue" });
 
         logger.LogInformation("Saga: {Result}", await sagaHandle.GetResultAsync());
+
+        // Hand-rolled heartbeat + resume download via the "long-running" preset.
+        var downloadHandle = await client.StartWorkflowAsync(
+            (DownloadWorkflow workflow) => workflow.RunAsync(10),
+            new() { Id = $"raw-download-{Guid.NewGuid():N}", TaskQueue = "raw-queue" });
+
+        logger.LogInformation("Download: {Result}", await downloadHandle.GetResultAsync());
     }
 }

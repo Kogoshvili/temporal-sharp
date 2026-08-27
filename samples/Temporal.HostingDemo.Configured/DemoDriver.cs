@@ -64,5 +64,11 @@ public sealed class DemoDriver : BackgroundService
             workflow => workflow.RunAsync());
 
         logger.LogInformation("Local activity: {Result}", await localHandle.GetResultAsync());
+
+        // HeartbeatingActivity: download with auto-heartbeat + progress resume.
+        var downloadHandle = await workflows.StartAsync<DownloadWorkflow, string>(
+            workflow => workflow.RunAsync(10));
+
+        logger.LogInformation("Download: {Result}", await downloadHandle.GetResultAsync());
     }
 }

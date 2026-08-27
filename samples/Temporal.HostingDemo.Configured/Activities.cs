@@ -64,3 +64,36 @@ public static class StaticActivities
     [Activity]
     public static string CancelAllocation(string orderId) => $"cancel-allocation {orderId}";
 }
+
+/// <summary>Checkpoint recorded on every heartbeat, used to resume on retry.</summary>
+public sealed record DownloadProgress(int BytesDownloaded, int TotalBytes);
+
+/// <summary>
+/// A long-running activity built on the <see cref="HeartbeatingActivity"/> base:
+/// <see cref="HeartbeatingActivity.LoadProgressAsync{T}"/> resumes from the last
+/// checkpoint, <see cref="HeartbeatingActivity.StartAutoHeartbeat"/> keeps the
+/// activity alive on a background loop (relaying the latest checkpoint rather
+/// than an empty ping), and <see cref="HeartbeatingActivity.Heartbeat"/> records
+/// each new checkpoint.
+/// </summary>
+public sealed class DownloadActivities : HeartbeatingActivity
+{
+    [Activity]
+    public async Task<int> DownloadAsync(int totalBytes)
+    {
+        var progress = await LoadProgressAsync<DownloadProgress>()
+            ?? new DownloadProgress(0, totalBytes);
+
+        using var heartbeat = StartAutoHeartbeat();
+
+        while (progress.BytesDownloaded < progress.TotalBytes)
+        {
+            CheckCancellation();
+            await Task.Delay(50);
+            progress = progress with { BytesDownloaded = progress.BytesDownloaded + 1 };
+            Heartbeat(progress);
+        }
+
+        return progress.BytesDownloaded;
+    }
+}

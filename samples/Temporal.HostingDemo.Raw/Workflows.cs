@@ -135,3 +135,21 @@ public sealed class SagaWorkflow
         return "completed without compensation";
     }
 }
+
+/// <summary>
+/// The hand-rolled download (manual heartbeat + resume) via the "long-running"
+/// preset, which carries a HeartbeatTimeout.
+/// </summary>
+[Workflow]
+public sealed class DownloadWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(int totalBytes)
+    {
+        var downloaded = await Workflow.ExecuteActivityAsync(
+            () => ManualHeartbeatActivities.DownloadAsync(totalBytes),
+            ActivityOptionsPresets.Get("long-running"));
+
+        return $"Downloaded {downloaded}/{totalBytes} bytes.";
+    }
+}

@@ -57,3 +57,35 @@ public static class StaticActivities
     [Activity]
     public static string CancelAllocation(string orderId) => $"cancel-allocation {orderId}";
 }
+
+/// <summary>Checkpoint recorded on every heartbeat, used to resume on retry.</summary>
+public sealed record DownloadProgress(int BytesDownloaded, int TotalBytes);
+
+/// <summary>
+/// The hand-rolled equivalent of the starter's <see cref="HeartbeatingActivity"/>:
+/// resume is read from <c>ActivityInfo.HeartbeatDetailAtAsync</c>, heartbeats are
+/// recorded manually each iteration (no background auto-heartbeat), and
+/// cancellation is checked on the context token directly.
+/// </summary>
+public static class ManualHeartbeatActivities
+{
+    [Activity]
+    public static async Task<int> DownloadAsync(int totalBytes)
+    {
+        var ctx = ActivityExecutionContext.Current;
+
+        var progress = ctx.Info.HeartbeatDetails.Count > 0
+            ? await ctx.Info.HeartbeatDetailAtAsync<DownloadProgress>(0)
+            : new DownloadProgress(0, totalBytes);
+
+        while (progress.BytesDownloaded < progress.TotalBytes)
+        {
+            ctx.CancellationToken.ThrowIfCancellationRequested();
+            await Task.Delay(50);
+            progress = progress with { BytesDownloaded = progress.BytesDownloaded + 1 };
+            ctx.Heartbeat(progress);
+        }
+
+        return progress.BytesDownloaded;
+    }
+}

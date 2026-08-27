@@ -10,6 +10,6 @@ builder.Services
     .AddTemporalWorker("minimal-queue")
     .AddDiscoveredTypes();
 
-builder.Services.AddHostedService<GreetingDriver>();
+builder.Services.AddHostedService<DemoDriver>();
 
 await builder.Build().RunAsync();

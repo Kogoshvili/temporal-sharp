@@ -2,6 +2,8 @@
 
 Kogoshvili.Temporal — static-analysis + library tooling for the Temporal .NET SDK (`Temporalio`). Eight NuGet packages + one CLI share the `Kogoshvili.Temporal` namespace. Not affiliated with Temporal Technologies.
 
+The Temporal .NET SDK source lives at `~/Projects/temporal-sdk-dotnet`.
+
 ## Build & test
 
 - .NET SDK pinned in `global.json` (8.0.424, `rollForward: latestFeature`). Package versions are centrally managed in `Directory.Packages.props` (`ManagePackageVersionsCentrally`); vulnerable transitives are overridden there.

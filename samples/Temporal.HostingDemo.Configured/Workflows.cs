@@ -161,3 +161,23 @@ public sealed class SagaWorkflow
         return "completed without compensation";
     }
 }
+
+/// <summary>
+/// Runs the <see cref="HeartbeatingActivity"/>-based download via the
+/// "long-running" preset (which sets a HeartbeatTimeout), so the activity's
+/// background heartbeat keeps it alive and, on retry, it resumes from its last
+/// checkpoint instead of restarting.
+/// </summary>
+[Workflow]
+public sealed class DownloadWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(int totalBytes)
+    {
+        var downloaded = await ActivityOps.ExecuteAsync(
+            () => new DownloadActivities().DownloadAsync(totalBytes),
+            "long-running");
+
+        return $"Downloaded {downloaded}/{totalBytes} bytes.";
+    }
+}

@@ -113,10 +113,12 @@ builder.Services.AddHostedTemporalWorker("raw-queue", deploymentOptions: (Worker
     .AddWorkflow<LifetimeProbeWorkflow>()
     .AddWorkflow<ClaimCheckWorkflow>()
     .AddWorkflow<SagaWorkflow>()
+    .AddWorkflow<DownloadWorkflow>()
     .AddScopedActivities<ScopedActivities>()
     .AddSingletonActivities<SingletonActivities>()
     .AddTransientActivities<TransientActivities>()
-    .AddStaticActivities(typeof(StaticActivities));
+    .AddStaticActivities(typeof(StaticActivities))
+    .AddStaticActivities(typeof(ManualHeartbeatActivities));
 
 // 7. Self-start the demo workflows to prove the worker is live.
 builder.Services.AddHostedService<DemoDriver>();
