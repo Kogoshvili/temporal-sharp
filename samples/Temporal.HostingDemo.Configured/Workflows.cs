@@ -98,3 +98,49 @@ public sealed class BatchingWorkflow
         return $"Workflow settings: batch size = {settings.BatchSize}";
     }
 }
+
+/// <summary>
+/// Demonstrates the <see cref="Saga"/> compensation helper (a port of the Java
+/// SDK's Saga). Each forward activity registers a compensation <em>before</em>
+/// it runs; when <c>Charge</c> fails, <c>CompensateAsync</c> unwinds them in
+/// reverse (LIFO) order. Compensations are ordinary activity calls, so their
+/// retry policy and timeouts come from <see cref="ActivityOptions"/> as usual.
+/// </summary>
+[Workflow]
+public sealed class SagaWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string orderId)
+    {
+        var saga = new Saga();
+        var options = new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) };
+        var compensationsRun = new List<string>();
+
+        try
+        {
+            saga.AddCompensation(async () =>
+                compensationsRun.Add(await Workflow.ExecuteActivityAsync(
+                    () => StaticActivities.CancelReservation(orderId), options)));
+
+            await Workflow.ExecuteActivityAsync(() => StaticActivities.Reserve(orderId), options);
+
+            saga.AddCompensation(async () =>
+                compensationsRun.Add(await Workflow.ExecuteActivityAsync(
+                    () => StaticActivities.CancelAllocation(orderId), options)));
+
+            await Workflow.ExecuteActivityAsync(() => StaticActivities.Allocate(orderId), options);
+
+            // Always fails, so the two compensations run in LIFO order:
+            // cancel-allocation, then cancel-reservation.
+            await Workflow.ExecuteActivityAsync(() => StaticActivities.Charge(orderId), options);
+        }
+        catch (Exception ex)
+        {
+            Workflow.Logger.LogWarning(ex, "Charge failed; compensating");
+            await saga.CompensateAsync();
+            return $"compensated in LIFO order: {string.Join(", ", compensationsRun)}";
+        }
+
+        return "completed without compensation";
+    }
+}

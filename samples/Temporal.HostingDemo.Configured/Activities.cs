@@ -44,4 +44,20 @@ public static class StaticActivities
 
     [Activity]
     public static int Measure(string payload) => payload.Length;
+
+    [Activity]
+    public static string Reserve(string orderId) => $"reserved {orderId}";
+
+    [Activity]
+    public static string Allocate(string orderId) => $"allocated {orderId}";
+
+    [Activity]
+    public static string Charge(string orderId) =>
+        throw new InvalidOperationException($"charge failed for {orderId}");
+
+    [Activity]
+    public static string CancelReservation(string orderId) => $"cancel-reservation {orderId}";
+
+    [Activity]
+    public static string CancelAllocation(string orderId) => $"cancel-allocation {orderId}";
 }

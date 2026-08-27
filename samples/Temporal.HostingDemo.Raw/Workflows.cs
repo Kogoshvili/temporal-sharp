@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Temporalio.Activities;
 using Temporalio.Workflows;
 
@@ -84,5 +85,53 @@ public sealed class ClaimCheckWorkflow
 
         return $"Claim-check demo: activity received {length} characters " +
             $"(first 40: \"{largePayload[..40]}\").";
+    }
+}
+
+/// <summary>
+/// The hand-rolled equivalent of the starter's <c>Saga</c> helper (which is a
+/// port of the Java SDK's Saga): a plain <c>List&lt;Func&lt;Task&gt;&gt;</c> of
+/// compensations, registered before each forward activity and unwound in
+/// reverse (LIFO) order on failure.
+/// </summary>
+[Workflow]
+public sealed class SagaWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string orderId)
+    {
+        var compensations = new List<Func<Task>>();
+        var options = new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) };
+        var compensationsRun = new List<string>();
+
+        try
+        {
+            compensations.Add(async () =>
+                compensationsRun.Add(await Workflow.ExecuteActivityAsync(
+                    () => StaticActivities.CancelReservation(orderId), options)));
+
+            await Workflow.ExecuteActivityAsync(() => StaticActivities.Reserve(orderId), options);
+
+            compensations.Add(async () =>
+                compensationsRun.Add(await Workflow.ExecuteActivityAsync(
+                    () => StaticActivities.CancelAllocation(orderId), options)));
+
+            await Workflow.ExecuteActivityAsync(() => StaticActivities.Allocate(orderId), options);
+
+            await Workflow.ExecuteActivityAsync(() => StaticActivities.Charge(orderId), options);
+        }
+        catch (Exception ex)
+        {
+            Workflow.Logger.LogWarning(ex, "Charge failed; compensating");
+            compensations.Reverse();
+            foreach (var compensation in compensations)
+            {
+                await compensation();
+            }
+
+            return $"compensated in LIFO order: {string.Join(", ", compensationsRun)}";
+        }
+
+        return "completed without compensation";
     }
 }

@@ -112,6 +112,7 @@ builder.Services.AddHostedTemporalWorker("raw-queue", deploymentOptions: (Worker
     .AddWorkflow<GreetingWorkflow>()
     .AddWorkflow<LifetimeProbeWorkflow>()
     .AddWorkflow<ClaimCheckWorkflow>()
+    .AddWorkflow<SagaWorkflow>()
     .AddScopedActivities<ScopedActivities>()
     .AddSingletonActivities<SingletonActivities>()
     .AddTransientActivities<TransientActivities>()

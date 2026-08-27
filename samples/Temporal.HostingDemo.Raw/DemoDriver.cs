@@ -47,5 +47,11 @@ public sealed class DemoDriver : BackgroundService
             new() { Id = $"raw-claimcheck-{Guid.NewGuid():N}", TaskQueue = "raw-queue" });
 
         logger.LogInformation("Claim-check result: {Result}", await claimCheckHandle.GetResultAsync());
+
+        var sagaHandle = await client.StartWorkflowAsync(
+            (SagaWorkflow workflow) => workflow.RunAsync($"order-{Guid.NewGuid():N}"),
+            new() { Id = $"raw-saga-{Guid.NewGuid():N}", TaskQueue = "raw-queue" });
+
+        logger.LogInformation("Saga: {Result}", await sagaHandle.GetResultAsync());
     }
 }

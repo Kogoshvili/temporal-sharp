@@ -53,5 +53,11 @@ public sealed class DemoDriver : BackgroundService
             workflow => workflow.RunAsync());
 
         logger.LogInformation("Workflow settings: {Result}", await batchingHandle.GetResultAsync());
+
+        // Saga: the Charge step fails, triggering LIFO compensation via the Saga helper.
+        var sagaHandle = await workflows.StartAsync<SagaWorkflow, string>(
+            workflow => workflow.RunAsync($"order-{Guid.NewGuid():N}"));
+
+        logger.LogInformation("Saga: {Result}", await sagaHandle.GetResultAsync());
     }
 }
