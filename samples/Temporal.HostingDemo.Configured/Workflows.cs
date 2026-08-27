@@ -12,9 +12,7 @@ public sealed class GreetingWorkflow
     {
         // Resolve the default activity-options preset configured under
         // Temporal:ActivityOptions:Default (ScheduleToCloseTimeout + heartbeat).
-        return await Workflow.ExecuteActivityAsync(
-            () => StaticActivities.Greet(name),
-            ActivityOptionsRegistry.GetDefault()!);
+        return await ActivityOps.ExecuteAsync(() => StaticActivities.Greet(name));
     }
 }
 
@@ -61,9 +59,9 @@ public sealed class ClaimCheckWorkflow
     public async Task<string> RunAsync(string largePayload)
     {
         // Named preset from Temporal:ActivityOptions:Presets:long-running.
-        var length = await Workflow.ExecuteActivityAsync(
+        var length = await ActivityOps.ExecuteAsync(
             () => StaticActivities.Measure(largePayload),
-            ActivityOptionsRegistry.Get("long-running"));
+            "long-running");
 
         return $"Claim-check demo: activity received {length} characters " +
             $"(first 40: \"{largePayload[..40]}\").";
@@ -78,6 +76,25 @@ public sealed class ClaimCheckWorkflow
 public sealed class BatchingSettings
 {
     public int BatchSize { get; set; }
+}
+
+/// <summary>
+/// Runs a local activity via <see cref="ActivityOps.ExecuteLocalAsync"/> with a
+/// preset from <c>Temporal:ActivityOptions</c> — the same facade used for
+/// regular activities, but against <c>Workflow.ExecuteLocalActivityAsync</c>.
+/// </summary>
+[Workflow]
+public sealed class LocalActivityWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync()
+    {
+        var result = await ActivityOps.ExecuteLocalAsync(
+            () => StaticActivities.LocalEcho("local"),
+            "fast");
+
+        return $"Local activity: {result}";
+    }
 }
 
 /// <summary>

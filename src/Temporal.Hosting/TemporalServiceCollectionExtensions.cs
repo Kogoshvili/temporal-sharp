@@ -522,7 +522,9 @@ public static class TemporalServiceCollectionExtensions
         }
 
         var defaultOptions = ActivityOptionsFactory.Build(activityOptions.Default);
+        var localDefaultOptions = LocalActivityOptionsFactory.Build(activityOptions.LocalDefault);
         var presets = new Dictionary<string, Temporalio.Workflows.ActivityOptions>(StringComparer.Ordinal);
+        var localPresets = new Dictionary<string, Temporalio.Workflows.LocalActivityOptions>(StringComparer.Ordinal);
 
         if (activityOptions.Presets is { } named)
         {
@@ -532,10 +534,15 @@ public static class TemporalServiceCollectionExtensions
                 {
                     presets[name] = options;
                 }
+
+                if (LocalActivityOptionsFactory.Build(preset) is { } localOptions)
+                {
+                    localPresets[name] = localOptions;
+                }
             }
         }
 
-        ActivityOptionsRegistry.Replace(defaultOptions, presets);
+        ActivityOptionsRegistry.Replace(defaultOptions, presets, localDefaultOptions, localPresets);
     }
 
     private static TemporalWorkerTaskQueueRegistry GetOrAddWorkerTaskQueueRegistry(IServiceCollection services)

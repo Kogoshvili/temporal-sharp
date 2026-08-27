@@ -85,6 +85,7 @@ public class ConnectionTransportOptionsTests
     }
 }
 
+[Collection("ActivityOptionsRegistry")]
 public class ActivityOptionsPresetTests
 {
     [Fact]
@@ -187,6 +188,7 @@ public class ActivityOptionsPresetTests
     }
 }
 
+[Collection("ActivityOptionsRegistry")]
 public class ActivityOptionsRegistryTests
 {
     [Fact]
@@ -201,13 +203,81 @@ public class ActivityOptionsRegistryTests
                 defaultOptions,
                 new Dictionary<string, ActivityOptions> { ["long"] = named });
 
-            Assert.Same(defaultOptions, ActivityOptionsRegistry.GetDefault());
-            Assert.Same(named, ActivityOptionsRegistry.Get("long"));
+            Assert.Equal(TimeSpan.FromSeconds(1), ActivityOptionsRegistry.GetDefault()!.StartToCloseTimeout);
+            Assert.Equal(TimeSpan.FromSeconds(5), ActivityOptionsRegistry.Get("long").ScheduleToCloseTimeout);
             Assert.True(ActivityOptionsRegistry.TryGet("long", out var got));
-            Assert.Same(named, got);
+            Assert.Equal(TimeSpan.FromSeconds(5), got!.ScheduleToCloseTimeout);
             Assert.False(ActivityOptionsRegistry.TryGet("missing", out _));
             Assert.Contains("long", ActivityOptionsRegistry.Names);
             Assert.Throws<KeyNotFoundException>(() => ActivityOptionsRegistry.Get("missing"));
+        }
+        finally
+        {
+            ActivityOptionsRegistry.Replace(null, new Dictionary<string, ActivityOptions>());
+        }
+    }
+
+    [Fact]
+    public void Get_ReturnsClone_SoMutationIsIsolated()
+    {
+        try
+        {
+            var defaultOptions = new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(1) };
+            var named = new ActivityOptions { ScheduleToCloseTimeout = TimeSpan.FromSeconds(5) };
+
+            ActivityOptionsRegistry.Replace(
+                defaultOptions,
+                new Dictionary<string, ActivityOptions> { ["long"] = named });
+
+            var defaultClone = ActivityOptionsRegistry.GetDefault()!;
+            var namedClone = ActivityOptionsRegistry.Get("long");
+
+            Assert.NotSame(defaultOptions, defaultClone);
+            Assert.NotSame(named, namedClone);
+            Assert.Equal(TimeSpan.FromSeconds(1), defaultClone.StartToCloseTimeout);
+            Assert.Equal(TimeSpan.FromSeconds(5), namedClone.ScheduleToCloseTimeout);
+
+            defaultClone.StartToCloseTimeout = TimeSpan.FromSeconds(99);
+            namedClone.ScheduleToCloseTimeout = TimeSpan.FromSeconds(99);
+
+            Assert.Equal(TimeSpan.FromSeconds(1), ActivityOptionsRegistry.GetDefault()!.StartToCloseTimeout);
+            Assert.Equal(TimeSpan.FromSeconds(5), ActivityOptionsRegistry.Get("long").ScheduleToCloseTimeout);
+        }
+        finally
+        {
+            ActivityOptionsRegistry.Replace(null, new Dictionary<string, ActivityOptions>());
+        }
+    }
+
+    [Fact]
+    public void Resolve_ReturnsDefaultOrNamed_AndThrowsWhenAbsent()
+    {
+        try
+        {
+            var defaultOptions = new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(1) };
+            ActivityOptionsRegistry.Replace(
+                defaultOptions,
+                new Dictionary<string, ActivityOptions>());
+
+            Assert.Equal(TimeSpan.FromSeconds(1), ActivityOptionsRegistry.Resolve(null).StartToCloseTimeout);
+            Assert.Throws<KeyNotFoundException>(() => ActivityOptionsRegistry.Resolve("missing"));
+        }
+        finally
+        {
+            ActivityOptionsRegistry.Replace(null, new Dictionary<string, ActivityOptions>());
+        }
+    }
+
+    [Fact]
+    public void GetDefault_FallsBackToBuiltIn_WhenNothingConfigured()
+    {
+        try
+        {
+            ActivityOptionsRegistry.Replace(null, new Dictionary<string, ActivityOptions>());
+
+            var options = ActivityOptionsRegistry.GetDefault();
+
+            Assert.Equal(TimeSpan.FromMinutes(5), options.ScheduleToCloseTimeout);
         }
         finally
         {

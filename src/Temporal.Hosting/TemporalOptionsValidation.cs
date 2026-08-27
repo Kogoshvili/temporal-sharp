@@ -66,6 +66,11 @@ internal static class TemporalOptionsValidation
             ValidatePreset(defaultPreset, "Temporal:ActivityOptions:Default");
         }
 
+        if (activityOptions.LocalDefault is { } localDefaultPreset)
+        {
+            ValidatePreset(localDefaultPreset, "Temporal:ActivityOptions:LocalDefault");
+        }
+
         if (activityOptions.Presets is { } presets)
         {
             foreach (var (name, preset) in presets)

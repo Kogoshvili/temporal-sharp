@@ -46,6 +46,9 @@ public static class StaticActivities
     public static int Measure(string payload) => payload.Length;
 
     [Activity]
+    public static string LocalEcho(string value) => value.ToUpperInvariant();
+
+    [Activity]
     public static string Reserve(string orderId) => $"reserved {orderId}";
 
     [Activity]

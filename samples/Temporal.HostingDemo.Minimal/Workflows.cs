@@ -9,9 +9,7 @@ public sealed class GreetingWorkflow
 {
     [WorkflowRun]
     public async Task<string> RunAsync(string name) =>
-        await Workflow.ExecuteActivityAsync(
-            () => GreetingActivities.Greet(name),
-            ActivityOptionsRegistry.GetDefault()!);
+        await ActivityOps.ExecuteAsync(() => GreetingActivities.Greet(name));
 }
 
 public static class GreetingActivities

@@ -41,7 +41,8 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     /// <summary>
     /// Gets or sets activity-options presets bound from
     /// <c>Temporal:ActivityOptions</c> and exposed to workflows via
-    /// <see cref="ActivityOptionsRegistry"/>.
+    /// <see cref="ActivityOptionsRegistry"/>. A single preset maps to both
+    /// regular and local activities.
     /// </summary>
     public TemporalActivityOptions? ActivityOptions { get; set; }
 

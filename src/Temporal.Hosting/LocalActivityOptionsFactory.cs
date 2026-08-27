@@ -3,20 +3,21 @@ using Temporalio.Workflows;
 namespace Kogoshvili.Temporal.Hosting;
 
 /// <summary>
-/// Maps configuration-bound <see cref="ActivityOptionsPreset"/> values onto the
-/// SDK's <see cref="Temporalio.Workflows.ActivityOptions"/>. Null preset
-/// properties leave the SDK defaults untouched.
+/// Maps a configuration-bound <see cref="ActivityOptionsPreset"/> onto the SDK's
+/// <see cref="LocalActivityOptions"/>. Null preset properties leave the SDK
+/// defaults untouched, and regular-activity-only fields (heartbeat, task queue)
+/// are ignored.
 /// </summary>
-internal static class ActivityOptionsFactory
+internal static class LocalActivityOptionsFactory
 {
-    public static ActivityOptions? Build(ActivityOptionsPreset? preset)
+    public static LocalActivityOptions? Build(ActivityOptionsPreset? preset)
     {
         if (preset is null)
         {
             return null;
         }
 
-        var options = new ActivityOptions();
+        var options = new LocalActivityOptions();
 
         if (preset.ScheduleToCloseTimeout is { } scheduleToClose)
         {
@@ -33,19 +34,14 @@ internal static class ActivityOptionsFactory
             options.StartToCloseTimeout = startToClose;
         }
 
-        if (preset.HeartbeatTimeout is { } heartbeat)
-        {
-            options.HeartbeatTimeout = heartbeat;
-        }
-
         if (preset.CancellationType is { } cancellationType)
         {
             options.CancellationType = cancellationType;
         }
 
-        if (preset.TaskQueue is { } taskQueue)
+        if (preset.LocalRetryThreshold is { } localRetryThreshold)
         {
-            options.TaskQueue = taskQueue;
+            options.LocalRetryThreshold = localRetryThreshold;
         }
 
         if (preset.ActivityId is { } activityId)

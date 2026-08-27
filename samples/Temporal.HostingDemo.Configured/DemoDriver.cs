@@ -59,5 +59,10 @@ public sealed class DemoDriver : BackgroundService
             workflow => workflow.RunAsync($"order-{Guid.NewGuid():N}"));
 
         logger.LogInformation("Saga: {Result}", await sagaHandle.GetResultAsync());
+
+        var localHandle = await workflows.StartAsync<LocalActivityWorkflow, string>(
+            workflow => workflow.RunAsync());
+
+        logger.LogInformation("Local activity: {Result}", await localHandle.GetResultAsync());
     }
 }
