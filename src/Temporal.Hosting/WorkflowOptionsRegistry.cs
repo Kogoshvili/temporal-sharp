@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using Temporalio.Client;
 
@@ -14,10 +13,6 @@ namespace Kogoshvili.Temporal.Hosting;
 /// </summary>
 public sealed class WorkflowOptionsRegistry
 {
-    private static readonly Regex GuidPlaceholder = new(
-        @"\{Guid(?::(?<format>[NDBPX]))?\}",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     private readonly TemporalWorkflowOptions? workflows;
 
     /// <summary>Initializes a new instance of the <see cref="WorkflowOptionsRegistry"/> class.</summary>
@@ -88,18 +83,20 @@ public sealed class WorkflowOptionsRegistry
             return explicitId;
         }
 
-        var format = workflows?.Id?.Format;
-        if (string.IsNullOrWhiteSpace(format))
+        var format = ResolveFormat(workflows?.Id?.Format, WorkflowIdOptions.DefaultFormat);
+        if (format is null)
         {
             return null;
         }
 
-        var id = GuidPlaceholder.Replace(
-            format,
-            match => Guid.NewGuid().ToString(match.Groups["format"].Success ? match.Groups["format"].Value : "N"));
-
-        return id
-            .Replace("{Type}", workflowType, StringComparison.Ordinal)
-            .Replace("{Queue}", taskQueue, StringComparison.Ordinal);
+        return WorkflowIdFormatter.Format(format, workflowType, taskQueue);
     }
+
+    private static string? ResolveFormat(string? configured, string fallback) =>
+        configured switch
+        {
+            null => fallback,
+            "" => null,
+            _ => configured,
+        };
 }

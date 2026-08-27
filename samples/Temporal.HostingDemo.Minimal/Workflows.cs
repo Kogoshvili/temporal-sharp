@@ -138,3 +138,35 @@ public sealed class SagaWorkflow
         return "completed without compensation";
     }
 }
+
+/// <summary>
+/// A simple child workflow run via <see cref="ChildWorkflowOps"/>. It is only
+/// ever started as a child, so its task queue and child workflow ID resolve from
+/// the starter's defaults (<c>Temporal:Workflows:Default</c> and the shipped
+/// child ID convention).
+/// </summary>
+[Workflow]
+public sealed class ChildWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string value) =>
+        await ActivityOps.ExecuteAsync(() => DemoActivities.Greet(value));
+}
+
+/// <summary>
+/// Demonstrates <see cref="ChildWorkflowOps.ExecuteAsync"/>: starts a child
+/// workflow with options and an ID resolved from config, with no per-call
+/// plumbing.
+/// </summary>
+[Workflow]
+public sealed class ParentWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string value)
+    {
+        var childResult = await ChildWorkflowOps.ExecuteAsync(
+            (ChildWorkflow wf) => wf.RunAsync(value));
+
+        return $"parent -> child said: {childResult}";
+    }
+}

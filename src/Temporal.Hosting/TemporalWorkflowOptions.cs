@@ -56,19 +56,52 @@ public sealed class WorkflowOptionsPreset
     /// per-call queue always wins.
     /// </summary>
     public string? TaskQueue { get; set; }
+
+    /// <summary>
+    /// Gets or sets how the workflow is handled when its parent closes (child
+    /// workflows only), or <c>null</c> for the SDK default (<c>Terminate</c>).
+    /// </summary>
+    public Temporalio.Workflows.ParentClosePolicy? ParentClosePolicy { get; set; }
+
+    /// <summary>
+    /// Gets or sets how cancellation is delivered to the child (child workflows
+    /// only), or <c>null</c> for the SDK default
+    /// (<c>WaitCancellationCompleted</c>).
+    /// </summary>
+    public Temporalio.Workflows.ChildWorkflowCancellationType? CancellationType { get; set; }
 }
 
 /// <summary>
 /// Workflow-ID conventions, bound from <c>Temporal:Workflows:Id</c>. The
-/// <see cref="Format"/> template supports the <c>{Type}</c>, <c>{Queue}</c>,
-/// and <c>{Guid}</c> (or <c>{Guid:N}</c>/<c>{Guid:D}</c>/<c>{Guid:B}</c>)
-/// placeholders. When no format is set and no explicit ID is supplied, the SDK
-/// generates a random UUID.
+/// <see cref="Format"/> and <see cref="ChildFormat"/> templates support the
+/// <c>{Type}</c> and <c>{Type:s}</c> (trailing "workflow" stripped,
+/// case-insensitive), <c>{Queue}</c>, and <c>{Guid}</c> (or
+/// <c>{Guid:N}</c>/<c>{Guid:D}</c>/<c>{Guid:B}</c>) placeholders;
+/// <see cref="ChildFormat"/> additionally supports <c>{Parent}</c> for the
+/// parent workflow's ID. When neither template is set, the shipped defaults
+/// apply (<see cref="DefaultFormat"/> / <see cref="DefaultChildFormat"/>); set a
+/// template to the empty string to opt out and let the SDK generate an ID.
 /// </summary>
 public sealed class WorkflowIdOptions
 {
+    /// <summary>The shipped default client workflow-ID template.</summary>
+    public const string DefaultFormat = "{Type:s}-{Guid:N}";
+
+    /// <summary>The shipped default child workflow-ID template.</summary>
+    public const string DefaultChildFormat = "{Type:s}-{Guid:N}-{Parent}";
+
     /// <summary>
     /// Gets or sets the workflow-ID format template, e.g. <c>"{Type}-{Guid:N}"</c>.
+    /// Defaults to <see cref="DefaultFormat"/> when unset; set to an empty string
+    /// to defer to the SDK's generated ID.
     /// </summary>
     public string? Format { get; set; }
+
+    /// <summary>
+    /// Gets or sets the child workflow-ID format template, e.g.
+    /// <c>"{Parent}-{Type}-{Guid:N}"</c>. Defaults to
+    /// <see cref="DefaultChildFormat"/> when unset; set to an empty string to
+    /// defer to the SDK's generated ID.
+    /// </summary>
+    public string? ChildFormat { get; set; }
 }

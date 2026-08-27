@@ -70,5 +70,12 @@ public sealed class DemoDriver : BackgroundService
             workflow => workflow.RunAsync(10));
 
         logger.LogInformation("Download: {Result}", await downloadHandle.GetResultAsync());
+
+        // ChildWorkflowOps: the parent starts a child whose options + ID resolve
+        // from Temporal:Workflows (ByType + ChildFormat).
+        var parentHandle = await workflows.StartAsync<ParentWorkflow, string>(
+            workflow => workflow.RunAsync("child"));
+
+        logger.LogInformation("Parent/child: {Result}", await parentHandle.GetResultAsync());
     }
 }

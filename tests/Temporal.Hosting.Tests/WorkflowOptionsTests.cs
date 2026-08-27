@@ -74,7 +74,7 @@ public class WorkflowOptionsRegistryTests
 
         Assert.Equal("queue", options.TaskQueue);
         Assert.Equal(TimeSpan.FromMinutes(5), options.RunTimeout);
-        Assert.Null(options.Id);
+        Assert.Matches(@"^My-[0-9a-f]{32}$", options.Id!);
     }
 
     [Fact]
@@ -147,9 +147,22 @@ public class WorkflowOptionsRegistryTests
     }
 
     [Fact]
-    public void Build_NoIdAndNoFormat_LeavesIdNull()
+    public void Build_NoFormat_UsesDefaultConvention()
     {
         var registry = CreateRegistry(new TemporalWorkflowOptions());
+
+        var options = registry.Build("MyWorkflow", "queue");
+
+        Assert.Matches(@"^My-[0-9a-f]{32}$", options.Id!);
+    }
+
+    [Fact]
+    public void Build_EmptyFormat_OptsOutToSdkGeneratedId()
+    {
+        var registry = CreateRegistry(new TemporalWorkflowOptions
+        {
+            Id = new WorkflowIdOptions { Format = "" },
+        });
 
         var options = registry.Build("MyWorkflow", "queue");
 

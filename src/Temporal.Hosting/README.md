@@ -33,6 +33,12 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
   default and per-type `WorkflowOptions` presets plus a workflow-ID template,
   surfaced through the typed `IWorkflowOps` facade (start/signal/query/result/
   terminate/cancel/restart/list); caller overrides win.
+- **Child-workflow ops** — `ChildWorkflowOps` (static, workflow-side) starts
+  child workflows over `Workflow.ExecuteChildWorkflowAsync` /
+  `StartChildWorkflowAsync`, resolving `ChildWorkflowOptions` from the same
+  `Temporal:Workflows` config (any workflow can run as a child) plus the child
+  workflow-ID convention; pass an explicit `ChildWorkflowOptions` to override a
+  single call.
 - **Workflow settings** — `Temporal:WorkflowSettings` lets a workflow read its own
   typed configuration via `WorkflowSettings.GetAsync<TSettings>()`, useful when
   the caller can't supply the value.
@@ -159,7 +165,7 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
       }
     },
     "Workflows": {
-      "Id": { "Format": "{Type}-{Guid:N}" },
+      "Id": { "Format": "{Type:s}-{Guid:N}", "ChildFormat": "{Type:s}-{Guid:N}-{Parent}" },
       "Default": {
         "TaskQueue": "orders-queue",
         "RunTimeout": "00:05:00",
@@ -170,6 +176,10 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
         "MoneyTransferWorkflow": {
           "TaskQueue": "payments-queue",
           "RunTimeout": "00:30:00"
+        },
+        "ChildWorkflow": {
+          "ParentClosePolicy": "RequestCancel",
+          "CancellationType": "TryCancel"
         }
       }
     },
@@ -414,12 +424,53 @@ multiple run parameters.
 Precedence (lowest to highest): SDK defaults → `Default` preset → `ByType`
 override → the caller's explicit `taskQueue`/`workflowId`/`configure`. The
 preset exposes `RunTimeout`, `TaskTimeout`, `ExecutionTimeout`,
-`IdConflictPolicy`, `StartDelay`, `Retry`, and `TaskQueue` (the start queue).
+`IdConflictPolicy`, `StartDelay`, `Retry`, `TaskQueue` (the start queue), and —
+for child workflows — `ParentClosePolicy` and `CancellationType`.
 The task queue is resolved from `ByType` then `Default`; if none is set and none
 is passed explicitly, the start throws an `InvalidOperationException` with a
-clear message rather than failing obscurely. The `Id:Format` template supports
-`{Type}`, `{Queue}`, and `{Guid}` (plus `{Guid:N}`/`{Guid:D}`/`{Guid:B}`); with
-no format and no explicit ID, the SDK generates a random UUID.
+clear message rather than failing obscurely.
+
+The `Id:Format` template supports `{Type}` (full name) and `{Type:s}`
+(trailing "workflow" stripped, case-insensitive), `{Queue}`, and `{Guid}` (plus
+`{Guid:N}`/`{Guid:D}`/`{Guid:B}`); `Id:ChildFormat` additionally supports
+`{Parent}` (the parent workflow's ID). When no format is set, a shipped default
+applies — `{Type:s}-{Guid:N}` for client starts, `{Type:s}-{Guid:N}-{Parent}` for
+child starts. Set a template to the empty string (`""`) to opt out and defer to
+the SDK's generated ID.
+
+### Child-workflow ops
+
+Any workflow can be started as a child. `ChildWorkflowOps` (static, workflow-side)
+resolves a child's `ChildWorkflowOptions` from the same `Temporal:Workflows`
+`Default`/`ByType` config and applies the child ID convention, so a workflow
+behaves consistently whether it is started from a client or as a child. Precedence
+(lowest to highest): SDK defaults → `Default` → `ByType` → the explicit
+`ChildWorkflowOptions` you pass to the call.
+
+```csharp
+[Workflow]
+public sealed class ParentWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string orderId)
+    {
+        // Options and child ID resolve from config; no per-call plumbing.
+        var result = await ChildWorkflowOps.ExecuteAsync(
+            (BillingWorkflow wf) => wf.RunAsync(orderId));
+
+        // Fire-and-forget: start and get the handle for signaling/querying.
+        var handle = await ChildWorkflowOps.StartAsync(
+            (BillingWorkflow wf) => wf.RunAsync(orderId));
+
+        // Override just this call with explicit child options:
+        var other = await ChildWorkflowOps.ExecuteAsync(
+            (BillingWorkflow wf) => wf.RunAsync(orderId),
+            new ChildWorkflowOptions { ParentClosePolicy = ParentClosePolicy.Abandon });
+
+        return result;
+    }
+}
+```
 
 ### Workflow settings
 

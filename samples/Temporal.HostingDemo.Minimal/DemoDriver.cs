@@ -8,8 +8,8 @@ namespace Kogoshvili.Temporal.HostingDemo.Minimal;
 /// Self-starts each demo workflow using nothing but the workflow type and its
 /// argument — the task queue, workflow ID, and activity options all resolve
 /// from the starter's defaults. Demonstrates the greeting, the
-/// <see cref="HeartbeatingActivity"/> download, the local activity, and the
-/// <see cref="Saga"/> compensation helper.
+/// <see cref="HeartbeatingActivity"/> download, the local activity, the
+/// <see cref="Saga"/> compensation helper, and <see cref="ChildWorkflowOps"/>.
 /// </summary>
 public sealed class DemoDriver : BackgroundService
 {
@@ -41,5 +41,9 @@ public sealed class DemoDriver : BackgroundService
         var saga = await workflows.StartAsync<SagaWorkflow, string>(
             workflow => workflow.RunAsync($"order-{Guid.NewGuid():N}"));
         logger.LogInformation("Saga: {Result}", await saga.GetResultAsync());
+
+        var parent = await workflows.StartAsync<ParentWorkflow, string>(
+            workflow => workflow.RunAsync("child"));
+        logger.LogInformation("Parent/child: {Result}", await parent.GetResultAsync());
     }
 }

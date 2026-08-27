@@ -173,6 +173,11 @@ public static class TemporalServiceCollectionExtensions
         // workflows can resolve presets deterministically during replay.
         SeedActivityOptionsRegistry(options.ActivityOptions);
 
+        // Seed the static child-workflow-options registry from the same
+        // Temporal:Workflows config so sandboxed workflows can resolve child
+        // options (and the child ID convention) without DI.
+        SeedChildWorkflowOptionsRegistry(options.Workflows);
+
         // Workflow-options resolution is client-side (DI-enabled callers), so it
         // is an injected singleton rather than a static registry.
         services.AddSingleton<WorkflowOptionsRegistry>();
@@ -543,6 +548,14 @@ public static class TemporalServiceCollectionExtensions
         }
 
         ActivityOptionsRegistry.Replace(defaultOptions, presets, localDefaultOptions, localPresets);
+    }
+
+    private static void SeedChildWorkflowOptionsRegistry(TemporalWorkflowOptions? workflows)
+    {
+        ChildWorkflowOptionsRegistry.Replace(
+            workflows?.Default,
+            workflows?.ByType,
+            workflows?.Id?.ChildFormat);
     }
 
     private static TemporalWorkerTaskQueueRegistry GetOrAddWorkerTaskQueueRegistry(IServiceCollection services)

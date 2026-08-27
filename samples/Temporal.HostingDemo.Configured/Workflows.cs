@@ -181,3 +181,35 @@ public sealed class DownloadWorkflow
         return $"Downloaded {downloaded}/{totalBytes} bytes.";
     }
 }
+
+/// <summary>
+/// A child workflow run via <see cref="ChildWorkflowOps"/>. Its options resolve
+/// from <c>Temporal:Workflows:ByType:ChildWorkflow</c> (layered over
+/// <c>Default</c>), and its workflow ID from <c>Temporal:Workflows:Id:ChildFormat</c>.
+/// </summary>
+[Workflow]
+public sealed class ChildWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string value) =>
+        await ActivityOps.ExecuteAsync(() => StaticActivities.Greet(value));
+}
+
+/// <summary>
+/// Demonstrates <see cref="ChildWorkflowOps.ExecuteAsync"/>: starts a child with
+/// options and an ID resolved from config, including child-only semantics
+/// (parent-close policy / cancellation type) set under
+/// <c>Temporal:Workflows:ByType</c>.
+/// </summary>
+[Workflow]
+public sealed class ParentWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(string value)
+    {
+        var childResult = await ChildWorkflowOps.ExecuteAsync(
+            (ChildWorkflow wf) => wf.RunAsync(value));
+
+        return $"parent -> child said: {childResult}";
+    }
+}
