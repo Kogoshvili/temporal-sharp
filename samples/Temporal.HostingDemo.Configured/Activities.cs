@@ -1,7 +1,7 @@
 using Kogoshvili.Temporal.Hosting;
 using Temporalio.Activities;
 
-namespace Kogoshvili.Temporal.HostingDemo.Hosted;
+namespace Kogoshvili.Temporal.HostingDemo.Configured;
 
 // Four activity classes that exercise every lifetime auto-discovery assigns:
 // scoped (default for instance classes), singleton/transient (via

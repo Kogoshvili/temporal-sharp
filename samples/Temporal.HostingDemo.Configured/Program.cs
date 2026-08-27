@@ -1,6 +1,6 @@
 using Kogoshvili.Temporal.CodecServer;
 using Kogoshvili.Temporal.Hosting;
-using Kogoshvili.Temporal.HostingDemo.Hosted;
+using Kogoshvili.Temporal.HostingDemo.Configured;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,7 +26,7 @@ var builder = WebApplication.CreateBuilder(args);
 // RpcRetry in appsettings.json tunes the connection-level retry policy.
 builder.Services
     .AddTemporal(builder.Configuration)
-    .AddTemporalWorker("hosted-queue")
+    .AddTemporalWorker("configured-queue")
     .AddDiscoveredTypes();
 
 // Host the codec server in the same app. It exposes /encode and /decode over
@@ -62,11 +62,11 @@ builder.Services.AddTemporalHealthChecks();
 //   using Temporalio.Common;
 //   using Temporalio.Worker;
 //   builder.Services.AddTemporalWorker(
-//       "hosted-queue",
-//       new WorkerDeploymentOptions(new WorkerDeploymentVersion("hosted-app", "1.0"), useWorkerVersioning: true));
+//       "configured-queue",
+//       new WorkerDeploymentOptions(new WorkerDeploymentVersion("configured-app", "1.0"), useWorkerVersioning: true));
 //
-// Config-based (Temporal:Workers:hosted-queue:Deployment in appsettings.json):
-//   "DeploymentName": "hosted-app",
+// Config-based (Temporal:Workers:configured-queue:Deployment in appsettings.json):
+//   "DeploymentName": "configured-app",
 //   "BuildId": "1.0",              // "Version" is an alias for "BuildId"
 //   "UseWorkerVersioning": true,   // explicit opt-in; default false
 //   "DefaultVersioningBehavior": "Pinned"   // optional; omitted = Unspecified
@@ -74,10 +74,10 @@ builder.Services.AddTemporalHealthChecks();
 // A versioned worker reports its version but receives NO tasks until a Current
 // (or Ramping) version is promoted server-side, e.g.:
 //   temporal worker deployment set-current-version \
-//       --deployment-name hosted-app --build-id 1.0
+//       --deployment-name configured-app --build-id 1.0
 //
 // Marker-type discovery (use when the entry assembly is not the worker assembly):
-//   builder.Services.AddTemporalWorker("hosted-queue").AddDiscoveredTypes(typeof(GreetingWorkflow));
+//   builder.Services.AddTemporalWorker("configured-queue").AddDiscoveredTypes(typeof(GreetingWorkflow));
 //
 // Exporting the SDK's runtime metrics (set either of these in appsettings.json):
 //   Temporal:Metrics:PrometheusBindAddress = "0.0.0.0:9000"
@@ -101,8 +101,8 @@ builder.Services.AddTemporalHealthChecks();
 //   through the "Temporalio.Core" category and respect Logging:LogLevel.
 //
 // Per-queue worker tuning (see the Temporal:Workers section in appsettings.json):
-//   Temporal:Workers:hosted-queue:MaxConcurrentActivities = 20
-//   Temporal:Workers:hosted-queue:GracefulShutdownTimeout = 00:00:30
+//   Temporal:Workers:configured-queue:MaxConcurrentActivities = 20
+//   Temporal:Workers:configured-queue:GracefulShutdownTimeout = 00:00:30
 //
 // Connection transport options (see appsettings.json; null = SDK default):
 //   Temporal:KeepAlive:{Interval,Timeout}                 — HTTP/2 keep-alive pings

@@ -2,7 +2,7 @@ using Kogoshvili.Temporal.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Kogoshvili.Temporal.HostingDemo.Hosted;
+namespace Kogoshvili.Temporal.HostingDemo.Configured;
 
 /// <summary>
 /// Self-starts the demo workflows shortly after startup so the host is
@@ -43,8 +43,8 @@ public sealed class DemoDriver : BackgroundService
         // Override the task queue and workflow ID per-call (both always win).
         var claimCheckHandle = await workflows.StartAsync<ClaimCheckWorkflow, string>(
             workflow => workflow.RunAsync(new string('x', 4096)),
-            taskQueue: "hosted-queue",
-            workflowId: $"hosted-claimcheck-{Guid.NewGuid():N}");
+            taskQueue: "configured-queue",
+            workflowId: $"configured-claimcheck-{Guid.NewGuid():N}");
 
         logger.LogInformation("Claim-check result: {Result}", await claimCheckHandle.GetResultAsync());
     }

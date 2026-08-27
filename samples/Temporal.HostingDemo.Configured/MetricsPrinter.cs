@@ -3,7 +3,7 @@ using Kogoshvili.Temporal.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
-namespace Kogoshvili.Temporal.HostingDemo.Hosted;
+namespace Kogoshvili.Temporal.HostingDemo.Configured;
 
 /// <summary>
 /// A tiny <see cref="MeterListener"/> that prints the client/activity metrics

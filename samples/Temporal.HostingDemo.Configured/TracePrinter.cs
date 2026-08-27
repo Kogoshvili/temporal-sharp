@@ -3,7 +3,7 @@ using Kogoshvili.Temporal.Hosting;
 using Microsoft.Extensions.Hosting;
 using Temporalio.Extensions.OpenTelemetry;
 
-namespace Kogoshvili.Temporal.HostingDemo.Hosted;
+namespace Kogoshvili.Temporal.HostingDemo.Configured;
 
 /// <summary>
 /// A tiny <see cref="ActivityListener"/> that prints the spans created by the

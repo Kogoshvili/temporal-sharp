@@ -2,7 +2,7 @@ using Kogoshvili.Temporal.Hosting;
 using Temporalio.Activities;
 using Temporalio.Workflows;
 
-namespace Kogoshvili.Temporal.HostingDemo.Hosted;
+namespace Kogoshvili.Temporal.HostingDemo.Configured;
 
 [Workflow]
 public sealed class GreetingWorkflow
