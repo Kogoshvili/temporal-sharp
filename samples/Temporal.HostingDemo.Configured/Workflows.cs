@@ -69,3 +69,32 @@ public sealed class ClaimCheckWorkflow
             $"(first 40: \"{largePayload[..40]}\").";
     }
 }
+
+/// <summary>
+/// Settings type for <see cref="BatchingWorkflow"/>, bound from
+/// <c>Temporal:WorkflowSettings:ByType:BatchingWorkflow</c> (merged over
+/// <c>Default</c>).
+/// </summary>
+public sealed class BatchingSettings
+{
+    public int BatchSize { get; set; }
+}
+
+/// <summary>
+/// Reads its own workflow-level settings via <see cref="WorkflowSettings"/> — a
+/// local activity that returns the config snapshot, so it stays deterministic
+/// across replay even when <c>Temporal:WorkflowSettings</c> is live-reloaded.
+/// This is for settings a caller shouldn't have to know when starting the
+/// workflow.
+/// </summary>
+[Workflow]
+public sealed class BatchingWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync()
+    {
+        var settings = await WorkflowSettings.GetAsync<BatchingSettings>();
+
+        return $"Workflow settings: batch size = {settings.BatchSize}";
+    }
+}

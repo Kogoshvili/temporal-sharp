@@ -124,6 +124,7 @@ automatically. The `Raw` demo has no such toggle and always needs a server.
 | `Temporal:Workers` | Per-queue worker tuning (concurrency, graceful shutdown, cached workflows, deployment). |
 | `Temporal:ActivityOptions` | Default + named `ActivityOptions` presets consumed from workflows via `ActivityOptionsRegistry`. |
 | `Temporal:Workflows` | Default + per-type `WorkflowOptions` presets and workflow-ID conventions, consumed via `IWorkflowOps`. |
+| `Temporal:WorkflowSettings` | Per-type typed settings read from inside workflows via `WorkflowSettings.GetAsync<T>()`. |
 | `Temporal:HealthChecks` | Client/worker liveness check toggle (`Enabled`). |
 
 ## Analyzer sample

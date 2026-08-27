@@ -329,6 +329,10 @@ public static class TemporalServiceCollectionExtensions
 
         var worker = services.AddHostedTemporalWorker(taskQueue, deploymentOptions);
 
+        // Register the built-in workflow-settings local activity on every worker
+        // so workflows can read Temporal:WorkflowSettings via WorkflowSettings.
+        worker.AddSingletonActivities<WorkflowSettingsActivity>();
+
         // Apply per-queue tuning from Temporal:Workers:<queue>. Registered before
         // the user's configure delegate so an explicit configure wins over the
         // appsettings values.
@@ -506,6 +510,7 @@ public static class TemporalServiceCollectionExtensions
         target.Workers = source.Workers;
         target.ActivityOptions = source.ActivityOptions;
         target.Workflows = source.Workflows;
+        target.WorkflowSettings = source.WorkflowSettings;
         target.HealthChecks = source.HealthChecks;
     }
 

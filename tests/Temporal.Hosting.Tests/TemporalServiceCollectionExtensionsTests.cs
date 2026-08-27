@@ -211,7 +211,7 @@ public class TemporalServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddTemporalWorker_WithoutDiscovery_RegistersNothing()
+    public void AddTemporalWorker_WithoutDiscovery_RegistersOnlyBuiltInActivity()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -222,7 +222,8 @@ public class TemporalServiceCollectionExtensionsTests
         var options = provider.GetRequiredService<IOptionsMonitor<TemporalWorkerServiceOptions>>().Get("queue");
 
         Assert.Empty(options.Workflows);
-        Assert.Empty(options.Activities);
+        Assert.Single(options.Activities);
+        Assert.Equal("Read", options.Activities.Single().Name);
     }
 
     [Fact]

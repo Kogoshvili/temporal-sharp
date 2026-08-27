@@ -32,6 +32,9 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
   default and per-type `WorkflowOptions` presets plus a workflow-ID template,
   surfaced through the typed `IWorkflowOps` facade (start/signal/query/result/
   terminate/cancel/restart/list); caller overrides win.
+- **Workflow settings** — `Temporal:WorkflowSettings` lets a workflow read its own
+  typed configuration via `WorkflowSettings.GetAsync<TSettings>()`, useful when
+  the caller can't supply the value.
 - **Health checks** — `AddTemporalHealthChecks()` registers an `IHealthCheck`
   that reports client liveness and per-queue poller counts.
 - **`WorkerDiscovery`** — the auto-discovery engine, exposed for custom use.
@@ -153,6 +156,12 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
           "TaskQueue": "payments-queue",
           "RunTimeout": "00:30:00"
         }
+      }
+    },
+    "WorkflowSettings": {
+      "Default": { "batchSize": 10 },
+      "ByType": {
+        "BatchingWorkflow": { "batchSize": 100 }
       }
     },
     "HealthChecks": {
@@ -371,6 +380,54 @@ is passed explicitly, the start throws an `InvalidOperationException` with a
 clear message rather than failing obscurely. The `Id:Format` template supports
 `{Type}`, `{Queue}`, and `{Guid}` (plus `{Guid:N}`/`{Guid:D}`/`{Guid:B}`); with
 no format and no explicit ID, the SDK generates a random UUID.
+
+### Workflow settings
+
+`Temporal:WorkflowSettings` lets a workflow read its own typed configuration,
+for settings the caller can't or shouldn't supply when starting the workflow
+(e.g. a batch size, an endpoint, a feature flag). It is keyed per workflow type
+and merged over an optional default:
+
+```json
+{
+  "Temporal": {
+    "WorkflowSettings": {
+      "Default": { "batchSize": 10 },
+      "ByType": { "BatchingWorkflow": { "batchSize": 100 } }
+    }
+  }
+}
+```
+
+Inside the workflow, resolve the settings through the static
+`WorkflowSettings` facade:
+
+```csharp
+public sealed class BatchingSettings
+{
+    public int BatchSize { get; set; }
+}
+
+[Workflow]
+public sealed class BatchingWorkflow
+{
+    [WorkflowRun]
+    public async Task RunAsync()
+    {
+        var settings = await WorkflowSettings.GetAsync<BatchingSettings>();
+        // use settings.BatchSize ...
+    }
+}
+```
+
+`GetAsync` reads through a built-in local activity, so the value is recorded in
+workflow history and stays stable across replay even if the configuration is
+live-reloaded mid-run (only new runs pick up the change). Read once at the top
+of the workflow and reuse the value to keep a single run internally consistent.
+
+Settings values are typed as JSON (`bool`/number/string) automatically; define
+`TSettings` as any `System.Text.Json`-deserializable type (a class with settable
+properties is the simplest).
 
 ### Connection retry and startup wait
 

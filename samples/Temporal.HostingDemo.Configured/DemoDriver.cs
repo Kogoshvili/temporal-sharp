@@ -47,5 +47,11 @@ public sealed class DemoDriver : BackgroundService
             workflowId: $"configured-claimcheck-{Guid.NewGuid():N}");
 
         logger.LogInformation("Claim-check result: {Result}", await claimCheckHandle.GetResultAsync());
+
+        // Reads its own settings from Temporal:WorkflowSettings via a local activity.
+        var batchingHandle = await workflows.StartAsync<BatchingWorkflow, string>(
+            workflow => workflow.RunAsync());
+
+        logger.LogInformation("Workflow settings: {Result}", await batchingHandle.GetResultAsync());
     }
 }
