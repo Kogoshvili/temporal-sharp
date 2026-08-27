@@ -1,3 +1,4 @@
+using Kogoshvili.Temporal.Hosting;
 using Temporalio.Activities;
 using Temporalio.Workflows;
 
@@ -10,7 +11,7 @@ public sealed class GreetingWorkflow
     public async Task<string> RunAsync(string name) =>
         await Workflow.ExecuteActivityAsync(
             () => GreetingActivities.Greet(name),
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
+            ActivityOptionsRegistry.GetDefault()!);
 }
 
 public static class GreetingActivities
