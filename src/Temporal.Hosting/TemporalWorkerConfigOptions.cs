@@ -1,11 +1,20 @@
 namespace Kogoshvili.Temporal.Hosting;
 
 /// <summary>
-/// Per-queue worker tuning, bound from <c>Temporal:Workers:&lt;queue&gt;</c>. Every
-/// property is nullable: <c>null</c> means "leave the SDK default untouched".
+/// Per-queue worker configuration, bound from
+/// <c>Temporal:Workers:&lt;queue&gt;</c>. Every tuning property is nullable:
+/// <c>null</c> means "leave the SDK default untouched".
 /// </summary>
-public sealed class TemporalWorkerTuningOptions
+public sealed class TemporalWorkerConfigOptions
 {
+    /// <summary>
+    /// Gets or sets worker deployment/versioning configuration. When set (and
+    /// <see cref="TemporalWorkerDeploymentOptions.UseWorkerVersioning"/> is
+    /// enabled), the worker opts into Worker Versioning and reports this
+    /// deployment version to the server on every poll.
+    /// </summary>
+    public TemporalWorkerDeploymentOptions? Deployment { get; set; }
+
     /// <summary>Maximum number of activities processed concurrently.</summary>
     public int? MaxConcurrentActivities { get; set; }
 

@@ -57,12 +57,24 @@ builder.Services.AddTemporalHealthChecks();
 //   Set Temporal:TestServer:Enabled = true (or Temporal__TestServer__Enabled=true).
 //
 // Worker versioning (public preview; the in-process dev server does not
-// support deployments):
+// support deployments). Opt in either in code or from config — an explicit
+// WorkerDeploymentOptions argument wins over the config value:
 //   using Temporalio.Common;
 //   using Temporalio.Worker;
 //   builder.Services.AddTemporalWorker(
 //       "hosted-queue",
 //       new WorkerDeploymentOptions(new WorkerDeploymentVersion("hosted-app", "1.0"), useWorkerVersioning: true));
+//
+// Config-based (Temporal:Workers:hosted-queue:Deployment in appsettings.json):
+//   "DeploymentName": "hosted-app",
+//   "BuildId": "1.0",              // "Version" is an alias for "BuildId"
+//   "UseWorkerVersioning": true,   // explicit opt-in; default false
+//   "DefaultVersioningBehavior": "Pinned"   // optional; omitted = Unspecified
+//
+// A versioned worker reports its version but receives NO tasks until a Current
+// (or Ramping) version is promoted server-side, e.g.:
+//   temporal worker deployment set-current-version \
+//       --deployment-name hosted-app --build-id 1.0
 //
 // Marker-type discovery (use when the entry assembly is not the worker assembly):
 //   builder.Services.AddTemporalWorker("hosted-queue").AddDiscoveredTypes(typeof(GreetingWorkflow));

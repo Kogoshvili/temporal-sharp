@@ -164,6 +164,11 @@ public static class TemporalServiceCollectionExtensions
     {
         services.AddSingleton<IValidateOptions<TemporalOptions>, TemporalOptionsValidator>();
 
+        // Register the bound snapshot so registration-time code (worker
+        // deployment resolution) can read it synchronously. Deployment identity
+        // is a registration-time concern and must not live-reload.
+        services.AddSingleton(options);
+
         // Seed the static activity-options registry before any worker starts so
         // workflows can resolve presets deterministically during replay.
         SeedActivityOptionsRegistry(options.ActivityOptions);
@@ -305,6 +310,18 @@ public static class TemporalServiceCollectionExtensions
     {
         GetOrAddWorkerTaskQueueRegistry(services).Register(taskQueue);
 
+        // Resolve deployment/versioning eagerly: the (task queue, deployment
+        // version) pair is the worker's unique identity and cannot be changed
+        // later via ConfigureOptions. An explicit deploymentOptions argument
+        // wins over the appsettings value.
+        if (deploymentOptions is null
+            && GetBoundTemporalOptions(services) is { } temporal
+            && temporal.Workers is { } workers
+            && workers.TryGetValue(taskQueue, out var workerConfig))
+        {
+            deploymentOptions = BuildWorkerDeploymentOptions(workerConfig.Deployment);
+        }
+
         var worker = services.AddHostedTemporalWorker(taskQueue, deploymentOptions);
 
         // Apply per-queue tuning from Temporal:Workers:<queue>. Registered before
@@ -327,7 +344,7 @@ public static class TemporalServiceCollectionExtensions
         return worker;
     }
 
-    private static void ApplyWorkerTuning(TemporalWorkerServiceOptions options, TemporalWorkerTuningOptions tuning)
+    private static void ApplyWorkerTuning(TemporalWorkerServiceOptions options, TemporalWorkerConfigOptions tuning)
     {
         if (tuning.MaxConcurrentActivities is { } maxConcurrentActivities)
         {
@@ -363,6 +380,52 @@ public static class TemporalServiceCollectionExtensions
         {
             options.MaxCachedWorkflows = maxCachedWorkflows;
         }
+    }
+
+    private static WorkerDeploymentOptions? BuildWorkerDeploymentOptions(
+        TemporalWorkerDeploymentOptions? deployment)
+    {
+        if (deployment is null || !deployment.UseWorkerVersioning)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(deployment.DeploymentName))
+        {
+            throw new ArgumentException(
+                "A deployment name must be set when worker versioning is enabled.",
+                nameof(deployment));
+        }
+
+        var buildId = deployment.BuildId ?? deployment.Version;
+        if (string.IsNullOrWhiteSpace(buildId))
+        {
+            throw new ArgumentException(
+                "A build ID (BuildId or Version) must be set when worker versioning is enabled.",
+                nameof(deployment));
+        }
+
+        return new WorkerDeploymentOptions(
+            new WorkerDeploymentVersion(deployment.DeploymentName, buildId),
+            useWorkerVersioning: true)
+        {
+            DefaultVersioningBehavior =
+                deployment.DefaultVersioningBehavior ?? VersioningBehavior.Unspecified,
+        };
+    }
+
+    private static TemporalOptions? GetBoundTemporalOptions(IServiceCollection services)
+    {
+        foreach (var descriptor in services)
+        {
+            if (descriptor.ServiceType == typeof(TemporalOptions)
+                && descriptor.ImplementationInstance is TemporalOptions options)
+            {
+                return options;
+            }
+        }
+
+        return null;
     }
 
     private static TemporalRuntime CreateRuntime(

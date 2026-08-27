@@ -103,7 +103,13 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
         "MaxConcurrentActivities": 20,
         "MaxConcurrentWorkflowTasks": 100,
         "GracefulShutdownTimeout": "00:00:30",
-        "MaxCachedWorkflows": 1000
+        "MaxCachedWorkflows": 1000,
+        "Deployment": {
+          "DeploymentName": "my-app",
+          "BuildId": "1.0",
+          "UseWorkerVersioning": true,
+          "DefaultVersioningBehavior": "Pinned"
+        }
       }
     },
     "DataConverter": {
@@ -206,9 +212,11 @@ activities) — a worker should register only what it actually runs.
 
 ### Worker versioning
 
-Pass `WorkerDeploymentOptions` to opt into versioned workers (public preview):
+Version a worker either in code (an explicit `WorkerDeploymentOptions` argument
+wins over config) or from `Temporal:Workers:<task-queue>:Deployment`:
 
 ```csharp
+// Code-based:
 using Temporalio.Common;
 using Temporalio.Worker;
 
@@ -217,11 +225,27 @@ builder.Services.AddTemporalWorker(
     new WorkerDeploymentOptions(new WorkerDeploymentVersion("my-app", "1.0"), useWorkerVersioning: true));
 ```
 
-### Per-queue worker tuning
+```jsonc
+// Config-based (see the "Workers" section above):
+// "Deployment": {
+//   "DeploymentName": "my-app",
+//   "BuildId": "1.0",        // "Version" is an alias for "BuildId"
+//   "UseWorkerVersioning": true,
+//   "DefaultVersioningBehavior": "Pinned"   // optional; omitted = Unspecified
+// }
+```
 
-Tune each worker from `Temporal:Workers:<task-queue>`. Every knob is optional;
-unset values leave the SDK default untouched. An explicit `configure` delegate
-passed to `AddTemporalWorker` overrides the appsettings value.
+`UseWorkerVersioning` is an explicit opt-in (defaults to `false`): a versioned
+worker reports its deployment version on every poll but receives **no tasks**
+until a Current (or Ramping) version is promoted server-side (e.g.
+`temporal worker deployment set-current-version`). Omit the whole `Deployment`
+block to keep a worker unversioned.
+
+### Per-queue worker configuration
+
+Configure each worker from `Temporal:Workers:<task-queue>`. Every knob is
+optional; unset values leave the SDK default untouched. An explicit `configure`
+delegate passed to `AddTemporalWorker` overrides the appsettings value.
 
 | Key | SDK property |
 | --- | --- |
