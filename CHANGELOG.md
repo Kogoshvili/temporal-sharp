@@ -4,8 +4,22 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.0-beta.10] - 2026-08-28
+
+- Rework library READMEs/docs to minimal-first structure
+- Tune Dependabot: block .NET 10 majors + bump Google.Protobuf (#13)
+- Bump actions/checkout from 4 to 7 (#3)
+- Bump actions/setup-dotnet from 4 to 6 (#2)
+- Bump actions/upload-artifact from 4 to 7 (#1)
+- Bump coverlet.collector from 6.0.0 to 10.0.1 (#5)
+- Bump xunit.runner.visualstudio from 2.5.3 to 4.0.0 (#12)
+- Bump xunit from 2.5.3 to 2.9.3 (#11)
+- Bump OpenTelemetry.Api from 1.16.0 to 1.18.0 (#7)
+- Add Dependabot configuration for NuGet and GitHub Actions
+
 ## [1.0.0-beta.9] - 2026-08-28
 
+- Prepare v1.0.0-beta.9 release
 - Pack and publish all library packages from CI and release workflows
 - Fix Saga workflow determinism and remove false-positive CheckCancellation helper
 - Restructure READMEs into per-package docs and add codec-server template
