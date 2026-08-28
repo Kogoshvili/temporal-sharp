@@ -1,4 +1,5 @@
 using Kogoshvili.Temporal.Hosting;
+using Temporalio.Exceptions;
 
 namespace Kogoshvili.Temporal.Hosting.Tests;
 
@@ -60,9 +61,10 @@ public class SagaTests
         saga.AddCompensation(async () => { await Task.Yield(); throw new InvalidOperationException("one"); });
         saga.AddCompensation(async () => { await Task.Yield(); throw new InvalidOperationException("two"); });
 
-        var ex = await Assert.ThrowsAsync<AggregateException>(() => saga.CompensateAsync());
+        var ex = await Assert.ThrowsAsync<ApplicationFailureException>(() => saga.CompensateAsync());
 
-        Assert.Equal(2, ex.InnerExceptions.Count);
+        var aggregate = Assert.IsType<AggregateException>(ex.InnerException);
+        Assert.Equal(2, aggregate.InnerExceptions.Count);
         Assert.Equal(new[] { "a" }, ran);
     }
 

@@ -52,9 +52,6 @@ public abstract class HeartbeatingActivity
         Context.Heartbeat(details);
     }
 
-    /// <summary>Throws if cancellation has been requested for this activity.</summary>
-    protected void CheckCancellation() => CancellationToken.ThrowIfCancellationRequested();
-
     /// <summary>
     /// Loads the progress checkpoint left by the previous attempt, if any, so the
     /// activity can resume rather than restart. Returns <see langword="default"/> when

@@ -1,3 +1,5 @@
+using Temporalio.Exceptions;
+
 namespace Kogoshvili.Temporal.Hosting;
 
 /// <summary>
@@ -77,7 +79,7 @@ public sealed class Saga
     {
         if (_options.ParallelCompensation)
         {
-            await CompensateInParallelAsync().ConfigureAwait(false);
+            await CompensateInParallelAsync();
             return;
         }
 
@@ -85,7 +87,7 @@ public sealed class Saga
         {
             try
             {
-                await _compensations[i]().ConfigureAwait(false);
+                await _compensations[i]();
             }
             catch (Exception)
             {
@@ -106,7 +108,7 @@ public sealed class Saga
         {
             try
             {
-                await task.ConfigureAwait(false);
+                await task;
             }
             catch (Exception ex)
             {
@@ -116,7 +118,9 @@ public sealed class Saga
 
         if (errors.Count > 0)
         {
-            throw new AggregateException(errors);
+            throw new ApplicationFailureException(
+                "One or more saga compensations failed",
+                new AggregateException(errors));
         }
     }
 }

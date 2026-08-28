@@ -106,8 +106,7 @@ public sealed class DownloadActivities : HeartbeatingActivity
 
         while (progress.BytesDownloaded < progress.TotalBytes)
         {
-            CheckCancellation();
-            await Task.Delay(50);
+            await Task.Delay(50, CancellationToken);
             progress = progress with { BytesDownloaded = progress.BytesDownloaded + 1 };
             Heartbeat(progress);
         }

@@ -11,8 +11,6 @@ public class HeartbeatingActivityTests
     {
         public void DoHeartbeat(params object?[] details) => Heartbeat(details);
 
-        public void DoCheck() => CheckCancellation();
-
         public Task<T?> LoadAsync<T>() => LoadProgressAsync<T>();
 
         public IDisposable Start(TimeSpan? interval = null) => StartAutoHeartbeat(interval);
@@ -103,18 +101,4 @@ public class HeartbeatingActivityTests
         Assert.All(heartbeats, hb => Assert.Empty(hb));
     }
 
-    [Fact]
-    public async Task CheckCancellation_WhenCanceled_Throws()
-    {
-        var env = new ActivityEnvironment();
-        var act = new TestActivity();
-
-        env.CancellationTokenSource.Cancel();
-
-        await env.RunAsync(() =>
-        {
-            Assert.Throws<OperationCanceledException>(() => act.DoCheck());
-            return "done";
-        });
-    }
 }
