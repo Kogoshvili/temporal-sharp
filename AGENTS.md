@@ -9,7 +9,7 @@ The Temporal .NET SDK source lives at `~/Projects/temporal-sdk-dotnet`.
 - .NET SDK pinned in `global.json` (8.0.424, `rollForward: latestFeature`). Package versions are centrally managed in `Directory.Packages.props` (`ManagePackageVersionsCentrally`); vulnerable transitives are overridden there.
 - `dotnet build` — `TreatWarningsAsErrors=true` in `Directory.Build.props`, so any warning fails the build.
 - `dotnet test` — xunit. Run one test: `dotnet test --filter FullyQualifiedName~ClassName`.
-- Full CI-equivalent sequence (`.github/workflows/ci.yml`): restore → `build -c Release` → `test --no-build -c Release` → build `samples/Temporal.SampleApp` (analyzer smoke test) → `dotnet pack` `src/Temporal.Analyzers` + `src/Temporal.Cli` into `artifacts/`.
+- Full CI-equivalent sequence (`.github/workflows/ci.yml`): restore → `build -c Release` → `test --no-build -c Release` → build `samples/Temporal.SampleApp` (analyzer smoke test) → `dotnet pack` all eight `src/` projects + `templates/Temporal.Templates` into `artifacts/`.
 
 ## Architecture
 
@@ -24,7 +24,7 @@ Eight `src/` projects (two tools + six library packages):
 - `Temporal.Cloud` — Azure/AWS credential resolution, Blob/S3 claim-check stores, and Azure Key Vault / AWS Secrets Manager TLS certificate sources.
 - `Temporal.Testing` — replay/regression harness (`ReplayHarness`, `ReplayResult`, `Snapshot`) built on `WorkflowReplayer`.
 
-Only `Temporal.Analyzers` and `Temporal.Cli` are packed/published by CI; the others are packable but not published. All are net8.0 except the analyzer.
+All eight `src/` packages (plus the template pack) are built, tested, packed, and published by CI/`publish.yml`. All are net8.0 except the analyzer.
 
 `templates/Temporal.Templates` is a `dotnet new` template pack (`PackageType=Template`) containing the `temporal-codec-server` template. Template conditionals use the per-file-type syntax: bare `#if` in `.cs`, `//#if`/`//#endif` in `.json`, and `<!--#if -->`/`<!--#endif -->` in `.csproj`/MSBuild.
 
