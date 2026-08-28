@@ -4,8 +4,49 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.0-beta.9] - 2026-08-28
+
+- Pack and publish all library packages from CI and release workflows
+- Fix Saga workflow determinism and remove false-positive CheckCancellation helper
+- Restructure READMEs into per-package docs and add codec-server template
+- Add per-field Secret<T> encryption (SecretEncryptionInterceptor, vault-keyed)
+- Add vault-backed codec key and cloud claim-check stores (ISecretResolver, IClaimCheckStoreFactory, TemporalSecretLoader)
+- Add idempotent search-attribute bootstrap (ISearchAttributeOps, Temporal:SearchAttributes, SearchAttributeRegistrar)
+- Add terse lambda-free start/execute overloads to workflow ops facades
+- Add per-namespace ITemporalClientFactory and multi-namespace worker registration
+- Add idempotent schedule registration (IScheduleOps, Temporal:Schedules, AddTemporalSchedule)
+- Add ChildWorkflowOps facade and shipped workflow/child ID conventions
+- Add HeartbeatingActivity base class with auto-heartbeat and progress resume
+- Add ActivityOps facade and merge activity/local presets into one registry
+- Use ActivityOptionsRegistry in Minimal sample
+- Add saga demo to Configured and Raw hosting samples
+- Add Saga compensation helper to Temporal.Hosting
+- Add workflow settings read from inside workflows
+- Reorganize hosting samples into Minimal, Configured, and Raw
+- Add IWorkflowOps typed workflow ops facade
+- Add workflow start/execution options and ID conventions to Temporal.Hosting
+- Add worker deployment/versioning config to Temporal.Hosting
+- Add connection transport options, ActivityOptions presets, and health checks to Temporal.Hosting
+- Rework metrics interceptor and add ActivitySource tracing to Temporal.Hosting
+- Remove stale Headroom MCP memory instructions from AGENTS.md
+- Make worker registration explicit with opt-in discovery and per-queue tuning
+- Demonstrate Core log forwarding in hosting demos; document sample convention
+- Document Headroom MCP tool naming
+- Add Core log forwarding to Temporal.Hosting starter
+- Add TLS certificate sources: files, env vars, Azure Key Vault, AWS Secrets Manager
+- Add payload codecs, codec server, and shared DataConverter
+- Add connection-wait, RPC retry, and live-reload validation to Temporal.Hosting
+- Add raw-vs-starter hosting demo, remove superseded samples and POC docs
+- Harden Temporal.Hosting starter: tests, lifetimes, versioning, metrics export, live reload
+- Ignore TODO.md and add AGENTS.md
+- Add shared Temporal.Configuration, simplify replay API, add history download command
+- Add temporal-sharp map topology subcommand with multi-repo and html/dot output
+- Add Temporal.Testing replay harness and TMP5xxx testing rules
+- Add Temporal.Hosting generic-host worker starter with console and web samples
+
 ## [1.0.0-beta.8] - 2026-08-25
 
+- Prepare v1.0.0-beta.8 release
 - Clarify rule descriptions to match Temporal .NET SDK docs
 
 ## [1.0.0-beta.7] - 2026-08-24
