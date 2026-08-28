@@ -75,6 +75,13 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     public Dictionary<string, TemporalScheduleOptions>? Schedules { get; set; }
 
     /// <summary>
+    /// Gets or sets search-attribute bootstrap configuration, bound from
+    /// <c>Temporal:SearchAttributes</c> and registered idempotently at startup
+    /// (see <see cref="SearchAttributeRegistrar"/>).
+    /// </summary>
+    public TemporalSearchAttributesOptions? SearchAttributes { get; set; }
+
+    /// <summary>
     /// Gets or sets additional namespace names, bound from
     /// <c>Temporal:Namespaces</c>. Each named namespace gets a client over the
     /// same shared connection as <see cref="TemporalConnectionOptions.Namespace"/>

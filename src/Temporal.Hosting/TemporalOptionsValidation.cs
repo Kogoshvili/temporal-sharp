@@ -46,6 +46,8 @@ internal static class TemporalOptionsValidation
 
         ValidateActivityOptions(options.ActivityOptions);
 
+        ValidateSearchAttributes(options.SearchAttributes);
+
         if (options.GrpcCompression is { } compression
             && compression.Mode is not (TemporalGrpcCompressionOptions.Gzip or TemporalGrpcCompressionOptions.None))
         {
@@ -86,6 +88,23 @@ internal static class TemporalOptionsValidation
         {
             throw new InvalidOperationException(
                 $"{path} must set either ScheduleToCloseTimeout or StartToCloseTimeout.");
+        }
+    }
+
+    private static void ValidateSearchAttributes(TemporalSearchAttributesOptions? searchAttributes)
+    {
+        if (searchAttributes?.Attributes is not { } attributes)
+        {
+            return;
+        }
+
+        foreach (var (name, attribute) in attributes)
+        {
+            if (attribute.Type == Temporalio.Api.Enums.V1.IndexedValueType.Unspecified)
+            {
+                throw new InvalidOperationException(
+                    $"Temporal:SearchAttributes:Attributes:{name}:Type must be a valid search-attribute type (not Unspecified).");
+            }
         }
     }
 }

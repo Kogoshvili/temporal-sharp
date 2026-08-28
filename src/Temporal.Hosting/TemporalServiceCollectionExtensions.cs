@@ -256,6 +256,7 @@ public static class TemporalServiceCollectionExtensions
         services.AddSingleton<WorkflowOptionsRegistry>();
         services.AddSingleton<IWorkflowOps, WorkflowOps>();
         services.AddSingleton<IScheduleOps, ScheduleOps>();
+        services.AddSingleton<ISearchAttributeOps, SearchAttributeOps>();
 
         // Escape hatch: a caller-supplied SDK client/delegate replaces the entire
         // config-derived client stack (connection, data converter, interceptors,
@@ -377,6 +378,11 @@ public static class TemporalServiceCollectionExtensions
         // Registers declared schedules after the connection waiter / test server,
         // so the server is reachable before any schedule registration.
         services.AddSingleton<IHostedService, TemporalScheduleRegistrar>();
+
+        // Registers declared search attributes after the connection waiter / test
+        // server (and the schedule registrar), so the server is reachable before
+        // any attribute is created.
+        services.AddSingleton<IHostedService, SearchAttributeRegistrar>();
 
         return new TemporalBuilder(services);
     }
