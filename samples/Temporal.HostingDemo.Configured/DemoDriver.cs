@@ -1,3 +1,4 @@
+using Kogoshvili.Temporal.Codec;
 using Kogoshvili.Temporal.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -70,5 +71,13 @@ public sealed class DemoDriver : BackgroundService
         var parentHandle = await workflows.StartAsync<ParentWorkflow, string, string>("child");
 
         logger.LogInformation("Parent/child: {Result}", await parentHandle.GetResultAsync());
+
+        // Per-field secret: the Secret<string> Ssn is encrypted by the interceptor
+        // on the client and decrypted inside the activity, so the value is never
+        // readable in the workflow history or UI.
+        var patient = new Patient { Name = "Alice", Ssn = new Secret<string>("123-45-6789") };
+        var secretHandle = await workflows.StartAsync<SecretWorkflow, Patient, string>(patient);
+
+        logger.LogInformation("Secret: {Result}", await secretHandle.GetResultAsync());
     }
 }

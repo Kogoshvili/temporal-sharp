@@ -1,3 +1,4 @@
+using Kogoshvili.Temporal.Codec;
 using Kogoshvili.Temporal.CodecServer;
 using Kogoshvili.Temporal.Hosting;
 using Kogoshvili.Temporal.HostingDemo.Configured;
@@ -47,6 +48,14 @@ builder.Services
     .AddTemporal(builder.Configuration)
     .AddTemporalWorker("configured-queue")
     .AddDiscoveredTypes();
+
+// Per-field Secret<T> encryption resolves its key from
+// Temporal:DataConverter:Secret (Source=azureKeyVault). For the local demo we
+// register an in-memory resolver (DemoSecretResolver) in place of
+// Kogoshvili.Temporal.Cloud's AddAzureKeyVaultSecretResolver(...), so no vault
+// is required. In production, use the Cloud resolver and point SecretId at the
+// real key name.
+builder.Services.AddSingleton<ISecretResolver>(new DemoSecretResolver());
 
 // Vault-backed codec material (instead of the inline key + filesystem store in
 // appsettings.json). Register the resolvers from Kogoshvili.Temporal.Cloud, then

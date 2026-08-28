@@ -23,6 +23,13 @@ before anything is sent to the Temporal service.
 - **`IClaimCheckStoreFactory`** / **`ClaimCheckStoreSettings`** — abstraction
   for building a cloud claim-check store from resolved settings, so the hosting
   starter stays free of cloud SDK dependencies.
+- **`Secret<T>`** — a per-field secret value, encrypted independently of the
+  payload codec so it stays unreadable even after the surrounding payload has
+  been decrypted (for example by the Temporal UI's codec server). Encrypts to
+  the same `binary/encrypted` shape the encryption codec emits.
+- **`SecretEncryptionInterceptor`** — a client + worker interceptor that
+  encrypts `Secret<T>` values on the way out and decrypts them on the way in,
+  keyed from an `ISecretResolver`.
 
 ## Usage
 
@@ -45,6 +52,41 @@ var client = await TemporalClient.ConnectAsync(new("localhost:7233")
 Order matters: `new CompositePayloadCodec(encryption, claimCheck)` produces
 `serialize → encrypt → offload` on encode and `fetch → decrypt → deserialize` on
 decode, so the blobs in the store are ciphertext.
+
+## Per-field secrets
+
+Encrypt the *whole* payload and every field is hidden, but a single sensitive
+field (an SSN, an access token) can be encrypted on its own so it stays
+unreadable even after the payload around it is decrypted — for example by the
+Temporal UI when it points at your codec server. Use `Secret<T>` for that field
+and pair it with the `SecretEncryptionInterceptor`:
+
+```csharp
+using Kogoshvili.Temporal.Codec;
+
+class Patient
+{
+    public string Name { get; set; }
+    public Secret<string> Ssn { get; set; }
+}
+
+var interceptor = new SecretEncryptionInterceptor(
+    keyResolver, secretId: "ssn-key", keyId: "ssn-v1");
+
+// On the client, Secret<T> values in workflow/signal/query arguments are
+// encrypted automatically; on the worker, activity arguments are decrypted
+// automatically before the activity runs.
+var client = await TemporalClient.ConnectAsync(new("localhost:7233")
+{
+    Interceptors = new[] { interceptor },
+});
+```
+
+A `Secret<T>` is carried opaquely through a workflow — construct it on the
+client with plaintext and let the interceptor encrypt it; read `.Value` in an
+activity after the interceptor has decrypted it. Its serialized form is the
+same `{ encoding, encryption-key-id, data }` shape the encryption codec emits,
+so it is indistinguishable from an encrypted payload in the UI.
 
 Azure Blob and AWS S3 stores are provided by
 `Kogoshvili.Temporal.Cloud`, and a ready-made HTTP codec server (for the

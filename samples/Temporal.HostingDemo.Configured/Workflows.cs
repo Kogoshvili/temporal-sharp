@@ -228,3 +228,19 @@ public sealed class ScheduledWorkflow
         return await ActivityOps.ExecuteAsync(() => StaticActivities.Greet("scheduled"));
     }
 }
+
+/// <summary>
+/// Demonstrates per-field secret encryption: the <c>Secret&lt;string&gt;</c> field
+/// on <see cref="Patient"/> is encrypted by the <c>SecretEncryptionInterceptor</c>
+/// on the client and decrypted before <c>StaticActivities.ProcessPatient</c> runs,
+/// carried opaquely through the workflow in between.
+/// </summary>
+[Workflow]
+public sealed class SecretWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync(Patient patient)
+    {
+        return await ActivityOps.ExecuteAsync(() => StaticActivities.ProcessPatient(patient));
+    }
+}

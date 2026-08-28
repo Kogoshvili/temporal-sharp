@@ -1,7 +1,21 @@
+using Kogoshvili.Temporal.Codec;
 using Kogoshvili.Temporal.Hosting;
 using Temporalio.Activities;
 
 namespace Kogoshvili.Temporal.HostingDemo.Configured;
+
+/// <summary>
+/// A workflow/activity payload with a per-field secret. The
+/// <c>SecretEncryptionInterceptor</c> encrypts <see cref="Ssn"/> on the way out
+/// and decrypts it before <see cref="StaticActivities.ProcessPatient"/> reads it,
+/// so it stays unreadable in the Temporal UI even after the surrounding payload
+/// is decrypted by the codec server.
+/// </summary>
+public sealed class Patient
+{
+    public string Name { get; set; } = "";
+    public Secret<string> Ssn { get; set; } = new("");
+}
 
 // Four activity classes that exercise every lifetime auto-discovery assigns:
 // scoped (default for instance classes), singleton/transient (via
@@ -63,6 +77,10 @@ public static class StaticActivities
 
     [Activity]
     public static string CancelAllocation(string orderId) => $"cancel-allocation {orderId}";
+
+    [Activity]
+    public static string ProcessPatient(Patient patient) =>
+        $"processed {patient.Name} (ssn ends {patient.Ssn.Value[^4..]})";
 }
 
 /// <summary>Checkpoint recorded on every heartbeat, used to resume on retry.</summary>

@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Temporal.Hosting\Temporal.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\Temporal.Codec\Temporal.Codec.csproj" />
     <ProjectReference Include="..\..\src\Temporal.CodecServer\Temporal.CodecServer.csproj" />
   </ItemGroup>
 

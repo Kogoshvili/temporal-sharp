@@ -22,6 +22,7 @@ internal static class TemporalOptionsValidation
 
         ValidateEncryption(options.DataConverter.Encryption);
         ValidateClaimCheck(options.DataConverter.ClaimCheck);
+        ValidateSecret(options.DataConverter.Secret);
 
         ValidateActivityOptions(options.ActivityOptions);
 
@@ -128,6 +129,32 @@ internal static class TemporalOptionsValidation
             default:
                 throw new InvalidOperationException(
                     $"Unknown Temporal:DataConverter:ClaimCheck:Store '{claimCheck.Store}'. Expected 'filesystem', 'azureBlob', or 's3'.");
+        }
+    }
+
+    private static void ValidateSecret(TemporalSecretEncryptionOptions secret)
+    {
+        if (!secret.Enabled)
+        {
+            return;
+        }
+
+        if (secret.Source is not ("azureKeyVault" or "awsSecretsManager"))
+        {
+            throw new InvalidOperationException(
+                $"Unknown Temporal:DataConverter:Secret:Source '{secret.Source}'. Expected 'azureKeyVault' or 'awsSecretsManager'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(secret.SecretId))
+        {
+            throw new InvalidOperationException(
+                $"Temporal:DataConverter:Secret:SecretId must be set when secret encryption is enabled and Source is '{secret.Source}'.");
+        }
+
+        if (secret.Encoding is not ("raw" or "base64" or "hex"))
+        {
+            throw new InvalidOperationException(
+                $"Temporal:DataConverter:Secret:Encoding must be 'raw', 'base64', or 'hex' when secret encryption is enabled and Source is '{secret.Source}'.");
         }
     }
 

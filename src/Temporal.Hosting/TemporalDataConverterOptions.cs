@@ -14,6 +14,42 @@ public sealed class TemporalDataConverterOptions
 
     /// <summary>Gets or sets claim-check (large-payload offload) configuration.</summary>
     public TemporalClaimCheckCodecOptions ClaimCheck { get; set; } = new();
+
+    /// <summary>Gets or sets per-field <c>Secret</c> encryption configuration.</summary>
+    public TemporalSecretEncryptionOptions Secret { get; set; } = new();
+}
+
+/// <summary>
+/// Per-field <c>Secret</c> encryption configuration. Enables the
+/// <c>SecretEncryptionInterceptor</c>, which encrypts <see cref="Kogoshvili.Temporal.Codec.Secret{T}"/>
+/// values on the way out and decrypts them on the way in. The key is always
+/// sourced from a secret store (Azure Key Vault or AWS Secrets Manager).
+/// </summary>
+public sealed class TemporalSecretEncryptionOptions
+{
+    /// <summary>Gets or sets a value indicating whether per-field secret encryption is enabled.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the key source: <c>azureKeyVault</c> or <c>awsSecretsManager</c>.
+    /// Default is <c>azureKeyVault</c>.
+    /// </summary>
+    public string Source { get; set; } = "azureKeyVault";
+
+    /// <summary>
+    /// Gets or sets the secret name (Azure Key Vault) or secret id (AWS Secrets
+    /// Manager) holding the AES-GCM key.
+    /// </summary>
+    public string? SecretId { get; set; }
+
+    /// <summary>Gets or sets the key id stamped onto encrypted secrets for key rotation.</summary>
+    public string KeyId { get; set; } = "default";
+
+    /// <summary>
+    /// Gets or sets how the secret decodes into the key bytes: <c>raw</c>
+    /// (ASCII), <c>base64</c>, or <c>hex</c>. Default is <c>raw</c>.
+    /// </summary>
+    public string Encoding { get; set; } = "raw";
 }
 
 /// <summary>

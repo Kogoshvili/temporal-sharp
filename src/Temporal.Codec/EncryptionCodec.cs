@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Google.Protobuf;
 using Temporalio.Api.Common.V1;
 using Temporalio.Converters;
@@ -19,9 +18,6 @@ namespace Kogoshvili.Temporal.Codec;
 /// </remarks>
 public sealed class EncryptionCodec : IPayloadCodec
 {
-    private const int NonceSize = 12;
-    private const int TagSize = 16;
-
     private static readonly ByteString EncodingByteString = ByteString.CopyFromUtf8("binary/encrypted");
 
     private readonly byte[] key;
@@ -66,7 +62,7 @@ public sealed class EncryptionCodec : IPayloadCodec
                 ["encoding"] = EncodingByteString,
                 ["encryption-key-id"] = keyIdByteString,
             },
-            Data = ByteString.CopyFrom(Encrypt(payload.ToByteArray())),
+            Data = ByteString.CopyFrom(AesGcmCipher.Encrypt(key, payload.ToByteArray())),
         }).ToList());
 
     /// <inheritdoc />
@@ -87,30 +83,6 @@ public sealed class EncryptionCodec : IPayloadCodec
                     $"Unrecognized encryption key id '{keyId?.ToStringUtf8()}', expected '{this.keyId}'.");
             }
 
-            return Payload.Parser.ParseFrom(Decrypt(payload.Data.ToByteArray()));
+            return Payload.Parser.ParseFrom(AesGcmCipher.Decrypt(key, payload.Data.ToByteArray()));
         }).ToList());
-
-    private byte[] Encrypt(byte[] data)
-    {
-        var result = new byte[NonceSize + TagSize + data.Length];
-        var nonce = result.AsSpan(0, NonceSize);
-        RandomNumberGenerator.Fill(nonce);
-
-        using var aes = new AesGcm(key, TagSize);
-        aes.Encrypt(nonce, data, result.AsSpan(NonceSize, data.Length), result.AsSpan(NonceSize + data.Length, TagSize));
-        return result;
-    }
-
-    private byte[] Decrypt(byte[] data)
-    {
-        var result = new byte[data.Length - NonceSize - TagSize];
-
-        using var aes = new AesGcm(key, TagSize);
-        aes.Decrypt(
-            data.AsSpan(0, NonceSize),
-            data.AsSpan(NonceSize, result.Length),
-            data.AsSpan(NonceSize + result.Length, TagSize),
-            result);
-        return result;
-    }
 }

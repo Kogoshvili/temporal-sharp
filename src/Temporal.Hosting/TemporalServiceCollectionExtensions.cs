@@ -13,6 +13,7 @@ using Temporalio.Runtime;
 using Temporalio.Worker;
 using Kogoshvili.Temporal.Configuration;
 using Kogoshvili.Temporal.Hosting;
+using Kogoshvili.Temporal.Codec;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -311,6 +312,24 @@ public static class TemporalServiceCollectionExtensions
                 ?? throw new InvalidOperationException("No payload codec has been configured."));
         }
 
+        // The per-field secret interceptor encrypts Secret<T> values on the client
+        // and decrypts them on the activity worker. It resolves its key lazily (and
+        // caches it) from the registered vault resolver selected by Source.
+        if (options.DataConverter.Secret.Enabled)
+        {
+            services.AddSingleton(sp =>
+            {
+                var secret = sp.GetRequiredService<IOptions<TemporalOptions>>().Value.DataConverter.Secret;
+                var resolver = sp.GetRequiredService<IEnumerable<ISecretResolver>>()
+                    .FirstOrDefault(r => r.Name == secret.Source)
+                    ?? throw new InvalidOperationException(
+                        $"No secret resolver named '{secret.Source}' is registered. " +
+                        "Register one via Kogoshvili.Temporal.Cloud (e.g. AddAzureKeyVaultSecretResolver).");
+
+                return new SecretEncryptionInterceptor(resolver, secret.SecretId!, secret.KeyId, secret.Encoding);
+            });
+        }
+
         // A single connect-options instance carries both the connection settings
         // (host, TLS, API key, ...) and the client-level defaults (namespace, data
         // converter, logger factory, runtime). Registered as a singleton instance
@@ -352,6 +371,12 @@ public static class TemporalServiceCollectionExtensions
                 && sp.GetService<BaggageTracingInterceptor>() is { } tracing)
             {
                 interceptors.Add(tracing);
+            }
+
+            if (temporal.DataConverter.Secret.Enabled
+                && sp.GetService<SecretEncryptionInterceptor>() is { } secret)
+            {
+                interceptors.Add(secret);
             }
 
             return interceptors.Count == 0 ? null : interceptors;
