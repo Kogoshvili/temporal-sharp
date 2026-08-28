@@ -30,3 +30,8 @@ packages/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local
+TODO.md
+.headroom/
+.serena/

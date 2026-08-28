@@ -61,6 +61,9 @@ TMP3210 | SdkMisuse | Error | Workflow instance constructor schedules a blocking
 TMP3213 | SdkMisuse | Error | Standalone activity client API (ExecuteActivityAsync / StartActivityAsync / GetActivityHandle) called from workflow code
 TMP2135 | SdkMisuse | Warning | ApplicationFailureException thrown from workflow code with nonRetryable: true
 TMP4108 | BestPractice | Warning | Loop busy-polls Workflow.TargetWorkerDeploymentVersionChanged on a timer
+TMP5001 | Testing | Disabled | [Workflow] type has no WorkflowReplayer-based replay test
+TMP5002 | Testing | Disabled | TestWorkflowEnvironment / WorkflowEnvironment not disposed or scoped with await using
+TMP5003 | Testing | Disabled | WorkflowEnvironment used without worker.ExecuteAsync(...) scoping
 
 ### Removed Rules
 

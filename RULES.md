@@ -127,3 +127,11 @@ rules that users must enable explicitly.
 | TMP4106 | Warning | Consecutive local activities | Local-activity completions are only persisted when the workflow task completes; running several back-to-back with no yield risks losing work if the worker crashes mid-sequence. Combine the work into fewer activities, or batch the calls. |
 | TMP4107 | Warning | Local activity performs blocking or long-running I/O | Local activities run on the worker's task queue and must complete quickly. Blocking I/O or long-running work such as Task.Delay, sockets, or file I/O makes them long-running; use a regular activity instead. |
 | TMP4108 | Warning | Busy-polling a worker-version flag on a timer | Workflow.TargetWorkerDeploymentVersionChanged only refreshes after a workflow task completes. Check it at a natural workflow task boundary; use a timer only to wake an otherwise-idle workflow. |
+
+## Testing
+
+| ID | Default | Rule | Description |
+|---|---|---|---|
+| TMP5001 | off | No replay test for the workflow | Workflows are replayed by re-execution, so a non-deterministic change silently breaks existing histories. Add a WorkflowReplayer-based replay test that replays captured history to catch non-determinism. The rule is opt-in and requires the workflow and its replay test to be visible together. |
+| TMP5002 | off | Test workflow environment not torn down | A WorkflowEnvironment starts a local Temporal server that must be shut down when the test ends. Scope it with 'await using' or call ShutdownAsync/DisposeAsync in teardown. The rule is opt-in. |
+| TMP5003 | off | Worker lifecycle not scoped via ExecuteAsync | Workflows only run while a worker is executing; without worker.ExecuteAsync(...) the worker never processes the workflow. Scope the worker run with ExecuteAsync (or RunUntilAsync) and a time-skipping environment. The rule is opt-in. |

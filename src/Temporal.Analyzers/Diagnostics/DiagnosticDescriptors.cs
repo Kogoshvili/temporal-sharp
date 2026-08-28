@@ -754,6 +754,30 @@ internal static class DiagnosticDescriptors
         "Workflow.TargetWorkerDeploymentVersionChanged only refreshes after a workflow task completes. Check it at a natural workflow task boundary; use a timer only to wake an otherwise-idle workflow.",
         severity: DiagnosticSeverity.Warning);
 
+    internal static readonly DiagnosticDescriptor MissingReplayTest = Create(
+        "TMP5001",
+        TestingCategory,
+        "No replay test for the workflow",
+        "[Workflow] type '{0}' has no WorkflowReplayer-based replay test",
+        "Workflows are replayed by re-execution, so a non-deterministic change silently breaks existing histories. Add a WorkflowReplayer-based replay test that replays captured history to catch non-determinism. The rule is opt-in and requires the workflow and its replay test to be visible together.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor EnvironmentNotTornDown = Create(
+        "TMP5002",
+        TestingCategory,
+        "Test workflow environment not torn down",
+        "Test workflow environment '{0}' is not disposed; use 'await using' or call DisposeAsync",
+        "A WorkflowEnvironment starts a local Temporal server that must be shut down when the test ends. Scope it with 'await using' or call ShutdownAsync/DisposeAsync in teardown. The rule is opt-in.",
+        isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor WorkerNotScoped = Create(
+        "TMP5003",
+        TestingCategory,
+        "Worker lifecycle not scoped via ExecuteAsync",
+        "Test workflow environment is used without worker.ExecuteAsync(...) scoping",
+        "Workflows only run while a worker is executing; without worker.ExecuteAsync(...) the worker never processes the workflow. Scope the worker run with ExecuteAsync (or RunUntilAsync) and a time-skipping environment. The rule is opt-in.",
+        isEnabledByDefault: false);
+
     private static DiagnosticDescriptor Create(
         string id,
         string category,

@@ -16,6 +16,34 @@ internal static class SdkNames
     public const string CompleteAsyncExceptionType = "Temporalio.Activities.CompleteAsyncException";
     public const string CancellationTokenType = "System.Threading.CancellationToken";
     public const string ExternalWorkflowHandleType = "Temporalio.Workflows.ExternalWorkflowHandle";
+    public const string TemporalWorkerOptionsType = "Temporalio.Worker.TemporalWorkerOptions";
+    public const string NexusWorkflowClientType = "Temporalio.Workflows.NexusWorkflowClient";
+
+    /// <summary>
+    /// Child-workflow entry points. <c>ExecuteChildWorkflowAsync</c> is the
+    /// "start + await result" shortcut for <c>StartChildWorkflowAsync</c>.
+    /// </summary>
+    public static readonly ImmutableHashSet<string> ChildWorkflowStartMethods = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "StartChildWorkflowAsync",
+        "ExecuteChildWorkflowAsync");
+
+    /// <summary>
+    /// Nexus operation entry points invoked on a <c>NexusWorkflowClient</c>
+    /// obtained from <c>Workflow.CreateNexusWorkflowClient</c>.
+    /// </summary>
+    public static readonly ImmutableHashSet<string> NexusOperationMethods = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "StartNexusOperationAsync",
+        "ExecuteNexusOperationAsync");
+
+    /// <summary>
+    /// Client entry points that start (and optionally await) a workflow.
+    /// </summary>
+    public static readonly ImmutableHashSet<string> ClientWorkflowStartMethods = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "StartWorkflowAsync",
+        "ExecuteWorkflowAsync");
 
     /// <summary>
     /// Workflow command methods that schedule commands or mutate workflow
