@@ -26,6 +26,14 @@ var builder = Host.CreateApplicationBuilder(args);
 // own Temporalio / Temporalio.Extensions.Hosting building blocks (plus the
 // Kogoshvili.Temporal.Codec codec library, which the starter drives from the
 // Temporal:DataConverter configuration section).
+//
+// The starter's multi-namespace support (ITemporalClientFactory) is likewise a
+// thin wrapper over the SDK: one shared TemporalConnection fanning out
+// namespace-scoped TemporalClient instances, e.g.
+//
+//     var connection = await TemporalConnection.ConnectAsync(new("localhost:7233"));
+//     var payments = new TemporalClient(connection, new() { Namespace = "payments" });
+//     var orders   = new TemporalClient(connection, new() { Namespace = "orders" });
 // =========================================================================
 
 // 1. Read connection settings by hand (AddTemporal(IConfiguration) does this).

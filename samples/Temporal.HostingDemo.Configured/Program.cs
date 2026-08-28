@@ -17,6 +17,25 @@ var builder = WebApplication.CreateBuilder(args);
 //         .AddTemporalWorker("sql-queue").AddSingletonActivities<SqlActivities>()
 //         .AddTemporalWorker("blob-queue").AddScopedActivities<BlobActivities>();
 //
+// For multiple namespaces, declare them under Temporal:Namespaces in
+// appsettings.json and bind a worker to one (or use the default namespace by
+// omitting it). Every namespace is served over the same shared connection:
+//
+//     builder.Services
+//         .AddTemporalWorker("payments-queue", "payments").AddSingletonActivities<PaymentActivities>()
+//         .AddTemporalWorker("orders-queue", "orders").AddWorkflow<OrdersWorkflow>();
+//
+// The namespace resolves in this order: explicit AddTemporalWorker argument >
+// Temporal:Workers:<queue>:Namespace > Temporal:Namespace. Inject
+// ITemporalClientFactory to resolve a namespace-scoped client at runtime
+// (factory.Get("payments")); the default ITemporalClient is the default
+// namespace's client.
+//
+// "Configure everything yourself" escape hatch — bypass config entirely by
+// handing over a pre-built SDK client (or a connection / client factory):
+//
+//     builder.Services.AddTemporal(TemporalClient.CreateLazy(...));
+//
 // This demo connects to a real server. Start one first:
 //
 //     temporal server start-dev          # frontend :7233, UI :8233

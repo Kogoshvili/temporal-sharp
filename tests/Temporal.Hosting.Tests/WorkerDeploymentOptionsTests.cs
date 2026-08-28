@@ -144,6 +144,7 @@ public class WorkerDeploymentOptionsTests
 
         var builder = services.AddTemporalWorker(
             "q",
+            null,
             new WorkerDeploymentOptions(new WorkerDeploymentVersion("explicit-app", "9.9"), useWorkerVersioning: true));
 
         Assert.Equal("explicit-app", builder.DeploymentOptions!.Version!.DeploymentName);

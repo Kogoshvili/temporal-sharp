@@ -8,6 +8,14 @@ namespace Kogoshvili.Temporal.Hosting;
 public sealed class TemporalWorkerConfigOptions
 {
     /// <summary>
+    /// Gets or sets the namespace this worker polls, bound from
+    /// <c>Temporal:Workers:&lt;queue&gt;:Namespace</c>. Falls back to the
+    /// default namespace (<c>Temporal:Namespace</c>) when unset. An explicit
+    /// namespace passed to <c>AddTemporalWorker</c> wins over this value.
+    /// </summary>
+    public string? Namespace { get; set; }
+
+    /// <summary>
     /// Gets or sets worker deployment/versioning configuration. When set (and
     /// <see cref="TemporalWorkerDeploymentOptions.UseWorkerVersioning"/> is
     /// enabled), the worker opts into Worker Versioning and reports this

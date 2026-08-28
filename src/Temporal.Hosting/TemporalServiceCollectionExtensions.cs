@@ -84,6 +84,61 @@ public static class TemporalServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Registers a Temporal client and starter services using a pre-built SDK
+    /// client. This is the "configure everything yourself" escape hatch: the
+    /// supplied client is used verbatim (no config-derived connection, data
+    /// converter, or interceptors), and <see cref="ITemporalClientFactory"/> and
+    /// the default <see cref="ITemporalClient"/> both return it regardless of
+    /// namespace.
+    /// </summary>
+    public static TemporalBuilder AddTemporal(this IServiceCollection services, ITemporalClient client)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(client);
+
+        var options = new TemporalOptions();
+        services.Configure<TemporalOptions>(configured => CopyTo(options, configured));
+
+        return RegisterCore(services, options, clientFactoryBuilder: _ => new StaticTemporalClientFactory(client));
+    }
+
+    /// <summary>
+    /// Registers a Temporal client and starter services over a pre-built SDK
+    /// connection. Namespace-scoped clients (and the default
+    /// <see cref="ITemporalClient"/>) are fanned out over the supplied connection
+    /// rather than a config-derived one; the hosting stack's data converter and
+    /// interceptors still apply.
+    /// </summary>
+    public static TemporalBuilder AddTemporal(this IServiceCollection services, ITemporalConnection connection)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var options = new TemporalOptions();
+        services.Configure<TemporalOptions>(configured => CopyTo(options, configured));
+
+        return RegisterCore(services, options, suppliedConnection: connection);
+    }
+
+    /// <summary>
+    /// Registers a Temporal client and starter services using a client factory
+    /// delegate. The delegate resolves the default <see cref="ITemporalClient"/>,
+    /// which <see cref="ITemporalClientFactory"/> returns regardless of namespace.
+    /// </summary>
+    public static TemporalBuilder AddTemporal(
+        this IServiceCollection services,
+        Func<IServiceProvider, ITemporalClient> clientFactory)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(clientFactory);
+
+        var options = new TemporalOptions();
+        services.Configure<TemporalOptions>(configured => CopyTo(options, configured));
+
+        return RegisterCore(services, options, clientFactoryBuilder: sp => new DelegateTemporalClientFactory(clientFactory, sp));
+    }
+
+    /// <summary>
     /// Registers a hosted Temporal worker for the given task queue. No workflow
     /// or activity types are registered automatically — register them explicitly
     /// on the returned builder (e.g. <c>AddWorkflow{T}()</c>,
@@ -92,15 +147,21 @@ public static class TemporalServiceCollectionExtensions
     /// </summary>
     /// <param name="builder">Builder returned by <c>AddTemporal</c>.</param>
     /// <param name="taskQueue">Task queue the worker polls.</param>
+    /// <param name="ns">
+    /// Optional namespace the worker polls. Falls back to
+    /// <c>Temporal:Workers:&lt;queue&gt;:Namespace</c>, then to the default
+    /// namespace (<c>Temporal:Namespace</c>).
+    /// </param>
     /// <param name="configure">Optional worker options configuration.</param>
     /// <returns>The underlying Temporal worker options builder for further configuration.</returns>
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this TemporalBuilder builder,
         string taskQueue,
+        string? ns = null,
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.Services.AddTemporalWorker(taskQueue, configure);
+        return builder.Services.AddTemporalWorker(taskQueue, ns, configure);
     }
 
     /// <summary>
@@ -110,11 +171,12 @@ public static class TemporalServiceCollectionExtensions
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this TemporalBuilder builder,
         string taskQueue,
+        string? ns,
         WorkerDeploymentOptions deploymentOptions,
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.Services.AddTemporalWorker(taskQueue, deploymentOptions, configure);
+        return builder.Services.AddTemporalWorker(taskQueue, ns, deploymentOptions, configure);
     }
 
     /// <summary>
@@ -125,17 +187,23 @@ public static class TemporalServiceCollectionExtensions
     /// </summary>
     /// <param name="services">Service collection.</param>
     /// <param name="taskQueue">Task queue the worker polls.</param>
+    /// <param name="ns">
+    /// Optional namespace the worker polls. Falls back to
+    /// <c>Temporal:Workers:&lt;queue&gt;:Namespace</c>, then to the default
+    /// namespace (<c>Temporal:Namespace</c>).
+    /// </param>
     /// <param name="configure">Optional worker options configuration.</param>
     /// <returns>The underlying Temporal worker options builder for further configuration.</returns>
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this IServiceCollection services,
         string taskQueue,
+        string? ns = null,
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrEmpty(taskQueue);
 
-        return AddTemporalWorkerCore(services, taskQueue, deploymentOptions: null, configure);
+        return AddTemporalWorkerCore(services, taskQueue, ns, deploymentOptions: null, configure);
     }
 
     /// <summary>
@@ -145,6 +213,7 @@ public static class TemporalServiceCollectionExtensions
     public static ITemporalWorkerServiceOptionsBuilder AddTemporalWorker(
         this IServiceCollection services,
         string taskQueue,
+        string? ns,
         WorkerDeploymentOptions deploymentOptions,
         Action<TemporalWorkerServiceOptions>? configure = null)
     {
@@ -157,10 +226,14 @@ public static class TemporalServiceCollectionExtensions
             throw new ArgumentException("Deployment version must be set when using worker versioning.", nameof(deploymentOptions));
         }
 
-        return AddTemporalWorkerCore(services, taskQueue, deploymentOptions, configure);
+        return AddTemporalWorkerCore(services, taskQueue, ns, deploymentOptions, configure);
     }
 
-    private static TemporalBuilder RegisterCore(IServiceCollection services, TemporalOptions options)
+    private static TemporalBuilder RegisterCore(
+        IServiceCollection services,
+        TemporalOptions options,
+        Func<IServiceProvider, ITemporalClientFactory>? clientFactoryBuilder = null,
+        ITemporalConnection? suppliedConnection = null)
     {
         services.AddSingleton<IValidateOptions<TemporalOptions>, TemporalOptionsValidator>();
 
@@ -184,6 +257,17 @@ public static class TemporalServiceCollectionExtensions
         services.AddSingleton<IWorkflowOps, WorkflowOps>();
         services.AddSingleton<IScheduleOps, ScheduleOps>();
 
+        // Escape hatch: a caller-supplied SDK client/delegate replaces the entire
+        // config-derived client stack (connection, data converter, interceptors,
+        // test server, connection waiter). Everything before this point still
+        // applies so worker registration and the ops facades keep working.
+        if (clientFactoryBuilder is not null)
+        {
+            services.AddSingleton<ITemporalClientFactory>(clientFactoryBuilder);
+            services.AddSingleton<ITemporalClient>(sp => sp.GetRequiredService<ITemporalClientFactory>().Get());
+            return new TemporalBuilder(services);
+        }
+
         var exportMetrics = !string.IsNullOrWhiteSpace(options.Metrics.PrometheusBindAddress)
             || !string.IsNullOrWhiteSpace(options.Metrics.OpenTelemetryUrl);
         var forwardLogs = options.Logging.Enabled;
@@ -197,17 +281,6 @@ public static class TemporalServiceCollectionExtensions
         if (options.Metrics.Enabled)
         {
             services.AddSingleton(sp => new Meter(sp.GetRequiredService<IOptions<TemporalOptions>>().Value.Metrics.MeterName));
-            if (options.Metrics.UseDefaultInterceptor)
-            {
-                services.AddSingleton(sp =>
-                {
-                    var temporal = sp.GetRequiredService<IOptions<TemporalOptions>>().Value;
-                    return new TemporalMetricsInterceptor(
-                        sp.GetRequiredService<Meter>(),
-                        temporal.Namespace,
-                        temporal.Metrics.BaggageTagKeys);
-                });
-            }
         }
 
         if (options.Tracing.Enabled && options.Tracing.UseDefaultInterceptor)
@@ -232,74 +305,65 @@ public static class TemporalServiceCollectionExtensions
             services.AddSingleton(payloadCodec);
         }
 
+        // A single connect-options instance carries both the connection settings
+        // (host, TLS, API key, ...) and the client-level defaults (namespace, data
+        // converter, logger factory, runtime). Registered as a singleton instance
+        // (so the test server can fill in TargetHost and the factory can read it)
+        // and as IOptions<TemporalClientConnectOptions> (so the certificate loader
+        // can apply cloud TLS material before workers connect). All mutations
+        // happen before the first client is resolved, so the shared lazy
+        // connection sees finalized options.
+        services.AddSingleton(sp =>
+        {
+            var connect = new TemporalClientConnectOptions { DataConverter = dataConverter };
+            ClientOptionsFactory.Apply(connect, options);
+            connect.LoggerFactory = sp.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
+            if (needsRuntime)
+            {
+                connect.Runtime = sp.GetRequiredService<TemporalRuntime>();
+            }
+
+            return connect;
+        });
+        services.AddSingleton<IOptions<TemporalClientConnectOptions>>(sp =>
+            new OptionsWrapper<TemporalClientConnectOptions>(sp.GetRequiredService<TemporalClientConnectOptions>()));
+
+        // Builds the client interceptor set for a namespace. The metrics
+        // interceptor is per-namespace (it tags metrics with the client's
+        // namespace), so it is constructed here rather than as a shared singleton.
+        // The tracing interceptor is namespace-agnostic and shared.
+        services.AddSingleton<Func<string, IReadOnlyCollection<IClientInterceptor>?>>(sp => ns =>
+        {
+            var temporal = sp.GetRequiredService<IOptions<TemporalOptions>>().Value;
+            var interceptors = new List<IClientInterceptor>();
+            if (temporal.Metrics.Enabled && temporal.Metrics.UseDefaultInterceptor
+                && sp.GetService<Meter>() is { } meter)
+            {
+                interceptors.Add(new TemporalMetricsInterceptor(meter, ns, temporal.Metrics.BaggageTagKeys));
+            }
+
+            if (temporal.Tracing.Enabled && temporal.Tracing.UseDefaultInterceptor
+                && sp.GetService<BaggageTracingInterceptor>() is { } tracing)
+            {
+                interceptors.Add(tracing);
+            }
+
+            return interceptors.Count == 0 ? null : interceptors;
+        });
+
+        services.AddSingleton<ITemporalClientFactory>(sp => new TemporalClientFactory(
+            sp.GetRequiredService<TemporalClientConnectOptions>(),
+            sp.GetRequiredService<Func<string, IReadOnlyCollection<IClientInterceptor>?>>(),
+            suppliedConnection));
+        services.AddSingleton<ITemporalClient>(sp => sp.GetRequiredService<ITemporalClientFactory>().Get());
+
         if (options.TestServer.Enabled)
         {
-            // A single connect-options instance is shared between the lazy client
-            // and the test-server service. The lazy connection reads TargetHost on
-            // first connect, so the service can fill it in once the dev server has
-            // bound an (ephemeral) port.
-            services.AddSingleton(sp =>
-            {
-                var connect = new TemporalClientConnectOptions
-                {
-                    Namespace = options.Namespace,
-                    DataConverter = dataConverter,
-                };
-                if (needsRuntime)
-                {
-                    connect.Runtime = sp.GetRequiredService<TemporalRuntime>();
-                }
-
-                connect.LoggerFactory = sp.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
-                return connect;
-            });
             services.AddSingleton<TemporalTestServerService>();
             services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TemporalTestServerService>());
-            services.AddSingleton<ITemporalClient>(sp =>
-            {
-                var connect = sp.GetRequiredService<TemporalClientConnectOptions>();
-                var interceptors = new List<IClientInterceptor>();
-                if (options.Metrics.Enabled && options.Metrics.UseDefaultInterceptor
-                    && sp.GetService<TemporalMetricsInterceptor>() is { } metrics)
-                {
-                    interceptors.Add(metrics);
-                }
-
-                if (options.Tracing.Enabled && options.Tracing.UseDefaultInterceptor
-                    && sp.GetService<BaggageTracingInterceptor>() is { } tracing)
-                {
-                    interceptors.Add(tracing);
-                }
-
-                if (interceptors.Count > 0)
-                {
-                    connect.Interceptors = interceptors.ToArray();
-                }
-
-                return TemporalClient.CreateLazy(connect);
-            });
         }
         else
         {
-            var client = services.AddTemporalClient();
-            client.Configure(connect => ClientOptionsFactory.Apply(connect, options));
-            if (needsRuntime)
-            {
-                client.Configure<TemporalRuntime>((connect, runtime) => connect.Runtime = runtime);
-            }
-
-            client.Configure(connect => connect.DataConverter = dataConverter);
-
-            if (options.Metrics.Enabled && options.Metrics.UseDefaultInterceptor)
-            {
-                client.Configure<TemporalMetricsInterceptor>(AppendClientInterceptor);
-            }
-
-            if (options.Tracing.Enabled && options.Tracing.UseDefaultInterceptor)
-            {
-                client.Configure<BaggageTracingInterceptor>(AppendClientInterceptor);
-            }
-
             // Resolve cloud TLS certificate material before the connection waiter
             // connects (and therefore before any worker polls). Registered before
             // the waiter so hosted services start in the right order.
@@ -320,6 +384,7 @@ public static class TemporalServiceCollectionExtensions
     private static ITemporalWorkerServiceOptionsBuilder AddTemporalWorkerCore(
         IServiceCollection services,
         string taskQueue,
+        string? ns,
         WorkerDeploymentOptions? deploymentOptions,
         Action<TemporalWorkerServiceOptions>? configure)
     {
@@ -337,7 +402,22 @@ public static class TemporalServiceCollectionExtensions
             deploymentOptions = BuildWorkerDeploymentOptions(workerConfig.Deployment);
         }
 
-        var worker = services.AddHostedTemporalWorker(taskQueue, deploymentOptions);
+        // Resolve the worker's namespace: explicit argument > appsettings
+        // (Temporal:Workers:<queue>:Namespace) > default (Temporal:Namespace,
+        // applied by the factory when ns is null).
+        var resolvedNamespace = ns ?? GetBoundWorkerNamespace(services, taskQueue);
+
+        // Register the worker options the same way the SDK's AddHostedTemporalWorker
+        // does (named options keyed by task queue + version), but without its
+        // hosted-service registration — the namespace-scoped client is bound here.
+        var builder = new TemporalWorkerServiceOptionsBuilder(taskQueue, deploymentOptions, services);
+        var worker = builder.ConfigureOptions(
+            o =>
+            {
+                o.TaskQueue = taskQueue;
+                o.DeploymentOptions = deploymentOptions;
+            },
+            disallowDuplicates: true);
 
         // Register the built-in workflow-settings local activity on every worker
         // so workflows can read Temporal:WorkflowSettings via WorkflowSettings.
@@ -359,6 +439,17 @@ public static class TemporalServiceCollectionExtensions
         {
             worker.ConfigureOptions(configure);
         }
+
+        // Bind the worker to its namespace's client (over the shared connection).
+        // Runs after the connection waiter / test server / certificate loader, so
+        // the client is resolvable and the connection finalized.
+        var optionsName = GetWorkerOptionsName(taskQueue, deploymentOptions);
+        services.AddSingleton<IHostedService>(sp =>
+        {
+            var client = sp.GetRequiredService<ITemporalClientFactory>().Get(resolvedNamespace);
+            var options = sp.GetRequiredService<IOptionsMonitor<TemporalWorkerServiceOptions>>().Get(optionsName);
+            return new TemporalWorkerService(client, options);
+        });
 
         return worker;
     }
@@ -447,6 +538,27 @@ public static class TemporalServiceCollectionExtensions
         return null;
     }
 
+    private static string? GetBoundWorkerNamespace(IServiceCollection services, string taskQueue)
+    {
+        if (GetBoundTemporalOptions(services) is { } temporal
+            && temporal.Workers is { } workers
+            && workers.TryGetValue(taskQueue, out var workerConfig))
+        {
+            return workerConfig.Namespace;
+        }
+
+        return null;
+    }
+
+    // Mirrors the SDK's internal TemporalWorkerServiceOptions.GetUniqueOptionsName:
+    // the worker options are keyed by task queue, or "taskQueue!!__temporal__!!version"
+    // when a deployment version is set.
+    private static string GetWorkerOptionsName(string taskQueue, WorkerDeploymentOptions? deploymentOptions)
+    {
+        var version = deploymentOptions?.Version?.ToCanonicalString();
+        return version is null ? taskQueue : $"{taskQueue}!!__temporal__!!{version}";
+    }
+
     private static TemporalRuntime CreateRuntime(
         TemporalMetricsOptions metrics,
         TemporalLoggingOptions logging,
@@ -487,14 +599,6 @@ public static class TemporalServiceCollectionExtensions
         }));
     }
 
-    private static void AppendClientInterceptor<T>(TemporalClientConnectOptions connect, T interceptor)
-        where T : IClientInterceptor
-    {
-        connect.Interceptors = (connect.Interceptors ?? Array.Empty<IClientInterceptor>())
-            .Concat(new IClientInterceptor[] { interceptor })
-            .ToArray();
-    }
-
     private static void Validate(TemporalOptions options)
     {
         TemporalOptionsValidation.Validate(options);
@@ -523,6 +627,7 @@ public static class TemporalServiceCollectionExtensions
         target.WorkflowSettings = source.WorkflowSettings;
         target.HealthChecks = source.HealthChecks;
         target.Schedules = source.Schedules;
+        target.Namespaces = source.Namespaces;
     }
 
     private static void SeedActivityOptionsRegistry(TemporalActivityOptions? activityOptions)

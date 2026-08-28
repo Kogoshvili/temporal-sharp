@@ -39,7 +39,8 @@ public class TemporalServiceCollectionExtensionsTests
         using var provider = services.BuildServiceProvider();
 
         Assert.NotNull(provider.GetService<Meter>());
-        Assert.NotNull(provider.GetService<TemporalMetricsInterceptor>());
+        var client = provider.GetRequiredService<ITemporalClient>();
+        Assert.Contains(client.Options.Interceptors!, i => i is TemporalMetricsInterceptor);
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(Temporalio.Runtime.TemporalRuntime));
     }
 
@@ -87,9 +88,9 @@ public class TemporalServiceCollectionExtensionsTests
         using var provider = services.BuildServiceProvider();
 
         Assert.NotNull(provider.GetService<BaggageTracingInterceptor>());
-        var connect = provider.GetRequiredService<IOptions<TemporalClientConnectOptions>>().Value;
-        Assert.NotNull(connect.Interceptors);
-        Assert.Contains(connect.Interceptors!, i => i is TracingInterceptor);
+        var client = provider.GetRequiredService<ITemporalClient>();
+        Assert.NotNull(client.Options.Interceptors);
+        Assert.Contains(client.Options.Interceptors!, i => i is TracingInterceptor);
     }
 
     [Fact]
@@ -321,7 +322,7 @@ public class TemporalServiceCollectionExtensionsTests
 
         var services = new ServiceCollection();
         services.AddTemporal(configuration);
-        services.AddTemporalWorker("queue", o => o.MaxConcurrentActivities = 5);
+        services.AddTemporalWorker("queue", configure: o => o.MaxConcurrentActivities = 5);
 
         using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptionsMonitor<TemporalWorkerServiceOptions>>().Get("queue");
@@ -337,7 +338,7 @@ public class TemporalServiceCollectionExtensionsTests
         services.AddTemporal();
 
         var deployment = new Temporalio.Worker.WorkerDeploymentOptions();
-        Assert.Throws<ArgumentException>(() => services.AddTemporalWorker("queue", deployment));
+        Assert.Throws<ArgumentException>(() => services.AddTemporalWorker("queue", null, deployment));
     }
 
     [Fact]

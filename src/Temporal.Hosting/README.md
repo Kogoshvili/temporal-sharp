@@ -309,6 +309,46 @@ delegate passed to `AddTemporalWorker` overrides the appsettings value.
 | `MaxConcurrentWorkflowTaskPolls` | `TemporalWorkerOptions.MaxConcurrentWorkflowTaskPolls` |
 | `GracefulShutdownTimeout` | `TemporalWorkerOptions.GracefulShutdownTimeout` |
 | `MaxCachedWorkflows` | `TemporalWorkerOptions.MaxCachedWorkflows` |
+| `Namespace` | the namespace this worker polls (see "Multiple namespaces" below) |
+
+### Multiple namespaces
+
+A single shared `TemporalConnection` backs every namespace; clients are cheap,
+lazily created, and cached per namespace. Declare the extra namespaces under
+`Temporal:Namespaces`, and bind a worker to one via `AddTemporalWorker`:
+
+```csharp
+builder.Services
+    .AddTemporal(builder.Configuration)
+    .AddTemporalWorker("payments-queue", "payments").AddSingletonActivities<PaymentActivities>()
+    .AddTemporalWorker("orders-queue", "orders").AddWorkflow<OrdersWorkflow>();
+```
+
+```jsonc
+{
+  "Temporal": {
+    "Namespace": "default",        // the default/fallback namespace
+    "Namespaces": [ "payments", "orders" ]
+  }
+}
+```
+
+A worker's namespace resolves in this order: the explicit `AddTemporalWorker`
+argument, then `Temporal:Workers:<task-queue>:Namespace`, then the default
+`Temporal:Namespace`. Resolve a namespace-scoped client at runtime through
+`ITemporalClientFactory` (the default `ITemporalClient` is the default
+namespace's client):
+
+```csharp
+var payments = clientFactory.Get("payments");
+```
+
+To bypass config entirely, hand `AddTemporal` a pre-built SDK client (or a
+connection, or a `Func<IServiceProvider, ITemporalClient>` factory):
+
+```csharp
+builder.Services.AddTemporal(TemporalClient.CreateLazy(new("localhost:7233") { Namespace = "custom" }));
+```
 
 ### Activity-options presets
 

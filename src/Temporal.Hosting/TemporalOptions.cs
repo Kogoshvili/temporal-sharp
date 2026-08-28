@@ -73,4 +73,12 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     /// <see cref="TemporalScheduleRegistrar"/>).
     /// </summary>
     public Dictionary<string, TemporalScheduleOptions>? Schedules { get; set; }
+
+    /// <summary>
+    /// Gets or sets additional namespace names, bound from
+    /// <c>Temporal:Namespaces</c>. Each named namespace gets a client over the
+    /// same shared connection as <see cref="TemporalConnectionOptions.Namespace"/>
+    /// (the default/fallback), resolvable via <see cref="ITemporalClientFactory"/>.
+    /// </summary>
+    public List<string>? Namespaces { get; set; }
 }
