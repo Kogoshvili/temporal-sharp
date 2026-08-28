@@ -207,8 +207,7 @@ public sealed class ParentWorkflow
     [WorkflowRun]
     public async Task<string> RunAsync(string value)
     {
-        var childResult = await ChildWorkflowOps.ExecuteAsync(
-            (ChildWorkflow wf) => wf.RunAsync(value));
+        var childResult = await ChildWorkflowOps.ExecuteAsync<ChildWorkflow, string, string>(value);
 
         return $"parent -> child said: {childResult}";
     }

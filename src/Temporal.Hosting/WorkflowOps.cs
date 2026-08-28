@@ -58,6 +58,55 @@ public sealed class WorkflowOps : IWorkflowOps
     }
 
     /// <inheritdoc />
+    public async Task<WorkflowHandle<TWorkflow, TResult>> StartAsync<TWorkflow, TParams, TResult>(
+        TParams args,
+        string? taskQueue = null,
+        string? workflowId = null,
+        Action<WorkflowOptions>? configure = null)
+    {
+        var name = WorkflowName<TWorkflow>();
+        var options = BuildOptions(name, taskQueue, workflowId, configure);
+
+        var handle = await client.StartWorkflowAsync(
+            name, new object?[] { args }, options).ConfigureAwait(false);
+
+        return new WorkflowHandle<TWorkflow, TResult>(
+            handle.Client, handle.Id, handle.RunId, handle.ResultRunId, handle.FirstExecutionRunId);
+    }
+
+    /// <inheritdoc />
+    public async Task<WorkflowHandle<TWorkflow, TResult>> StartAsync<TWorkflow, TResult>(
+        string? taskQueue = null,
+        string? workflowId = null,
+        Action<WorkflowOptions>? configure = null)
+    {
+        var name = WorkflowName<TWorkflow>();
+        var options = BuildOptions(name, taskQueue, workflowId, configure);
+
+        var handle = await client.StartWorkflowAsync(
+            name, Array.Empty<object?>(), options).ConfigureAwait(false);
+
+        return new WorkflowHandle<TWorkflow, TResult>(
+            handle.Client, handle.Id, handle.RunId, handle.ResultRunId, handle.FirstExecutionRunId);
+    }
+
+    /// <inheritdoc />
+    public async Task<WorkflowHandle<TWorkflow>> StartAsync<TWorkflow>(
+        string? taskQueue = null,
+        string? workflowId = null,
+        Action<WorkflowOptions>? configure = null)
+    {
+        var name = WorkflowName<TWorkflow>();
+        var options = BuildOptions(name, taskQueue, workflowId, configure);
+
+        var handle = await client.StartWorkflowAsync(
+            name, Array.Empty<object?>(), options).ConfigureAwait(false);
+
+        return new WorkflowHandle<TWorkflow>(
+            handle.Client, handle.Id, handle.RunId, handle.ResultRunId, handle.FirstExecutionRunId);
+    }
+
+    /// <inheritdoc />
     public async Task<WorkflowHandle> StartAsync(
         string workflow,
         IReadOnlyCollection<object?> args,

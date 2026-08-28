@@ -38,6 +38,34 @@ public interface IWorkflowOps
         string? workflowId = null,
         Action<WorkflowOptions>? configure = null);
 
+    /// <summary>
+    /// Starts a workflow whose run method takes a single <typeparamref name="TParams"/>
+    /// argument, passing it directly and returning a typed-result handle.
+    /// </summary>
+    Task<WorkflowHandle<TWorkflow, TResult>> StartAsync<TWorkflow, TParams, TResult>(
+        TParams args,
+        string? taskQueue = null,
+        string? workflowId = null,
+        Action<WorkflowOptions>? configure = null);
+
+    /// <summary>
+    /// Starts a workflow whose run method takes no arguments, returning a
+    /// typed-result handle.
+    /// </summary>
+    Task<WorkflowHandle<TWorkflow, TResult>> StartAsync<TWorkflow, TResult>(
+        string? taskQueue = null,
+        string? workflowId = null,
+        Action<WorkflowOptions>? configure = null);
+
+    /// <summary>
+    /// Starts a workflow whose run method takes no arguments, returning a typed
+    /// handle.
+    /// </summary>
+    Task<WorkflowHandle<TWorkflow>> StartAsync<TWorkflow>(
+        string? taskQueue = null,
+        string? workflowId = null,
+        Action<WorkflowOptions>? configure = null);
+
     /// <summary>Starts a workflow by type name and run arguments, returning an untyped handle.</summary>
     Task<WorkflowHandle> StartAsync(
         string workflow,

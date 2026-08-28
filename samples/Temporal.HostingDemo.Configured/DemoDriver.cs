@@ -30,51 +30,44 @@ public sealed class DemoDriver : BackgroundService
         // ID from Temporal:Workflows:Id:Format, and timeouts from the
         // Default/ByType presets. An explicit per-call argument overrides any of
         // them (see the claim-check start below).
-        var greetingHandle = await workflows.StartAsync<GreetingWorkflow, string>(
-            workflow => workflow.RunAsync("hosted"));
+        var greetingHandle = await workflows.StartAsync<GreetingWorkflow, string, string>("hosted");
 
         logger.LogInformation("Greeting result: {Greeting}", await greetingHandle.GetResultAsync());
 
-        var probeHandle = await workflows.StartAsync<LifetimeProbeWorkflow, string>(
-            workflow => workflow.RunAsync());
+        var probeHandle = await workflows.StartAsync<LifetimeProbeWorkflow, string>();
 
         logger.LogInformation("Lifetime probe:{NewLine}{Probe}", Environment.NewLine, await probeHandle.GetResultAsync());
 
         // Override the task queue and workflow ID per-call (both always win).
-        var claimCheckHandle = await workflows.StartAsync<ClaimCheckWorkflow, string>(
-            workflow => workflow.RunAsync(new string('x', 4096)),
+        var claimCheckHandle = await workflows.StartAsync<ClaimCheckWorkflow, string, string>(
+            new string('x', 4096),
             taskQueue: "configured-queue",
             workflowId: $"configured-claimcheck-{Guid.NewGuid():N}");
 
         logger.LogInformation("Claim-check result: {Result}", await claimCheckHandle.GetResultAsync());
 
         // Reads its own settings from Temporal:WorkflowSettings via a local activity.
-        var batchingHandle = await workflows.StartAsync<BatchingWorkflow, string>(
-            workflow => workflow.RunAsync());
+        var batchingHandle = await workflows.StartAsync<BatchingWorkflow, string>();
 
         logger.LogInformation("Workflow settings: {Result}", await batchingHandle.GetResultAsync());
 
         // Saga: the Charge step fails, triggering LIFO compensation via the Saga helper.
-        var sagaHandle = await workflows.StartAsync<SagaWorkflow, string>(
-            workflow => workflow.RunAsync($"order-{Guid.NewGuid():N}"));
+        var sagaHandle = await workflows.StartAsync<SagaWorkflow, string, string>($"order-{Guid.NewGuid():N}");
 
         logger.LogInformation("Saga: {Result}", await sagaHandle.GetResultAsync());
 
-        var localHandle = await workflows.StartAsync<LocalActivityWorkflow, string>(
-            workflow => workflow.RunAsync());
+        var localHandle = await workflows.StartAsync<LocalActivityWorkflow, string>();
 
         logger.LogInformation("Local activity: {Result}", await localHandle.GetResultAsync());
 
         // HeartbeatingActivity: download with auto-heartbeat + progress resume.
-        var downloadHandle = await workflows.StartAsync<DownloadWorkflow, string>(
-            workflow => workflow.RunAsync(10));
+        var downloadHandle = await workflows.StartAsync<DownloadWorkflow, int, string>(10);
 
         logger.LogInformation("Download: {Result}", await downloadHandle.GetResultAsync());
 
         // ChildWorkflowOps: the parent starts a child whose options + ID resolve
         // from Temporal:Workflows (ByType + ChildFormat).
-        var parentHandle = await workflows.StartAsync<ParentWorkflow, string>(
-            workflow => workflow.RunAsync("child"));
+        var parentHandle = await workflows.StartAsync<ParentWorkflow, string, string>("child");
 
         logger.LogInformation("Parent/child: {Result}", await parentHandle.GetResultAsync());
     }

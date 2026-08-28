@@ -110,19 +110,16 @@ public sealed class SagaWorkflow
     public async Task<string> RunAsync(string orderId)
     {
         var saga = new Saga();
-        var compensationsRun = new List<string>();
 
         try
         {
-            saga.AddCompensation(async () =>
-                compensationsRun.Add(await ActivityOps.ExecuteAsync(
-                    () => DemoActivities.CancelReservation(orderId))));
+            saga.AddCompensation(() =>
+                ActivityOps.ExecuteAsync(() => DemoActivities.CancelReservation(orderId)));
 
             await ActivityOps.ExecuteAsync(() => DemoActivities.Reserve(orderId));
 
-            saga.AddCompensation(async () =>
-                compensationsRun.Add(await ActivityOps.ExecuteAsync(
-                    () => DemoActivities.CancelAllocation(orderId))));
+            saga.AddCompensation(() =>
+                ActivityOps.ExecuteAsync(() => DemoActivities.CancelAllocation(orderId)));
 
             await ActivityOps.ExecuteAsync(() => DemoActivities.Allocate(orderId));
 
@@ -132,7 +129,7 @@ public sealed class SagaWorkflow
         {
             Workflow.Logger.LogWarning(ex, "Charge failed; compensating");
             await saga.CompensateAsync();
-            return $"compensated in LIFO order: {string.Join(", ", compensationsRun)}";
+            return "compensated";
         }
 
         return "completed without compensation";
@@ -164,8 +161,7 @@ public sealed class ParentWorkflow
     [WorkflowRun]
     public async Task<string> RunAsync(string value)
     {
-        var childResult = await ChildWorkflowOps.ExecuteAsync(
-            (ChildWorkflow wf) => wf.RunAsync(value));
+        var childResult = await ChildWorkflowOps.ExecuteAsync<ChildWorkflow, string, string>(value);
 
         return $"parent -> child said: {childResult}";
     }

@@ -76,19 +76,16 @@ builder.Services.AddTemporalHealthChecks();
 //   Set Temporal:TestServer:Enabled = true (or Temporal__TestServer__Enabled=true).
 //
 // Worker versioning (public preview; the in-process dev server does not
-// support deployments). Opt in either in code or from config — an explicit
-// WorkerDeploymentOptions argument wins over the config value:
-//   using Temporalio.Common;
-//   using Temporalio.Worker;
-//   builder.Services.AddTemporalWorker(
-//       "configured-queue",
-//       new WorkerDeploymentOptions(new WorkerDeploymentVersion("configured-app", "1.0"), useWorkerVersioning: true));
-//
-// Config-based (Temporal:Workers:configured-queue:Deployment in appsettings.json):
+// support deployments). Opt in from config only — a plain
+// AddTemporalWorker("configured-queue") picks up
+// Temporal:Workers:configured-queue:Deployment in appsettings.json:
 //   "DeploymentName": "configured-app",
 //   "BuildId": "1.0",              // "Version" is an alias for "BuildId"
 //   "UseWorkerVersioning": true,   // explicit opt-in; default false
 //   "DefaultVersioningBehavior": "Pinned"   // optional; omitted = Unspecified
+//
+// To bypass config, pass the SDK's WorkerDeploymentOptions directly to
+// AddTemporalWorker — an explicit argument wins over config.
 //
 // A versioned worker reports its version but receives NO tasks until a Current
 // (or Ramping) version is promoted server-side, e.g.:

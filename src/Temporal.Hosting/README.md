@@ -265,34 +265,30 @@ activities) — a worker should register only what it actually runs.
 
 ### Worker versioning
 
-Version a worker either in code (an explicit `WorkerDeploymentOptions` argument
-wins over config) or from `Temporal:Workers:<task-queue>:Deployment`:
-
-```csharp
-// Code-based:
-using Temporalio.Common;
-using Temporalio.Worker;
-
-builder.Services.AddTemporalWorker(
-    "my-task-queue",
-    new WorkerDeploymentOptions(new WorkerDeploymentVersion("my-app", "1.0"), useWorkerVersioning: true));
-```
+Version a worker from `Temporal:Workers:<task-queue>:Deployment` — no code is
+required; a plain `AddTemporalWorker("my-task-queue")` applies the block
+automatically:
 
 ```jsonc
-// Config-based (see the "Workers" section above):
-// "Deployment": {
-//   "DeploymentName": "my-app",
-//   "BuildId": "1.0",        // "Version" is an alias for "BuildId"
-//   "UseWorkerVersioning": true,
-//   "DefaultVersioningBehavior": "Pinned"   // optional; omitted = Unspecified
-// }
+"Workers": {
+  "my-task-queue": {
+    "Deployment": {
+      "DeploymentName": "my-app",
+      "BuildId": "1.0",              // "Version" is an alias for "BuildId"
+      "UseWorkerVersioning": true,   // explicit opt-in; default false
+      "DefaultVersioningBehavior": "Pinned"  // optional; omitted = Unspecified
+    }
+  }
+}
 ```
 
 `UseWorkerVersioning` is an explicit opt-in (defaults to `false`): a versioned
 worker reports its deployment version on every poll but receives **no tasks**
 until a Current (or Ramping) version is promoted server-side (e.g.
 `temporal worker deployment set-current-version`). Omit the whole `Deployment`
-block to keep a worker unversioned.
+block to keep a worker unversioned. To bypass config, pass the SDK's
+`WorkerDeploymentOptions` directly to `AddTemporalWorker` — an explicit argument
+wins over config.
 
 ### Per-queue worker configuration
 
@@ -461,6 +457,26 @@ Here `TParams` is the workflow's single run parameter (i.e.
 `RunAsync(MoneyTransferInput)`). Use the lambda overloads for workflows with
 multiple run parameters.
 
+The two-generic form above returns a `WorkflowHandle<TWorkflow>` (untyped
+result). To also get a typed result, add a third generic:
+
+```csharp
+var handle = await workflows.StartAsync<MoneyTransferWorkflow, MoneyTransferInput, string>(
+    new MoneyTransferInput("acct-1", "acct-2", 100m));
+
+string receipt = await handle.GetResultAsync(); // typed, no extra generic needed
+```
+
+Workflows with no run parameters can omit the argument entirely:
+
+```csharp
+var handle = await workflows.StartAsync<GreetingWorkflow, string>();
+string result = await handle.GetResultAsync(); // typed
+
+// Void-result workflows drop the second generic:
+await workflows.StartAsync<OneWayWorkflow>();
+```
+
 Precedence (lowest to highest): SDK defaults → `Default` preset → `ByType`
 override → the caller's explicit `taskQueue`/`workflowId`/`configure`. The
 preset exposes `RunTimeout`, `TaskTimeout`, `ExecutionTimeout`,
@@ -511,6 +527,31 @@ public sealed class ParentWorkflow
     }
 }
 ```
+
+For child workflows whose run method takes a single parameter, the argument can
+also be passed directly without a lambda:
+
+```csharp
+// Terse execute, typed result (third generic is the result type):
+var result = await ChildWorkflowOps.ExecuteAsync<BillingWorkflow, string, string>(orderId);
+
+// Terse fire-and-forget start, returns the child handle:
+var handle = await ChildWorkflowOps.StartAsync<BillingWorkflow, string>(orderId);
+```
+
+Child workflows with no run parameters drop the argument the same way:
+
+```csharp
+var result = await ChildWorkflowOps.ExecuteAsync<BillingWorkflow, string>();
+var handle = await ChildWorkflowOps.StartAsync<BillingWorkflow>();
+```
+
+`ExecuteAsync` awaits the child's result; `StartAsync` returns a
+`ChildWorkflowHandle` so you can signal the running child before awaiting
+`GetResultAsync()`. A typed-result `StartAsync` (returning
+`ChildWorkflowHandle<TWorkflow, TResult>`) is not offered because the SDK's child
+handles are not user-constructible — use `ExecuteAsync<..., TResult>` for the
+typed-result run-and-await path.
 
 ### Workflow settings
 

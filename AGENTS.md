@@ -18,7 +18,7 @@ Eight `src/` projects (two tools + six library packages):
 - `Temporal.Analyzers` — Roslyn analyzer (**netstandard2.0**, must NOT reference the Temporal SDK). Rules in `Analyzers/*.cs`, metadata in `Diagnostics/DiagnosticDescriptors.cs`, fixes in `CodeFixes/`. Internals exposed to the CLI via `InternalsVisibleTo`.
 - `Temporal.Cli` — `temporal-sharp` dotnet tool (net8.0, `PackAsTool`). Loads solutions via MSBuildWorkspace (`Analysis/`) and re-runs the same analyzers; needs `Microsoft.Build.Locator`. Commands: `analyze` (default), `map` (workflow topology → mermaid/json/html/dot), `history` (download workflow histories for later replay), `docs`, `preset`.
 - `Temporal.Configuration` — shared connection config (net8.0): builds a `TemporalClient` from `appsettings.json` / `Temporal__*` env vars.
-- `Temporal.Hosting` — generic-host worker starter over `Temporalio.Extensions.Hosting` (auto-discovery, metrics, test-server toggle, shared `DataConverter`).
+- `Temporal.Hosting` — generic-host worker starter over `Temporalio.Extensions.Hosting` (auto-discovery, metrics, test-server toggle, shared `DataConverter`). Multi-namespace support via `ITemporalClientFactory`/`TemporalClientFactory` (`List<string>? Namespaces` on `TemporalOptions`, one `TemporalClient` cached per namespace over a shared connection).
 - `Temporal.Codec` — composable `IPayloadCodec`s (encryption, claim-check, chains); no cloud deps.
 - `Temporal.CodecServer` — ASP.NET Core library mapping `/encode`/`/decode` with JWT-bearer + OIDC auth.
 - `Temporal.Cloud` — Azure/AWS credential resolution, Blob/S3 claim-check stores, and Azure Key Vault / AWS Secrets Manager TLS certificate sources.
@@ -34,7 +34,7 @@ Tests (eight projects under `tests/`):
 - `Temporal.CodecServer.Tests` — HTTP protocol, CORS, and auth via `TestHost`.
 - `Temporal.Cloud.Tests` — PFX→PEM conversion and certificate-source behavior.
 
-`samples/Temporal.SampleApp` intentionally violates rules; its `.editorconfig` downgrades every rule to `warning` so the smoke-test build succeeds. `samples/Temporal.HostingDemo.{Raw,Hosted}` are standalone examples outside CI.
+`samples/Temporal.SampleApp` intentionally violates rules; its `.editorconfig` downgrades every rule to `warning` so the smoke-test build succeeds. `samples/Temporal.HostingDemo.{Minimal,Configured,Raw}` are standalone examples outside CI (see `samples/README.md`).
 
 ## Rule catalog is generated — do not hand-edit
 
@@ -49,7 +49,7 @@ Tests (eight projects under `tests/`):
 
 - File-scoped namespaces enforced (`csharp_style_namespace_declarations = file_scoped:warning` in `.editorconfig` — an error under `TreatWarningsAsErrors`). 4-space indent, Allman braces.
 - Rule IDs are `TMP####`, grouped by category prefix (TMP0xxx determinism, TMP1xxx shared state, TMP2xxx/TMP3xxx SDK misuse, TMP4xxx best practice, TMP5xxx testing). Opt-in rules set `isEnabledByDefault: false`.
-- When adding a feature to `Temporal.Hosting`, also demonstrate it in the standalone samples: `samples/Temporal.HostingDemo.Hosted` (config-driven) and `samples/Temporal.HostingDemo.Raw` (hand-rolled equivalent without the starter).
+- When adding a feature to `Temporal.Hosting`, also demonstrate it in the standalone samples: `samples/Temporal.HostingDemo.Minimal` (smallest starter), `samples/Temporal.HostingDemo.Configured` (config-driven kitchen sink), and `samples/Temporal.HostingDemo.Raw` (hand-rolled equivalent without the starter).
 - Versioning is MinVer, derived from git `v*` tags (`MinVerTagPrefix=v` in `Directory.Build.props`); commits must include full history (CI uses `fetch-depth: 0`).
 - Suppression works via `#pragma warning disable TMPxxxx` or `.editorconfig` `dotnet_diagnostic.TMPxxxx.severity`; both apply in the analyzer and the CLI.
 

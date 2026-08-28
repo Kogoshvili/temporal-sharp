@@ -26,24 +26,19 @@ public sealed class DemoDriver : BackgroundService
     {
         await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
 
-        var greeting = await workflows.StartAsync<GreetingWorkflow, string>(
-            workflow => workflow.RunAsync("world"));
+        var greeting = await workflows.StartAsync<GreetingWorkflow, string, string>("world");
         logger.LogInformation("Greeting result: {Greeting}", await greeting.GetResultAsync());
 
-        var download = await workflows.StartAsync<DownloadWorkflow, string>(
-            workflow => workflow.RunAsync(10));
+        var download = await workflows.StartAsync<DownloadWorkflow, int, string>(10);
         logger.LogInformation("Download: {Result}", await download.GetResultAsync());
 
-        var local = await workflows.StartAsync<LocalActivityWorkflow, string>(
-            workflow => workflow.RunAsync());
+        var local = await workflows.StartAsync<LocalActivityWorkflow, string>();
         logger.LogInformation("Local activity: {Result}", await local.GetResultAsync());
 
-        var saga = await workflows.StartAsync<SagaWorkflow, string>(
-            workflow => workflow.RunAsync($"order-{Guid.NewGuid():N}"));
+        var saga = await workflows.StartAsync<SagaWorkflow, string, string>($"order-{Guid.NewGuid():N}");
         logger.LogInformation("Saga: {Result}", await saga.GetResultAsync());
 
-        var parent = await workflows.StartAsync<ParentWorkflow, string>(
-            workflow => workflow.RunAsync("child"));
+        var parent = await workflows.StartAsync<ParentWorkflow, string, string>("child");
         logger.LogInformation("Parent/child: {Result}", await parent.GetResultAsync());
     }
 }
