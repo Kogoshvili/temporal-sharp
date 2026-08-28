@@ -17,6 +17,12 @@ before anything is sent to the Temporal service.
 - **`FileSystemClaimCheckStore`** — the built-in store, one file per blob.
 - **`CompositePayloadCodec`** — chains codecs in order on encode, reverse on
   decode.
+- **`ISecretResolver`** — abstraction for fetching a secret (encryption key,
+  connection string, access key) from a secret store; Azure Key Vault and AWS
+  Secrets Manager implementations ship in `Kogoshvili.Temporal.Cloud`.
+- **`IClaimCheckStoreFactory`** / **`ClaimCheckStoreSettings`** — abstraction
+  for building a cloud claim-check store from resolved settings, so the hosting
+  starter stays free of cloud SDK dependencies.
 
 ## Usage
 

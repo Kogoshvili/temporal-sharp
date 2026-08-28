@@ -14,7 +14,10 @@ public static class TemporalDataConverterFactory
 {
     /// <summary>
     /// Builds the payload codec described by the options, or <c>null</c> when no
-    /// codec is enabled.
+    /// codec is enabled. Only the synchronous sources are built here (inline
+    /// encryption key and the filesystem claim-check store); vault-backed keys
+    /// and cloud stores are resolved asynchronously at startup by the secret
+    /// loader.
     /// </summary>
     public static IPayloadCodec? BuildCodec(TemporalDataConverterOptions options)
     {
@@ -22,32 +25,50 @@ public static class TemporalDataConverterFactory
 
         var codecs = new List<IPayloadCodec>();
 
-        if (options.Encryption.Enabled)
+        if (options.Encryption.Enabled && options.Encryption.Source == "config")
         {
-            var key = options.Encryption.Key;
-            if (string.IsNullOrEmpty(key))
-            {
-                throw new InvalidOperationException(
-                    "Temporal:DataConverter:Encryption:Key must be set when encryption is enabled.");
-            }
-
-            codecs.Add(new EncryptionCodec(key, options.Encryption.KeyId));
+            codecs.Add(new EncryptionCodec(options.Encryption.Key!, options.Encryption.KeyId));
         }
 
-        if (options.ClaimCheck.Enabled)
+        if (options.ClaimCheck.Enabled && options.ClaimCheck.Store == "filesystem")
         {
             codecs.Add(new ClaimCheckCodec(
                 new FileSystemClaimCheckStore(options.ClaimCheck.Directory),
                 options.ClaimCheck.ThresholdBytes));
         }
 
-        return codecs.Count switch
+        return Compose(codecs);
+    }
+
+    /// <summary>
+    /// Decodes a secret value into AES-GCM key bytes according to the requested
+    /// encoding: <c>raw</c> (ASCII), <c>base64</c>, or <c>hex</c>.
+    /// </summary>
+    public static byte[] DecodeKey(string secret, string encoding)
+    {
+        ArgumentNullException.ThrowIfNull(secret);
+
+        return encoding switch
+        {
+            "raw" => System.Text.Encoding.ASCII.GetBytes(secret),
+            "base64" => Convert.FromBase64String(secret),
+            "hex" => Convert.FromHexString(secret),
+            _ => throw new InvalidOperationException(
+                $"Unknown key encoding '{encoding}'. Expected 'raw', 'base64', or 'hex'."),
+        };
+    }
+
+    /// <summary>
+    /// Composes a list of payload codecs into a single codec, or <c>null</c> when
+    /// the list is empty.
+    /// </summary>
+    public static IPayloadCodec? Compose(IReadOnlyList<IPayloadCodec> codecs) =>
+        codecs.Count switch
         {
             0 => null,
             1 => codecs[0],
             _ => new CompositePayloadCodec(codecs),
         };
-    }
 
     /// <summary>
     /// Builds the data converter described by the options, falling back to the

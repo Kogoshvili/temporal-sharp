@@ -1,3 +1,4 @@
+using Azure.Core;
 using Azure.Storage.Blobs;
 using Kogoshvili.Temporal.Codec;
 
@@ -17,6 +18,19 @@ public sealed class AzureBlobClaimCheckStore : IClaimCheckStore
     /// <param name="containerName">The container to store blobs in (created if absent).</param>
     public AzureBlobClaimCheckStore(string connectionString, string containerName)
         : this(new BlobContainerClient(connectionString, containerName))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureBlobClaimCheckStore"/> class
+    /// using managed identity (or any <see cref="TokenCredential"/>) against the
+    /// given storage account.
+    /// </summary>
+    /// <param name="accountUri">The storage account URI (e.g. <c>https://myaccount.blob.core.windows.net</c>).</param>
+    /// <param name="credential">The credential used to authenticate to the storage account.</param>
+    /// <param name="containerName">The container to store blobs in (created if absent).</param>
+    public AzureBlobClaimCheckStore(Uri accountUri, TokenCredential credential, string containerName)
+        : this(new BlobServiceClient(accountUri, credential).GetBlobContainerClient(containerName))
     {
     }
 

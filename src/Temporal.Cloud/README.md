@@ -11,12 +11,19 @@ claim-check payload stores backed by Azure Blob Storage and Amazon S3. Pair with
 - **`AwsCredentialResolver`** — AWS credentials from the default fallback chain
   (env vars, shared credentials/profile files, ECS/EC2 roles, SSO).
 - **`AzureBlobClaimCheckStore`** — an `IClaimCheckStore` over an Azure Blob
-  container.
+  container (connection string or managed identity).
 - **`S3ClaimCheckStore`** — an `IClaimCheckStore` over an Amazon S3 bucket.
 - **`AzureKeyVaultCertificateSource`** — resolves the mTLS client certificate
   from an Azure Key Vault PFX secret, converting it to PEM.
 - **`AwsSecretsManagerCertificateSource`** — resolves the mTLS client
   certificate and key from AWS Secrets Manager.
+- **`AzureKeyVaultSecretResolver`** — an `ISecretResolver` fetching arbitrary
+  secrets (e.g. a codec encryption key) from Azure Key Vault.
+- **`AwsSecretsManagerSecretResolver`** — an `ISecretResolver` fetching
+  arbitrary secrets from AWS Secrets Manager.
+- **`AzureBlobClaimCheckStoreFactory`** / **`S3ClaimCheckStoreFactory`** —
+  `IClaimCheckStoreFactory` implementations for config-driven claim-check store
+  wiring in the hosting starter.
 
 ## TLS certificate sources
 
@@ -61,6 +68,29 @@ For AWS:
 
 The hosting starter (`Kogoshvili.Temporal.Hosting`) resolves these at startup via
 `TemporalCertificateLoader`.
+
+## Secret resolution
+
+Fetch a codec key (or any secret) from a vault, then hand it to the codec
+directly — no hosting package required:
+
+```csharp
+using Kogoshvili.Temporal.Cloud;
+using Kogoshvili.Temporal.Codec;
+
+var resolver = new AzureKeyVaultSecretResolver(
+    "https://my-vault.vault.azure.net",
+    AzureCredentialResolver.Resolve());
+
+var key = Convert.FromBase64String(await resolver.ResolveAsync("my-encryption-key"));
+var codec = new EncryptionCodec(key, keyId: "key-1");
+```
+
+The hosting starter uses these resolvers when a codec key or claim-check
+credential is sourced from a vault (`Temporal:DataConverter:Encryption:Source`,
+`Temporal:DataConverter:ClaimCheck:Store`); register them with
+`AddAzureKeyVaultSecretResolver` / `AddAwsSecretsManagerSecretResolver`, or the
+store factories with `AddAzureBlobClaimCheckStore` / `AddS3ClaimCheckStore`.
 
 ## Usage
 

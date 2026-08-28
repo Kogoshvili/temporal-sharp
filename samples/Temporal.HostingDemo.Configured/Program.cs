@@ -48,6 +48,21 @@ builder.Services
     .AddTemporalWorker("configured-queue")
     .AddDiscoveredTypes();
 
+// Vault-backed codec material (instead of the inline key + filesystem store in
+// appsettings.json). Register the resolvers from Kogoshvili.Temporal.Cloud, then
+// point the DataConverter section at them:
+//
+//   builder.Services.AddAzureKeyVaultSecretResolver("https://my-vault.vault.azure.net");
+//   builder.Services.AddAzureBlobClaimCheckStore();
+//   // Temporal:DataConverter:Encryption:{ Enabled=true, Source="azureKeyVault",
+//   //   SecretId="my-encryption-key", Encoding="base64" }
+//   // Temporal:DataConverter:ClaimCheck:{ Enabled=true, Store="azureBlob",
+//   //   AccountUri="https://myaccount.blob.core.windows.net", ContainerName="claim-check" }
+//
+// (AWS equivalently: AddAwsSecretsManagerSecretResolver / AddS3ClaimCheckStore,
+// with Source="awsSecretsManager" and Store="s3".) The client, workers, and the
+// codec server below all share the resulting DataConverter.
+
 // Host the codec server in the same app. It exposes /encode and /decode over
 // HTTP, wrapping the *same* IPayloadCodec the client and workers use, so the
 // Temporal Web UI / CLI can decrypt the payloads this worker writes.

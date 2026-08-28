@@ -275,6 +275,7 @@ public static class TemporalServiceCollectionExtensions
         var needsRuntime = exportMetrics || forwardLogs;
 
         var payloadCodec = TemporalDataConverterFactory.BuildCodec(options.DataConverter);
+        var hasCodec = options.DataConverter.Encryption.Enabled || options.DataConverter.ClaimCheck.Enabled;
         var dataConverter = payloadCodec is null
             ? DataConverter.Default
             : DataConverter.Default with { PayloadCodec = payloadCodec };
@@ -300,10 +301,14 @@ public static class TemporalServiceCollectionExtensions
 
         // The payload codec is registered as a singleton so a codec server hosted
         // in the same app (see Kogoshvili.Temporal.CodecServer) can resolve the
-        // exact same instance the client and workers encode/decode with.
-        if (payloadCodec is not null)
+        // exact same instance the client and workers encode/decode with. It is
+        // read from the connect options (not captured here) so the secret loader
+        // can swap in vault-backed codecs before anything resolves it.
+        if (hasCodec)
         {
-            services.AddSingleton(payloadCodec);
+            services.AddSingleton<IPayloadCodec>(sp =>
+                sp.GetRequiredService<TemporalClientConnectOptions>().DataConverter.PayloadCodec
+                ?? throw new InvalidOperationException("No payload codec has been configured."));
         }
 
         // A single connect-options instance carries both the connection settings
@@ -357,6 +362,16 @@ public static class TemporalServiceCollectionExtensions
             sp.GetRequiredService<Func<string, IReadOnlyCollection<IClientInterceptor>?>>(),
             suppliedConnection));
         services.AddSingleton<ITemporalClient>(sp => sp.GetRequiredService<ITemporalClientFactory>().Get());
+
+        // Resolve vault-backed payload codec material (encryption key and cloud
+        // claim-check store credentials) before the connection waiter or test
+        // server starts, so the client's data converter is finalized before any
+        // worker or registrar resolves the client.
+        if ((options.DataConverter.Encryption.Enabled && options.DataConverter.Encryption.Source != "config")
+            || (options.DataConverter.ClaimCheck.Enabled && options.DataConverter.ClaimCheck.Store != "filesystem"))
+        {
+            services.AddSingleton<IHostedService, TemporalSecretLoader>();
+        }
 
         if (options.TestServer.Enabled)
         {
