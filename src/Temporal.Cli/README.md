@@ -1,36 +1,61 @@
 # `temporal-sharp` — the Kogoshvili.Temporal CLI
 
-A standalone CLI (`dotnet tool`) for the `Kogoshvili.Temporal` tool suite.
-Install it globally:
+A standalone `dotnet tool` for the `Kogoshvili.Temporal` tool suite. It re-runs
+the Roslyn analyzers over a solution, emits a static workflow topology graph,
+downloads workflow histories for replay, and regenerates the rule catalog.
+
+## Minimal setup
+
+Install the tool globally, then run it against a solution. `analyze` is the
+default command, so a bare path is enough:
 
 ```sh
 dotnet tool install -g Kogoshvili.Temporal.Cli
+temporal-sharp ./MyApp.sln
 ```
 
-## Commands
+The above is equivalent to `temporal-sharp analyze ./MyApp.sln`: it loads the
+solution with MSBuildWorkspace, runs the analyzers, and prints findings to the
+console.
+
+## Configuration
+
+### Commands
 
 | Command | What it does |
 | --- | --- |
-| [`analyze`](#analyze) | The default — runs the Roslyn analyzers over a solution and reports findings. |
-| [`map`](#map--static-workflow-topology-graph) | Produces a static workflow topology graph (Mermaid/JSON/HTML/DOT). |
-| [`history`](#history) | Downloads recorded workflow histories for later replay. |
-| [`docs`](#docs) | Regenerates the `RULES.md` rule catalog from the analyzer descriptors. |
-| [`preset`](#preset) | Emits an `.editorconfig` severity block for a named preset. |
+| `analyze` (default) | Runs the Roslyn analyzers over a solution and reports findings. |
+| `map` | Produces a static workflow topology graph (Mermaid/JSON/HTML/DOT). |
+| `history` | Downloads recorded workflow histories for later replay. |
+| `docs` | Regenerates the `RULES.md` rule catalog from the analyzer descriptors. |
+| `preset` | Emits an `.editorconfig` severity block for a named preset. |
 
 ### `analyze`
 
 Run the analyzers over a solution or project, with selectable output format,
 exit-code threshold, and per-rule severity overrides:
 
-```
+```text
 temporal-sharp analyze <path.sln|path.csproj> [options]
   --format <console|json|sarif>          Output format (default: console).
   --fail-on <none|info|warning|error>    Exit non-zero on findings at or above the given severity (default: none).
   --severity <TMPxxxx=severity>          Override a rule's severity (repeatable).
 ```
 
-When `analyze` is invoked without a subcommand (i.e. `temporal-sharp
-<path.sln>`), it is the default action.
+`--severity` also accepts `none` to disable a rule. When `analyze` is invoked
+without a subcommand (i.e. `temporal-sharp <path.sln>`), it is the default
+action.
+
+```sh
+# Fail the build on anything at warning severity or higher
+temporal-sharp analyze ./MyApp.sln --fail-on warning
+
+# Machine-readable output
+temporal-sharp analyze ./MyApp.sln --format sarif > temporal.sarif
+
+# Disable one rule, promote another
+temporal-sharp analyze ./MyApp.sln --severity TMP0001=none --severity TMP2001=error
+```
 
 #### GitHub Actions
 
@@ -80,7 +105,7 @@ jobs:
 Download recorded workflow histories as `*.json` files for later replay with
 `Kogoshvili.Temporal.Testing`:
 
-```
+```text
 temporal-sharp history download <workflowType> [options]
   --execution-status <status>  Filter by execution status (default: Completed).
   --limit <n>                  Maximum number of histories to download.
@@ -91,11 +116,16 @@ temporal-sharp history download <workflowType> [options]
 Authentication uses the shared `Temporal` configuration section and
 `Temporal__*` environment variables (including Cloud mTLS / API key).
 
+```sh
+temporal-sharp history download OrderWorkflow --out ./histories
+temporal-sharp history download OrderWorkflow --execution-status Failed --limit 20 --out ./histories
+```
+
 ### `docs`
 
 Regenerate the rule catalog from the analyzer descriptors:
 
-```
+```text
 temporal-sharp docs [output-file]
 ```
 
@@ -105,24 +135,27 @@ Defaults to writing `RULES.md` in the current directory.
 
 Emit an `.editorconfig` severity block for a named preset:
 
-```
+```text
 temporal-sharp preset <recommended|strict> [--write <file>]
+```
+
+```sh
+temporal-sharp preset recommended
+temporal-sharp preset strict --write .editorconfig
 ```
 
 See the [repository README](../../README.md) for the preset details.
 
----
+## Full configuration
 
-# `map` — static workflow topology graph
+### `map` — static workflow topology graph
 
-The `map` subcommand of the `temporal-sharp` CLI produces a static **topology
-graph** of a Temporal .NET codebase: workflows, their signal/query/update
-handlers, activities, child workflows, nexus operations, and task queues — all
-resolved semantically (no execution, no Temporal server), and all emitted as
-Mermaid, JSON, HTML (interactive), or Graphviz DOT. It accepts **multiple**
-solutions/projects and stitches them together into one graph.
-
-## Problem
+The `map` subcommand produces a static **topology graph** of a Temporal .NET
+codebase: workflows, their signal/query/update handlers, activities, child
+workflows, nexus operations, and task queues — all resolved semantically (no
+execution, no Temporal server), and all emitted as Mermaid, JSON, HTML
+(interactive), or Graphviz DOT. It accepts **multiple** solutions/projects and
+stitches them together into one graph.
 
 Temporal applications are composed by convention: a `[Workflow]` type calls
 `Workflow.ExecuteActivityAsync(...)`, `Workflow.StartChildWorkflowAsync(...)`,
@@ -141,14 +174,43 @@ solution-wide view of how those pieces connect:
   construction and client `StartWorkflowAsync(..., new { TaskQueue = "..." })`
   calls, again not tied together anywhere.
 
-The `map` subcommand closes that gap: load the solution(s) with Roslyn/MSBuild,
-resolve symbols, and emit the resulting graph in a form that is both
-human-readable (Mermaid / interactive HTML) and machine-processable (JSON /
-DOT).
+`map` closes that gap: load the solution(s) with Roslyn/MSBuild, resolve
+symbols, and emit the resulting graph in a form that is both human-readable
+(Mermaid / interactive HTML) and machine-processable (JSON / DOT).
 
-## The graph model
+```text
+temporal-sharp map <path.sln|path.csproj|dir> [...] [options]
 
-### Nodes
+Options:
+  --format <mermaid|json|html|dot>  Output format (default: mermaid).
+  --output <file>                   Write to a file instead of stdout.
+```
+
+`map` accepts **multiple** inputs — repeat the path argument, or pass a
+directory containing several solution/project files. Each input is expanded to
+a concrete `.sln`/`.csproj` (a directory resolves to its solution, or to all of
+its projects when it has none) and all of them are stitched into a single graph.
+
+```sh
+# Mermaid flowchart, printed to stdout
+temporal-sharp map ./MyApp.sln
+
+# JSON, written to a file
+temporal-sharp map ./MyApp.sln --format json --output topology.json
+
+# Self-contained interactive HTML
+temporal-sharp map ./MyApp.sln --format html --output topology.html
+
+# Graphviz DOT
+temporal-sharp map ./MyApp.sln --format dot --output topology.dot
+
+# Stitch two repositories (a workflow in one, its contracts in the other)
+temporal-sharp map ./App.sln ../contracts/Contracts.csproj --format json
+```
+
+#### The graph model
+
+**Nodes**
 
 | `kind`      | Id prefix        | What it is                                                    |
 |-------------|------------------|---------------------------------------------------------------|
@@ -167,7 +229,7 @@ nodes.
 `nexusService`, `nexusOperation`) and use the id shape
 `Unknown:<Category>:"<name>"`, e.g. `Unknown:Activity:"Greet"`.
 
-### Edges
+**Edges**
 
 | `kind`          | Mermaid arrow | Meaning                                                            |
 |-----------------|---------------|--------------------------------------------------------------------|
@@ -177,7 +239,7 @@ nodes.
 | `nexus`         | `==>`         | workflow starts a nexus operation/service                          |
 | `taskQueue`     | `-->|task queue|` | workflow runs on (is registered to / started on) a task queue   |
 
-### How each element is detected
+**How each element is detected**
 
 The builder walks every syntax tree of every project in the loaded solution
 with a Roslyn `SemanticModel`:
@@ -212,39 +274,7 @@ with a Roslyn `SemanticModel`:
   target is not `[Activity]`), an `unknown` node is emitted so the cross-repo /
   unresolved target is still visible in the graph.
 
-## Usage
-
-```
-temporal-sharp map <path.sln|path.csproj|dir> [...] [options]
-
-Options:
-  --format <mermaid|json|html|dot>  Output format (default: mermaid).
-  --output <file>                   Write to a file instead of stdout.
-```
-
-`map` accepts **multiple** inputs — repeat the path argument, or pass a
-directory containing several solution/project files. Each input is expanded to
-a concrete `.sln`/`.csproj` (a directory resolves to its solution, or to all of
-its projects when it has none) and all of them are stitched into a single graph.
-
-```sh
-# Mermaid flowchart, printed to stdout
-temporal-sharp map ./MyApp.sln
-
-# JSON, written to a file
-temporal-sharp map ./MyApp.sln --format json --output topology.json
-
-# Self-contained interactive HTML
-temporal-sharp map ./MyApp.sln --format html --output topology.html
-
-# Graphviz DOT
-temporal-sharp map ./MyApp.sln --format dot --output topology.dot
-
-# Stitch two repositories (a workflow in one, its contracts in the other)
-temporal-sharp map ./App.sln ../contracts/Contracts.csproj --format json
-```
-
-### Multi-repo / multi-input stitching
+#### Multi-repo / multi-input stitching
 
 When more than one solution/project is passed, the builder walks every input
 but keeps a **single node index keyed by fully-qualified type/method name**
@@ -256,15 +286,15 @@ same `Activity:Contracts.Shipping.Do()` node indexed from solution B — a real
 edge, not a boundary node. Anything that still cannot be resolved to a
 `[Workflow]`/`[Activity]` member stays an `Unknown:*` boundary node.
 
-## Output examples
+#### Output examples
 
-### Mermaid
+**Mermaid**
 
 The Mermaid emitter produces a `flowchart TB` with `classDef` styling per node
 kind, handler ports rendered as `<i>kind: name</i>` lines inside each workflow
 node, and distinct arrow styles per edge kind:
 
-```
+```text
 flowchart TB
     classDef workflow fill:#e3f2fd,stroke:#1565c0;
     classDef activity fill:#fff3e0,stroke:#ef6c00;
@@ -294,7 +324,7 @@ links a workflow to the task queue it runs on. Dashed-red `unknown` nodes are
 boundary nodes for string-named / cross-repo targets — the "holes" in the
 statically-known graph.
 
-### JSON
+**JSON**
 
 The JSON emitter serializes the same graph with camelCase keys, so it can be
 piped into other tooling:
@@ -336,7 +366,7 @@ piped into other tooling:
 Workflow/activity/nexus nodes carry `file`/`line` source locations; `unknown`
 and `taskQueue` nodes do not (they have no single source location).
 
-### HTML
+**HTML**
 
 `--format html` emits a single self-contained `.html` file: the topology JSON is
 embedded inline and drawn by a CDN-loaded Mermaid.js (no build step). It adds
@@ -366,7 +396,7 @@ minimal interactivity on top of the static diagram:
 </html>
 ```
 
-### DOT
+**DOT**
 
 `--format dot` emits Graphviz DOT with per-kind shapes/colours (workflows = blue
 boxes, activities = orange ellipses, nexus = purple diamonds, task queues =
@@ -384,7 +414,7 @@ digraph temporal_topology {
 }
 ```
 
-## Limitations
+### Limitations
 
 - **Direct calls only.** Edges are traced from method bodies declared directly in
   a `[Workflow]` type. A workflow that calls a helper in another class which in

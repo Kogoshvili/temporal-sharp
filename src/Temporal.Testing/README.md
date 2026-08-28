@@ -1,84 +1,17 @@
 # Kogoshvili.Temporal.Testing
 
-A replay/regression test harness for Temporal .NET workflows. Part of the
-[Kogoshvili.Temporal](https://github.com/Kogoshvili/temporal-sharp) tool suite.
+A replay/regression test harness for Temporal .NET workflows. It starts a real
+Temporal test environment, runs a workflow to completion, snapshots its event
+history, and replays it through `WorkflowReplayer` to surface non-determinism.
 
-Temporal workflows are replayed by re-execution, so a non-deterministic change
-(wall-clock time, unordered collection iteration, raw randomness, ...) silently
-breaks existing histories. This package makes it easy to catch that in a test:
-it starts a real Temporal test environment, runs a workflow to completion,
-snapshots its event history, and replays the snapshot through
-`WorkflowReplayer`, surfacing any non-determinism.
+Unlike `Kogoshvili.Temporal.Analyzers`, this library references the real
+[`Temporalio`](https://www.nuget.org/packages/Temporalio) SDK and targets
+**net8.0**.
 
-Unlike the `Kogoshvili.Temporal.Analyzers` package, this library references the
-**real** [`Temporalio`](https://www.nuget.org/packages/Temporalio) SDK and
-targets **net8.0**.
+## Minimal setup
 
-## API
-
-- **`ReplayHarness : IAsyncDisposable`** — owns a `WorkflowEnvironment` and its
-  `ITemporalClient` (exposed as `Environment` / `Client`).
-  - `StartTimeSkippingAsync()` / `StartLocalAsync()` — start a time-skipping or
-    full local Temporal server (option overloads accept the SDK's
-    `WorkflowEnvironmentStartTimeSkippingOptions` / `WorkflowEnvironmentStartLocalOptions`).
-  - `CaptureAsync<TWorkflow, TResult>(...)` — run a workflow to completion and
-    capture its result and `WorkflowHistory`.
-  - `ReplayAsync<TWorkflow>(history)` — replay a history via `WorkflowReplayer`.
-  - `VerifyAsync<TWorkflow, TResult>(...)` — capture + replay in one step.
-- **`ReplayResult`** — `Succeeded`, `ReplayFailure`, `SnapshotJson`,
-  `ThrowIfFailed()`.
-- **`Replay`** — replay histories from a fixed source without a local test
-  environment:
-  - `FromJsonAsync<TWorkflow>(historyJson, workflowId)` — replay one golden history.
-  - `FromDirectoryAsync<TWorkflow>(dir, pattern = "*.json")` — replay every
-    `*.json` golden file matching `pattern`.
-  - `FromServerAsync<TWorkflow>(client, workflowType, executionStatus, limit)` —
-    replay recorded histories from a live Temporal service.
-- **`Snapshot`** — `ToJson` / `FromJson` / `AssertEquivalent` /
-  `AreEquivalent` for JSON snapshot comparison.
-- **`ReplayMismatchException`** — thrown on replay divergence or snapshot
-  mismatch.
-
-## Replay sources
-
-`Kogoshvili.Temporal.Testing` supports three ways to feed histories into
-`WorkflowReplayer`:
-
-1. **Live, local capture** (`ReplayHarness.VerifyAsync`) — starts a bundled
-   local Temporal test environment, runs the workflow, and captures its history
-   with `FetchHistoryAsync`. No external server or credentials needed.
-2. **Checked-in golden files** (`Replay.FromJsonAsync` /
-   `Replay.FromDirectoryAsync`) — replay JSON histories exported from the
-   Temporal CLI (`temporal workflow show --output json`) or web UI and committed
-   to the repo. Ideal for offline/CI regression tests against real shapes.
-3. **Live service** (`Replay.FromServerAsync`) — replay recorded histories for a
-   workflow type from a running Temporal service, optionally filtered by
-   execution status and capped by a total count.
-
-### Authenticating via configuration
-
-For the live-service path, connect using the shared
-`Kogoshvili.Temporal.Configuration` project, which reads the `Temporal` section
-of `appsettings.json` and `Temporal__*` environment variables:
-
-```csharp
-using Kogoshvili.Temporal.Configuration;
-using Kogoshvili.Temporal.Testing;
-
-// Connect from appsettings.json + Temporal__* env vars (Cloud mTLS / API key).
-var client = await TemporalConfig.ConnectAsync();
-
-await foreach (var result in Replay.FromServerAsync<GreetingWorkflow>(
-    client,
-    workflowType: "GreetingWorkflow",
-    executionStatus: "Completed",
-    limit: 50))
-{
-    result.ThrowIfFailed();
-}
-```
-
-## Usage
+Replay a workflow by capturing its history and replaying it in one step. The
+harness owns a time-skipping `WorkflowEnvironment` and its client:
 
 ```csharp
 using Kogoshvili.Temporal.Testing;
@@ -119,11 +52,110 @@ public class ReplayHarnessTests : IAsyncLifetime
 }
 ```
 
-The harness can also be used directly with `await using` instead of an xUnit
-fixture.
+`VerifyAsync` captures the history, replays it, and returns a `ReplayResult`
+whose `Succeeded` reflects whether the replay was deterministic. The harness can
+also be used directly with `await using` instead of an xUnit fixture.
 
-> Note: `StartTimeSkippingAsync` / `StartLocalAsync` lazily download the Temporal
-> test-server/dev-server binary on first use, so the first test run needs network
-> access. The time-skipping environment is single-test-at-a-time.
+## Configuration
 
-Not affiliated with or endorsed by Temporal Technologies.
+The local harness is code-only and needs no configuration. Configuration enters
+only through the live-service replay path, which connects via the shared
+`Kogoshvili.Temporal.Configuration` project reading the `Temporal` section of
+`appsettings.json` (plus `Temporal__*` environment variables):
+
+```json
+{
+  "Temporal": {
+    "Address": "my-namespace.tmprl.cloud:7233",
+    "Namespace": "my-namespace",
+    "Tls": {
+      "ClientCertPath": "certs/client.pem",
+      "ClientKeyPath": "certs/client.key"
+    }
+  }
+}
+```
+
+```csharp
+using Kogoshvili.Temporal.Configuration;
+using Kogoshvili.Temporal.Testing;
+
+var client = await TemporalConfig.ConnectAsync();
+
+await foreach (var result in Replay.FromServerAsync<GreetingWorkflow>(
+    client,
+    workflowType: "GreetingWorkflow",
+    executionStatus: "Completed",
+    limit: 50))
+{
+    result.ThrowIfFailed();
+}
+```
+
+`TemporalConfig.ConnectAsync()` has overloads for no-arg, `IConfiguration`, and
+`TemporalConnectionOptions`.
+
+## Full configuration
+
+### Replay sources
+
+There are three ways to feed histories into `WorkflowReplayer`:
+
+1. **Live, local capture** — `ReplayHarness.VerifyAsync` starts a bundled local
+   test environment, runs the workflow, and captures its history with
+   `FetchHistoryAsync`. No external server or credentials needed.
+2. **Checked-in golden files** — `Replay.FromJsonAsync` /
+   `Replay.FromDirectoryAsync` replay JSON histories exported from the Temporal
+   CLI (`temporal workflow show --output json`) or web UI and committed to the
+   repo.
+3. **Live service** — `Replay.FromServerAsync` replays recorded histories for a
+   workflow type from a running Temporal service, optionally filtered by
+   execution status and capped by a total count.
+
+### ReplayHarness
+
+`ReplayHarness : IAsyncDisposable` owns a `WorkflowEnvironment` and its
+`ITemporalClient` (exposed as `Environment` / `Client`):
+
+- `StartTimeSkippingAsync()` / `StartLocalAsync()` — start a time-skipping or
+  full local Temporal server. Option overloads accept the SDK's
+  `WorkflowEnvironmentStartTimeSkippingOptions` / `WorkflowEnvironmentStartLocalOptions`.
+- `CaptureAsync<TWorkflow, TResult>(workerOptions, runCall, startOptions)` — run
+  a workflow to completion and capture its result and `WorkflowHistory`.
+- `ReplayAsync<TWorkflow>(history)` — replay a history via `WorkflowReplayer`,
+  returning the raw `WorkflowReplayResult`.
+- `VerifyAsync<TWorkflow, TResult>(workerOptions, runCall, startOptions)` —
+  capture + replay in one step.
+
+### ReplayResult
+
+The outcome of a capture-and-replay run:
+
+- `Succeeded` — true when the workflow replayed without divergence.
+- `ReplayFailure` — the non-determinism detected by `WorkflowReplayer`, or null.
+- `SnapshotJson` — the captured history as JSON.
+- `ThrowIfFailed()` — throws `ReplayMismatchException` when the replay diverged.
+
+### Snapshot
+
+Helpers for capturing and comparing event-history snapshots:
+
+- `ToJson(history)` / `FromJson(json, workflowId)` — serialize and rehydrate a
+  `WorkflowHistory`.
+- `AssertEquivalent(expectedJson, actualJson)` — throws
+  `ReplayMismatchException` when the snapshots diverge.
+- `AreEquivalent(expectedJson, actualJson)` — structural equality ignoring key
+  order and insignificant whitespace.
+
+### Edge cases
+
+- `StartTimeSkippingAsync` / `StartLocalAsync` lazily download the Temporal
+  test-server/dev-server binary on first use, so the first test run needs
+  network access.
+- The time-skipping environment is single-test-at-a-time; a full local server is
+  available via `StartLocalAsync` when that is a constraint.
+- `Replay.FromDirectoryAsync` uses each file name (without extension) as the
+  workflow id.
+- `Replay.FromServerAsync` returns `IAsyncEnumerable<WorkflowReplayResult>`;
+  call `ThrowIfFailed()` per result or inspect `ReplayFailure` to detect
+  divergence.

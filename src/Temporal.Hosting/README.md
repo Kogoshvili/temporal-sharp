@@ -19,6 +19,10 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the **real**
   resolved via the `ActivityOps` facade. → [docs/activity-options.md](docs/activity-options.md)
 - **Workflow-options presets & ID conventions** — typed `IWorkflowOps` facade,
   child-workflow ops, and workflow settings. → [docs/workflow-ops.md](docs/workflow-ops.md)
+- **Saga** — compensation helper for rolling back partial work on failure.
+  → [docs/saga.md](docs/saga.md)
+- **Heartbeating activities** — `HeartbeatingActivity` base for long-running
+  activities that heartbeat and resume from a checkpoint. → [docs/heartbeating.md](docs/heartbeating.md)
 - **Schedules** — idempotent schedule registration from config or code. → [docs/schedules.md](docs/schedules.md)
 - **Search attributes** — idempotent search-attribute bootstrap. → [docs/search-attributes.md](docs/search-attributes.md)
 - **Connection & TLS** — connection retry/wait, transport options, TLS sources

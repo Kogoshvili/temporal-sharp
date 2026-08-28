@@ -1,8 +1,33 @@
 # Configuration reference
 
 The starter binds options from the `Temporal` section of `appsettings.json`,
-overridden by `Temporal__*` environment variables. Every block is optional; a
-minimal config is just the target host.
+overridden by `Temporal__*` environment variables. Every block is optional.
+
+## Minimal setup
+
+A minimal config is just the target host (and optionally a namespace). Everything
+else has a built-in default and can be added incrementally:
+
+```json
+{
+  "Temporal": {
+    "TargetHost": "localhost:7233",
+    "Namespace": "default"
+  }
+}
+```
+
+```csharp
+builder.Services
+    .AddTemporal(builder.Configuration)
+    .AddTemporalWorker("my-task-queue")
+    .AddDiscoveredTypes();
+```
+
+## Full reference
+
+The complete schema, with every block. Blocks you omit fall back to their
+defaults:
 
 ```json
 {
@@ -177,6 +202,9 @@ Environment variables override the file (`Temporal__TargetHost`,
 - [Worker registration](worker-registration.md) — `Workers`, `Namespaces`
 - [Activity options](activity-options.md) — `ActivityOptions`
 - [Workflow ops](workflow-ops.md) — `Workflows`, `WorkflowSettings`
+- [Saga](saga.md) — no direct config; affected by `ActivityOptions`
+- [Heartbeating activities](heartbeating.md) — no direct config; driven by
+  `ActivityOptions:HeartbeatTimeout`
 - [Schedules](schedules.md) — `Schedules`
 - [Search attributes](search-attributes.md) — `SearchAttributes`
 - [Connection & TLS](connection.md) — `RpcRetry`, `KeepAlive`, `HttpConnectProxy`,

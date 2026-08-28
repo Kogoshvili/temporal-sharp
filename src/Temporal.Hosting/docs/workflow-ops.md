@@ -1,178 +1,279 @@
-# Workflow-options presets, ID conventions, child workflows, and settings
+# Workflow ops, child workflows, and settings
 
-## Workflow-options presets and ID conventions
+`IWorkflowOps` is a typed facade over the Temporal client for starting,
+signaling, querying, and otherwise managing workflows, resolving task queue,
+workflow ID, and options from `Temporal:Workflows` config. This page also covers
+child workflows (`ChildWorkflowOps`), workflow-ID conventions, and per-workflow
+settings (`WorkflowSettings`).
 
-`Temporal:Workflows` configures how workflows are *started* (client-side), as
-opposed to `ActivityOptions` which configures how activities *execute*. It
-defines a default preset, per-workflow-type overrides, and a workflow-ID
-template. The `IWorkflowOps` facade wraps the client and these options behind a
-single typed API — workflow type comes from the generic argument, and the task
-queue / workflow ID / timeouts resolve from config (each overridable per call):
+## Minimal setup
+
+With a task queue configured, starting a zero-argument workflow is a single
+call — the type comes from the generic and the queue, ID, and timeouts resolve
+automatically:
 
 ```csharp
-public class MyService
+[Workflow]
+public sealed class GreetingWorkflow
+{
+    [WorkflowRun]
+    public async Task RunAsync() { /* ... */ }
+}
+
+public sealed class MyService
 {
     private readonly IWorkflowOps workflows;
-
     public MyService(IWorkflowOps workflows) => this.workflows = workflows;
 
     public async Task RunAsync()
     {
-        // Type from the generic; queue, ID, and timeouts from Temporal:Workflows.
-        var handle = await workflows.StartAsync<MoneyTransferWorkflow, string>(
-            w => w.RunAsync("acct-1", "acct-2", 100m));
-
-        var result = await handle.GetResultAsync();
-
-        // Override anything per-call (explicit args always win):
-        await workflows.StartAsync<MoneyTransferWorkflow>(
-            w => w.RunAsync("acct-3", "acct-4", 50m),
-            taskQueue: "vip-payments",
-            workflowId: "vip-transfer-0001");
-
-        // Signal / query / result / terminate / cancel / list / restart:
-        await workflows.SignalAsync<MoneyTransferWorkflow>("vip-transfer-0001", w => w.ApproveAsync("a42"));
-        var status = await workflows.QueryAsync<MoneyTransferWorkflow, string>("vip-transfer-0001", w => w.Status());
-        await workflows.TerminateAsync("vip-transfer-0001", reason: "rollback");
-        await foreach (var exec in workflows.ListAsync("WorkflowType = 'MoneyTransferWorkflow'"))
-            Console.WriteLine(exec.Id);
-
-        // String-based (no workflow type) overloads mirror the typed ones:
-        await workflows.StartAsync("MoneyTransferWorkflow", new object?[] { "acct-1", "acct-2", 100m });
+        await workflows.StartAsync<GreetingWorkflow>();
     }
 }
 ```
 
-For workflows that take a single input object (the common "parameter object"
-convention), the run argument can be passed directly without a lambda:
+The task queue is required somewhere — `ByType` override, `Default` preset, or an
+explicit argument — otherwise the start throws an `InvalidOperationException`.
+The minimal configuration that makes the above work:
+
+```json
+{
+  "Temporal": {
+    "Workflows": {
+      "Default": {
+        "TaskQueue": "my-queue"
+      }
+    }
+  }
+}
+```
+
+## Configuration
+
+### Task queue and workflow ID
+
+`Temporal:Workflows:Default:TaskQueue` is the fallback start queue. Workflow IDs
+are generated from a template under `Temporal:Workflows:Id`:
+
+```json
+{
+  "Temporal": {
+    "Workflows": {
+      "Id": {
+        "Format": "{Type:s}-{Guid:N}",
+        "ChildFormat": "{Type:s}-{Guid:N}-{Parent}"
+      },
+      "Default": {
+        "TaskQueue": "my-queue"
+      }
+    }
+  }
+}
+```
+
+The `Format` template supports these placeholders:
+
+- `{Type}` — full workflow type name (e.g. `GreetingWorkflow`).
+- `{Type:s}` — the type name with a trailing `workflow` (case-insensitive) stripped.
+- `{Queue}` — the resolved task queue.
+- `{Guid}` / `{Guid:N}` / `{Guid:D}` / `{Guid:B}` — a new GUID, with an optional format.
+- `{Parent}` — the parent workflow's ID (child format only).
+
+When unset, `{Type:s}-{Guid:N}` applies for client starts and
+`{Type:s}-{Guid:N}-{Parent}` for child starts. Set a template to `""` to opt out
+and let the SDK generate the ID.
+
+### Per-type overrides
+
+`ByType` entries are keyed by workflow type name and override the `Default`
+preset for that type:
+
+```json
+{
+  "Temporal": {
+    "Workflows": {
+      "Default": {
+        "TaskQueue": "my-queue",
+        "RunTimeout": "00:05:00"
+      },
+      "ByType": {
+        "GreetingWorkflow": {
+          "RunTimeout": "00:01:00"
+        }
+      }
+    }
+  }
+}
+```
+
+Every preset property is nullable; a `null` value leaves the SDK default
+untouched. Timeouts are time-span strings.
+
+## Full configuration
+
+### Precedence
+
+Options resolve lowest to highest:
+
+1. SDK defaults,
+2. the `Default` preset,
+3. the `ByType` override,
+4. explicit `taskQueue` / `workflowId` / `configure` arguments.
+
+The `configure` callback is applied last and always wins:
 
 ```csharp
-public sealed record MoneyTransferInput(string From, string To, decimal Amount);
+await workflows.StartAsync<GreetingWorkflow>(
+    taskQueue: "vip-queue",
+    workflowId: "vip-0001",
+    configure: o => o.RunTimeout = TimeSpan.FromMinutes(30));
+```
 
-await workflows.StartAsync<MoneyTransferWorkflow, MoneyTransferInput>(
+### Preset fields
+
+The `WorkflowOptionsPreset` exposes these fields (all optional):
+
+- `RunTimeout`, `TaskTimeout`, `ExecutionTimeout` — time-span strings.
+- `IdConflictPolicy` — `Fail`, `UseExisting`, or `TerminateExisting`.
+- `StartDelay` — time to wait before the workflow starts.
+- `Retry` — a retry policy object (see below).
+- `TaskQueue` — the start queue (fallback on `Default`, override on `ByType`).
+- `ParentClosePolicy`, `CancellationType` — child workflows only; ignored for
+  client starts.
+
+A retry policy configures backoff and error filtering:
+
+```json
+{
+  "Temporal": {
+    "Workflows": {
+      "Default": {
+        "TaskQueue": "my-queue",
+        "Retry": {
+          "InitialInterval": "00:00:01",
+          "BackoffCoefficient": 2.0,
+          "MaximumInterval": "00:01:00",
+          "MaximumAttempts": 3,
+          "NonRetryableErrorTypes": [ "MyValidationException" ]
+        }
+      }
+    }
+  }
+}
+```
+
+### Start overloads
+
+`IWorkflowOps.StartAsync` comes in several shapes, all sharing the trailing
+`taskQueue` / `workflowId` / `configure` parameters:
+
+- Lambda, invoking the run method:
+  `StartAsync<TWorkflow>(w => w.RunAsync(...))` (or `<TWorkflow, TResult>` for a
+  typed-result handle).
+- Single-parameter object, passed directly:
+  `StartAsync<TWorkflow, TParams>(input)` (or `<TWorkflow, TParams, TResult>`).
+- Zero-argument: `StartAsync<TWorkflow>()` (or `<TWorkflow, TResult>`).
+- String/name-based: `StartAsync(workflow, args, ...)`, for dynamic workflow
+  types with no static class.
+
+```csharp
+// Lambda with typed result.
+var h1 = await workflows.StartAsync<MoneyTransferWorkflow, string>(
+    w => w.RunAsync("acct-1", "acct-2", 100m));
+
+// Single-parameter object, typed result.
+var h2 = await workflows.StartAsync<MoneyTransferWorkflow, MoneyTransferInput, string>(
     new MoneyTransferInput("acct-1", "acct-2", 100m));
+
+// Zero-argument, typed result.
+var h3 = await workflows.StartAsync<GreetingWorkflow, string>();
+
+// By name (dynamic type).
+var h4 = await workflows.StartAsync("MoneyTransferWorkflow",
+    new object?[] { "acct-1", "acct-2", 100m });
 ```
 
-Here `TParams` is the workflow's single run parameter (i.e.
-`RunAsync(MoneyTransferInput)`). Use the lambda overloads for workflows with
-multiple run parameters.
-
-The two-generic form above returns a `WorkflowHandle<TWorkflow>` (untyped
-result). To also get a typed result, add a third generic:
+### Signal, query, result, terminate, cancel, list, restart
 
 ```csharp
-var handle = await workflows.StartAsync<MoneyTransferWorkflow, MoneyTransferInput, string>(
-    new MoneyTransferInput("acct-1", "acct-2", 100m));
+await workflows.SignalAsync<MoneyTransferWorkflow>("id-1", w => w.ApproveAsync("a42"));
+var status = await workflows.QueryAsync<MoneyTransferWorkflow, string>("id-1", w => w.Status());
+var result = await workflows.ResultAsync<string>("id-1");
+await workflows.TerminateAsync("id-1", reason: "rollback");
+await workflows.CancelAsync("id-1");
 
-string receipt = await handle.GetResultAsync(); // typed, no extra generic needed
+await foreach (var exec in workflows.ListAsync("WorkflowType = 'MoneyTransferWorkflow'"))
+    Console.WriteLine(exec.Id);
 ```
 
-Workflows with no run parameters can omit the argument entirely:
+`RestartAsync` terminates the current run (best-effort, swallowing
+`NotFound`) and starts a fresh run with a new ID, returning the new handle:
 
 ```csharp
-var handle = await workflows.StartAsync<GreetingWorkflow, string>();
-string result = await handle.GetResultAsync(); // typed
-
-// Void-result workflows drop the second generic:
-await workflows.StartAsync<OneWayWorkflow>();
+var handle = await workflows.RestartAsync<MoneyTransferWorkflow>(
+    "id-1", w => w.RunAsync("acct-1", "acct-2", 100m));
 ```
 
-Precedence (lowest to highest): SDK defaults → `Default` preset → `ByType`
-override → the caller's explicit `taskQueue`/`workflowId`/`configure`. The
-preset exposes `RunTimeout`, `TaskTimeout`, `ExecutionTimeout`,
-`IdConflictPolicy`, `StartDelay`, `Retry`, `TaskQueue` (the start queue), and —
-for child workflows — `ParentClosePolicy` and `CancellationType`.
-The task queue is resolved from `ByType` then `Default`; if none is set and none
-is passed explicitly, the start throws an `InvalidOperationException` with a
-clear message rather than failing obscurely.
+The `RunAsync` call (`w => w.RunAsync(...)`) determines the workflow type and
+arguments for the new run; `taskQueue` and `configure` are the only remaining
+knobs (the ID is always regenerated).
 
-The `Id:Format` template supports `{Type}` (full name) and `{Type:s}`
-(trailing "workflow" stripped, case-insensitive), `{Queue}`, and `{Guid}` (plus
-`{Guid:N}`/`{Guid:D}`/`{Guid:B}`); `Id:ChildFormat` additionally supports
-`{Parent}` (the parent workflow's ID). When no format is set, a shipped default
-applies — `{Type:s}-{Guid:N}` for client starts, `{Type:s}-{Guid:N}-{Parent}` for
-child starts. Set a template to the empty string (`""`) to opt out and defer to
-the SDK's generated ID.
+### Child workflows
 
-## Child-workflow ops
-
-Any workflow can be started as a child. `ChildWorkflowOps` (static, workflow-side)
-resolves a child's `ChildWorkflowOptions` from the same `Temporal:Workflows`
-`Default`/`ByType` config and applies the child ID convention, so a workflow
-behaves consistently whether it is started from a client or as a child. Precedence
-(lowest to highest): SDK defaults → `Default` → `ByType` → the explicit
-`ChildWorkflowOptions` you pass to the call.
+Any workflow can run as a child. `ChildWorkflowOps` is a static, workflow-side
+facade that resolves `ChildWorkflowOptions` from the same `Temporal:Workflows`
+`Default`/`ByType` config and applies the `ChildFormat` ID convention, so a
+workflow behaves consistently whether started from a client or as a child:
 
 ```csharp
 [Workflow]
 public sealed class ParentWorkflow
 {
     [WorkflowRun]
-    public async Task<string> RunAsync(string orderId)
+    public async Task RunAsync(string orderId)
     {
-        // Options and child ID resolve from config; no per-call plumbing.
-        var result = await ChildWorkflowOps.ExecuteAsync(
-            (BillingWorkflow wf) => wf.RunAsync(orderId));
+        // Await the child's result.
+        var result = await ChildWorkflowOps.ExecuteAsync<BillingWorkflow, string, string>(orderId);
 
         // Fire-and-forget: start and get the handle for signaling/querying.
-        var handle = await ChildWorkflowOps.StartAsync(
-            (BillingWorkflow wf) => wf.RunAsync(orderId));
-
-        // Override just this call with explicit child options:
-        var other = await ChildWorkflowOps.ExecuteAsync(
-            (BillingWorkflow wf) => wf.RunAsync(orderId),
-            new ChildWorkflowOptions { ParentClosePolicy = ParentClosePolicy.Abandon });
-
-        return result;
+        var handle = await ChildWorkflowOps.StartAsync<BillingWorkflow, string>(orderId);
     }
 }
 ```
 
-For child workflows whose run method takes a single parameter, the argument can
-also be passed directly without a lambda:
+Like the client facade, `ExecuteAsync`/`StartAsync` come in lambda, single-
+parameter, zero-argument, and name-based overloads. Precedence (lowest to
+highest): SDK defaults, `Default`, `ByType`, then an explicit
+`ChildWorkflowOptions` argument:
 
 ```csharp
-// Terse execute, typed result (third generic is the result type):
-var result = await ChildWorkflowOps.ExecuteAsync<BillingWorkflow, string, string>(orderId);
-
-// Terse fire-and-forget start, returns the child handle:
-var handle = await ChildWorkflowOps.StartAsync<BillingWorkflow, string>(orderId);
+var other = await ChildWorkflowOps.ExecuteAsync(
+    (BillingWorkflow wf) => wf.RunAsync(orderId),
+    new ChildWorkflowOptions { ParentClosePolicy = ParentClosePolicy.Abandon });
 ```
 
-Child workflows with no run parameters drop the argument the same way:
+Child-only preset fields (`ParentClosePolicy`, `CancellationType`) apply here;
+client-only fields (`StartDelay`, `IdConflictPolicy`) are ignored.
 
-```csharp
-var result = await ChildWorkflowOps.ExecuteAsync<BillingWorkflow, string>();
-var handle = await ChildWorkflowOps.StartAsync<BillingWorkflow>();
-```
+### Workflow settings
 
-`ExecuteAsync` awaits the child's result; `StartAsync` returns a
-`ChildWorkflowHandle` so you can signal the running child before awaiting
-`GetResultAsync()`. A typed-result `StartAsync` (returning
-`ChildWorkflowHandle<TWorkflow, TResult>`) is not offered because the SDK's child
-handles are not user-constructible — use `ExecuteAsync<..., TResult>` for the
-typed-result run-and-await path.
-
-## Workflow settings
-
-`Temporal:WorkflowSettings` lets a workflow read its own typed configuration,
-for settings the caller can't or shouldn't supply when starting the workflow
-(e.g. a batch size, an endpoint, a feature flag). It is keyed per workflow type
-and merged over an optional default:
+`Temporal:WorkflowSettings` lets a workflow read its own typed configuration for
+values the caller should not have to supply at start time (a batch size, an
+endpoint, a feature flag). It is keyed per type and merged over an optional
+default:
 
 ```json
 {
   "Temporal": {
     "WorkflowSettings": {
       "Default": { "batchSize": 10 },
-      "ByType": { "BatchingWorkflow": { "batchSize": 100 } }
+      "ByType": {
+        "BatchingWorkflow": { "batchSize": 100 }
+      }
     }
   }
 }
 ```
-
-Inside the workflow, resolve the settings through the static
-`WorkflowSettings` facade:
 
 ```csharp
 public sealed class BatchingSettings
@@ -192,11 +293,9 @@ public sealed class BatchingWorkflow
 }
 ```
 
-`GetAsync` reads through a built-in local activity, so the value is recorded in
-workflow history and stays stable across replay even if the configuration is
-live-reloaded mid-run (only new runs pick up the change). Read once at the top
-of the workflow and reuse the value to keep a single run internally consistent.
-
-Settings values are typed as JSON (`bool`/number/string) automatically; define
-`TSettings` as any `System.Text.Json`-deserializable type (a class with settable
-properties is the simplest).
+`GetAsync<TSettings>()` reads through a built-in local activity, so the value is
+recorded in workflow history and stays deterministic across replay even when the
+configuration is live-reloaded mid-run. Values are converted to natural JSON
+types (`bool`/number/string), and `TSettings` can be any
+`System.Text.Json`-deserializable type. Read once at the top of the workflow and
+reuse the value to keep a single run internally consistent.

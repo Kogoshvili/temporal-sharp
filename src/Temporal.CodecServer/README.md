@@ -10,7 +10,10 @@ It is an ASP.NET Core library: call `AddTemporalCodecServer()` /
 `MapTemporalCodecServer()` from any `WebApplication` (including the same app that
 hosts your workers via `Kogoshvili.Temporal.Hosting`).
 
-## Usage
+## Minimal setup
+
+Register the `IPayloadCodec` your workers already use, then add and map the
+codec server. No configuration is required — CORS and no-auth defaults apply.
 
 ```csharp
 using Kogoshvili.Temporal.Codec;
@@ -18,10 +21,9 @@ using Kogoshvili.Temporal.CodecServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// The codec the workers already use.
-builder.Services.AddSingleton<IPayloadCodec>(new EncryptionCodec("test-key-test-key-test-key-test!"));
+builder.Services.AddSingleton<IPayloadCodec>(
+    new EncryptionCodec("test-key-test-key-test-key-test!"));
 
-// Optional auth + CORS. See below.
 builder.Services.AddTemporalCodecServer();
 
 var app = builder.Build();
@@ -41,41 +43,94 @@ the [codec server protocol](https://github.com/temporalio/samples-go/tree/main/c
 `POST /{namespace}/decode` for namespace-scoped deployments. The `X-Namespace`
 header is accepted (and permitted by CORS) but not consumed by the codec.
 
-## CORS
+## Configuration
 
-`AddTemporalCodecServer` registers a CORS policy allowing the Temporal Cloud UI
-(`https://cloud.temporal.io`) and the local dev UI (`http://localhost:8080`,
-`http://localhost:8233`), with `X-Namespace`, `Content-Type`, and `Authorization`
-headers. Override with `AllowedOrigins` / `AllowCredentials`. The same options
-can instead be passed to `MapTemporalCodecServer(options)`.
+`AddTemporalCodecServer` takes an options delegate for CORS and authentication.
 
-## Authentication
+```csharp
+builder.Services.AddTemporalCodecServer(o =>
+{
+    o.AllowedOrigins = new[] { "https://my.ui.example.com" };
+    o.AllowCredentials = true;
+});
+```
 
-Two modes, matching the Temporal Web UI's codec-server options:
+CORS defaults to the Temporal Cloud UI plus the common local dev servers, with
+`X-Namespace`, `Content-Type`, and `Authorization` headers allowed:
 
-- **Pass access token** (`Auth:PassAccessToken = true`) — validates the JWT the
-  UI forwards in the `Authorization` header against the OIDC provider's JWKS.
-  Defaults to Temporal Cloud (`Authority: https://login.tmprl.cloud`,
-  `Audience: https://saas-api.tmprl.cloud`).
-- **Include cross-origin credentials** (`Auth:IncludeCrossOriginCredentials = true`)
-  — the codec server keeps its own session via an OAuth2 authorization-code flow,
-  so opening the Temporal UI redirects through your IdP and back (login and
-  logout routes are mapped at `/codec/login` and `/codec/logout`, configurable
-  via `LoginPath` / `LogoutPath`). Set `OidcAuthority`, `ClientId`, and
-  `ClientSecret`.
+```csharp
+// Defaults
+o.AllowedOrigins = new[]
+{
+    "https://cloud.temporal.io",
+    "http://localhost:8080",
+    "http://localhost:8233",
+};
+o.AllowCredentials = true;   // required for the cross-origin-credentials auth mode
+```
+
+`AllowedOrigins` must be an explicit list (no wildcard) when
+`AllowCredentials` is `true`. The same options can instead be passed to
+`MapTemporalCodecServer(options)`, which wins over any configured options.
+
+Enable authentication with a single flag plus the relevant OIDC settings:
 
 ```csharp
 builder.Services.AddTemporalCodecServer(o =>
 {
     o.Auth.PassAccessToken = true;                    // validate the UI's JWT
     // o.Auth.IncludeCrossOriginCredentials = true;   // or your own login flow
-    // o.Auth.OidcAuthority = "https://login.example.com";
-    // o.Auth.ClientId = "...";
-    // o.Auth.RequireHttpsMetadata = true;             // default; set false for localhost HTTP
 });
 ```
 
-Because the codec server can decode sensitive data, run it over HTTPS and
-restrict ingress (VPN or `localhost`) unless you have enabled authentication.
+## Full configuration
+
+Two auth modes, matching the Temporal Web UI's codec-server options.
+
+**Pass access token** (`Auth.PassAccessToken = true`) validates the JWT the UI
+forwards in the `Authorization` header against the OIDC provider's JWKS. It
+defaults to Temporal Cloud, so no `Authority`/`Audience` are needed for Cloud.
+
+```csharp
+builder.Services.AddTemporalCodecServer(o =>
+{
+    o.Auth.PassAccessToken = true;
+    o.Auth.Authority = "https://login.tmprl.cloud";          // default
+    o.Auth.Audience = "https://saas-api.tmprl.cloud";        // default
+    o.Auth.RequireHttpsMetadata = true;                      // default; set false for localhost HTTP
+});
+```
+
+**Include cross-origin credentials** (`Auth.IncludeCrossOriginCredentials = true`)
+gives the codec server its own session via an OAuth2 authorization-code flow.
+Opening the Temporal UI redirects through your IdP and back; login and logout
+routes are mapped at `LoginPath` (`/codec/login`) and `LogoutPath`
+(`/codec/logout`). Requires `AllowCredentials = true` (the default) and a
+`ClientId`/`ClientSecret` registered with your IdP.
+
+```csharp
+builder.Services.AddTemporalCodecServer(o =>
+{
+    o.Auth.IncludeCrossOriginCredentials = true;
+    o.Auth.OidcAuthority = "https://login.example.com";
+    o.Auth.ClientId = "my-codec-server";
+    o.Auth.ClientSecret = "...";
+
+    o.AllowCredentials = true;
+    o.LoginPath = "/codec/login";    // default
+    o.LogoutPath = "/codec/logout";  // default
+});
+```
+
+The two modes can be combined; when both are set, either an accepted JWT or a
+valid session cookie satisfies the endpoint's authorization policy.
+
+Security notes:
+
+- The codec server can decode sensitive data, so run it over HTTPS
+  (`RequireHttpsMetadata = true` is the default) and restrict ingress (VPN or
+  `localhost`) unless you have enabled authentication.
+- In the cross-origin-credentials mode, the session cookie is sent with
+  `HttpOnly`, `SameSite=None`, and `Secure=Always`, and expires after 8 hours.
 
 Not affiliated with or endorsed by Temporal Technologies.
