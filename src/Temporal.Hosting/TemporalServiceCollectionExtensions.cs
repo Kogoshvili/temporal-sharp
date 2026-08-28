@@ -182,6 +182,7 @@ public static class TemporalServiceCollectionExtensions
         // is an injected singleton rather than a static registry.
         services.AddSingleton<WorkflowOptionsRegistry>();
         services.AddSingleton<IWorkflowOps, WorkflowOps>();
+        services.AddSingleton<IScheduleOps, ScheduleOps>();
 
         var exportMetrics = !string.IsNullOrWhiteSpace(options.Metrics.PrometheusBindAddress)
             || !string.IsNullOrWhiteSpace(options.Metrics.OpenTelemetryUrl);
@@ -308,6 +309,10 @@ public static class TemporalServiceCollectionExtensions
             // here (during AddTemporal) so it starts before any worker service.
             services.AddSingleton<IHostedService, TemporalConnectionWaiter>();
         }
+
+        // Registers declared schedules after the connection waiter / test server,
+        // so the server is reachable before any schedule registration.
+        services.AddSingleton<IHostedService, TemporalScheduleRegistrar>();
 
         return new TemporalBuilder(services);
     }
@@ -517,6 +522,7 @@ public static class TemporalServiceCollectionExtensions
         target.Workflows = source.Workflows;
         target.WorkflowSettings = source.WorkflowSettings;
         target.HealthChecks = source.HealthChecks;
+        target.Schedules = source.Schedules;
     }
 
     private static void SeedActivityOptionsRegistry(TemporalActivityOptions? activityOptions)

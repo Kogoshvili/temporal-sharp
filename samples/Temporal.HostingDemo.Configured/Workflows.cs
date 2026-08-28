@@ -213,3 +213,19 @@ public sealed class ParentWorkflow
         return $"parent -> child said: {childResult}";
     }
 }
+
+/// <summary>
+/// A zero-argument workflow started by the config-driven schedule declared under
+/// <c>Temporal:Schedules:daily-greeting</c>. Config-driven schedules cannot pass
+/// workflow arguments (those are code-only — see <c>AddTemporalSchedule</c> in
+/// Program.cs for the typed equivalent).
+/// </summary>
+[Workflow]
+public sealed class ScheduledWorkflow
+{
+    [WorkflowRun]
+    public async Task<string> RunAsync()
+    {
+        return await ActivityOps.ExecuteAsync(() => StaticActivities.Greet("scheduled"));
+    }
+}

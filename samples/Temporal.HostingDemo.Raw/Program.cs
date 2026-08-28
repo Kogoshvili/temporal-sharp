@@ -105,6 +105,11 @@ builder.Services.AddTemporalClient()
 //    TemporalConnectionWaiter, configured by Temporal:ConnectionWait).
 builder.Services.AddHostedService<RawConnectionWaiter>();
 
+// 5b. Register a schedule by hand — the starter's TemporalScheduleRegistrar +
+//     Temporal:Schedules (or AddTemporalSchedule) do this idempotently, wrapping
+//     the CreateScheduleAsync / ScheduleAlreadyRunningException dance.
+builder.Services.AddHostedService<RawScheduleRegistrar>();
+
 // 6. Register every workflow and activity by hand, choosing each lifetime
 //    explicitly. The starter's opt-in AddDiscoveredTypes() + [ActivityLifetime]
 //    do this for you.

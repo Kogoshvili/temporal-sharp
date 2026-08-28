@@ -66,4 +66,11 @@ public sealed class TemporalOptions : TemporalConnectionOptions
     /// <c>AddTemporalHealthChecks()</c>.
     /// </summary>
     public TemporalHealthChecksOptions HealthChecks { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets schedule definitions keyed by schedule ID, bound from
+    /// <c>Temporal:Schedules</c> and registered idempotently at startup (see
+    /// <see cref="TemporalScheduleRegistrar"/>).
+    /// </summary>
+    public Dictionary<string, TemporalScheduleOptions>? Schedules { get; set; }
 }

@@ -123,6 +123,25 @@ builder.Services.AddTemporalHealthChecks();
 // Health checks: AddTemporalHealthChecks registers a /health check that reports
 //   the client connection liveness and per-queue poller counts; disable it at
 //   runtime with Temporal:HealthChecks:Enabled = false.
+//
+// Schedules: config-driven schedules declared under Temporal:Schedules in
+//   appsettings.json are registered idempotently at startup (see "daily-greeting",
+//   which fires ScheduledWorkflow daily). Config-driven schedules can't pass
+//   workflow arguments; for a schedule with typed arguments, declare it in code:
+//
+//     using Temporalio.Client;
+//     using Temporalio.Client.Schedules;
+//     builder.Services.AddTemporal(builder.Configuration)
+//         .AddTemporalSchedule(
+//             "daily-greeting-typed",
+//             (GreetingWorkflow wf) => wf.RunAsync("scheduled"),
+//             new WorkflowOptions(id: "greeting-scheduled", taskQueue: "configured-queue"),
+//             new ScheduleSpec { CronExpressions = new[] { "0 0 * * *" } },
+//             reconcile: true);   // drive an existing schedule to match this definition
+//
+//   Inject IScheduleOps for imperative control (pause/trigger/backfill/delete/
+//   describe/list/update), or call RegisterAsync(...) directly for a one-shot
+//   idempotent create.
 
 // Print the workflow-start metrics recorded by the interceptor (Metrics:Enabled).
 builder.Services.AddHostedService<MetricsPrinter>();
