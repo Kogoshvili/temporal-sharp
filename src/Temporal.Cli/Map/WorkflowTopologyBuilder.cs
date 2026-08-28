@@ -19,6 +19,15 @@ internal static class WorkflowTopologyBuilder
     private const string UnknownNexusService = "nexusService";
     private const string UnknownNexusOperation = "nexusOperation";
 
+    // The Kogoshvili.Temporal.Hosting workflow-side facades, matched by
+    // fully-qualified name so the CLI stays free of a dependency on the hosting
+    // assembly.
+    private const string ActivityOpsType = "Kogoshvili.Temporal.Hosting.ActivityOps";
+    private const string ChildWorkflowOpsType = "Kogoshvili.Temporal.Hosting.ChildWorkflowOps";
+
+    // The hosting starter's worker-registration extension class.
+    private const string HostingExtensionsType = "Microsoft.Extensions.DependencyInjection.TemporalServiceCollectionExtensions";
+
     private static readonly SymbolDisplayFormat FullNameFormat = SymbolDisplayFormat.CSharpErrorMessageFormat;
 
     public static Task<TopologyGraph> BuildAsync(Solution solution, CancellationToken cancellationToken)
@@ -96,6 +105,7 @@ internal static class WorkflowTopologyBuilder
         private readonly Dictionary<string, string> _workflowNodeIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _activityNodeIds = new(StringComparer.Ordinal);
         private readonly HashSet<TopologyEdge> _edges = new();
+        private readonly Dictionary<Compilation, HashSet<string>> _workflowsByCompilation = new();
 
         public void CollectDeclarations(SyntaxNode root, SemanticModel model)
         {
@@ -108,7 +118,7 @@ internal static class WorkflowTopologyBuilder
 
                 if (WorkflowDetection.IsWorkflowType(typeSymbol))
                 {
-                    AddWorkflowNode(typeSymbol);
+                    TrackCompilationWorkflow(model, AddWorkflowNode(typeSymbol));
                 }
 
                 foreach (var member in typeSymbol.GetMembers())
@@ -139,6 +149,14 @@ internal static class WorkflowTopologyBuilder
                 {
                     HandleNexusOperation(invocation, target, model);
                 }
+                else if (TypeNames.FullName(containingType) == ActivityOpsType)
+                {
+                    HandleActivityOpsCommand(invocation, target, model);
+                }
+                else if (TypeNames.FullName(containingType) == ChildWorkflowOpsType)
+                {
+                    HandleChildWorkflowOpsCommand(invocation, target, model);
+                }
                 else if (SdkNames.ClientWorkflowStartMethods.Contains(target.Name))
                 {
                     HandleClientStart(invocation, model);
@@ -146,6 +164,7 @@ internal static class WorkflowTopologyBuilder
             }
 
             CollectWorkerRegistrations(root, model);
+            CollectHostedWorkerRegistrations(root, model);
         }
 
         public TopologyGraph Build()
@@ -196,6 +215,72 @@ internal static class WorkflowTopologyBuilder
             else if (target.Name == "CreateNexusWorkflowClient")
             {
                 AddNexusServiceEdge(workflowId, invocation, model);
+            }
+        }
+
+        private void HandleActivityOpsCommand(
+            InvocationExpressionSyntax invocation,
+            IMethodSymbol target,
+            SemanticModel model)
+        {
+            var workflowId = GetEnclosingWorkflowNodeId(invocation, model);
+            if (workflowId is null)
+            {
+                return;
+            }
+
+            if (target.Name == "ExecuteAsync")
+            {
+                AddActivityEdge(workflowId, invocation, model, TopologyEdgeKinds.Activity);
+            }
+            else if (target.Name == "ExecuteLocalAsync")
+            {
+                AddActivityEdge(workflowId, invocation, model, TopologyEdgeKinds.LocalActivity);
+            }
+        }
+
+        private void HandleChildWorkflowOpsCommand(
+            InvocationExpressionSyntax invocation,
+            IMethodSymbol target,
+            SemanticModel model)
+        {
+            var workflowId = GetEnclosingWorkflowNodeId(invocation, model);
+            if (workflowId is null)
+            {
+                return;
+            }
+
+            // Lambda overloads resolve the child workflow from the lambda target.
+            if (TryResolveTypedLambdaTarget(model, invocation, out var targetMethod))
+            {
+                var containingType = targetMethod!.ContainingType;
+                if (containingType is not null && WorkflowDetection.IsWorkflowType(containingType))
+                {
+                    AddEdge(workflowId, AddWorkflowNode(containingType), TopologyEdgeKinds.ChildWorkflow);
+                }
+                else
+                {
+                    AddEdge(workflowId, AddUnknownNode(UnknownChildWorkflow, FriendlyName(targetMethod)), TopologyEdgeKinds.ChildWorkflow);
+                }
+
+                return;
+            }
+
+            // Non-lambda overloads (single-parameter object, no-argument) carry the
+            // child workflow type as a generic type argument.
+            foreach (var typeArgument in target.TypeArguments)
+            {
+                if (typeArgument is INamedTypeSymbol named && WorkflowDetection.IsWorkflowType(named))
+                {
+                    AddEdge(workflowId, AddWorkflowNode(named), TopologyEdgeKinds.ChildWorkflow);
+                    return;
+                }
+            }
+
+            // String-named overloads take the workflow name as the first argument.
+            if (TryResolveStringTarget(invocation, model, out var name))
+            {
+                AddEdge(workflowId, AddUnknownNode(UnknownChildWorkflow, name), TopologyEdgeKinds.ChildWorkflow);
             }
         }
 
@@ -327,6 +412,83 @@ internal static class WorkflowTopologyBuilder
                 AddEdge(AddWorkflowNode(workflowType), AddTaskQueueNode(taskQueue), TopologyEdgeKinds.TaskQueue);
             }
         }
+
+        private void CollectHostedWorkerRegistrations(SyntaxNode root, SemanticModel model)
+        {
+            foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
+            {
+                if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+                {
+                    continue;
+                }
+
+                var name = memberAccess.Name.Identifier.ValueText;
+                if (name != "AddWorkflow" && name != "AddDiscoveredTypes")
+                {
+                    continue;
+                }
+
+                if (ResolveHostedWorkerTaskQueue(memberAccess.Expression, model) is not { } taskQueue)
+                {
+                    continue;
+                }
+
+                if (name == "AddWorkflow")
+                {
+                    if (model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+                        method.TypeArguments.Length == 1 &&
+                        method.TypeArguments[0] is INamedTypeSymbol workflowType &&
+                        WorkflowDetection.IsWorkflowType(workflowType))
+                    {
+                        AddEdge(AddWorkflowNode(workflowType), AddTaskQueueNode(taskQueue), TopologyEdgeKinds.TaskQueue);
+                    }
+
+                    continue;
+                }
+
+                // AddDiscoveredTypes scans the assembly for [Workflow]/[Activity]
+                // types; associate the workflows declared in the same compilation
+                // (best-effort proxy for the scanned assembly).
+                foreach (var workflowId in GetWorkflowsInCompilation(model))
+                {
+                    AddEdge(workflowId, AddTaskQueueNode(taskQueue), TopologyEdgeKinds.TaskQueue);
+                }
+            }
+        }
+
+        private static string? ResolveHostedWorkerTaskQueue(ExpressionSyntax receiver, SemanticModel model)
+        {
+            foreach (var invocation in receiver.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
+            {
+                if (model.GetSymbolInfo(invocation).Symbol is IMethodSymbol method &&
+                    method.Name == "AddTemporalWorker" &&
+                    TypeNames.FullName(method.ContainingType) == HostingExtensionsType &&
+                    invocation.ArgumentList.Arguments.Count > 0 &&
+                    TryGetStringConstant(invocation.ArgumentList.Arguments[0].Expression, model, out var taskQueue))
+                {
+                    return taskQueue;
+                }
+            }
+
+            return null;
+        }
+
+        private void TrackCompilationWorkflow(SemanticModel model, string workflowNodeId)
+        {
+            var compilation = model.Compilation;
+            if (!_workflowsByCompilation.TryGetValue(compilation, out var workflows))
+            {
+                workflows = new HashSet<string>(StringComparer.Ordinal);
+                _workflowsByCompilation[compilation] = workflows;
+            }
+
+            workflows.Add(workflowNodeId);
+        }
+
+        private IEnumerable<string> GetWorkflowsInCompilation(SemanticModel model) =>
+            _workflowsByCompilation.TryGetValue(model.Compilation, out var workflows)
+                ? workflows
+                : Enumerable.Empty<string>();
 
         private string? GetEnclosingWorkflowNodeId(InvocationExpressionSyntax invocation, SemanticModel model)
         {

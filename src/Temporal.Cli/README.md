@@ -250,23 +250,28 @@ with a Roslyn `SemanticModel`:
   query properties) / `[WorkflowUpdate]` members of that type.
 - **Activity nodes** — methods with `Temporalio.Activities.ActivityAttribute`.
 - **Activity edges** — inside a workflow's method bodies, an invocation of
-  `Workflow.ExecuteActivityAsync` / `ExecuteLocalActivityAsync` whose first
-  argument is a *typed lambda* (`() => MyActivities.Run()`, or the instance
-  form `(MyActivities a) => a.Run(x)`) is resolved via
-  `SemanticModel.GetSymbolInfo` on the lambda body. If the resolved method has
-  `[Activity]`, an edge to that activity node is emitted.
+  `Workflow.ExecuteActivityAsync` / `ExecuteLocalActivityAsync` — or the
+  `Kogoshvili.Temporal.Hosting` facades `ActivityOps.ExecuteAsync` /
+  `ActivityOps.ExecuteLocalAsync` — whose first argument is a *typed lambda*
+  (`() => MyActivities.Run()`, or the instance form `(MyActivities a) => a.Run(x)`)
+  is resolved via `SemanticModel.GetSymbolInfo` on the lambda body. If the
+  resolved method has `[Activity]`, an edge to that activity node is emitted.
 - **Child-workflow edges** — `StartChildWorkflowAsync` / `ExecuteChildWorkflowAsync`
-  typed lambdas resolve to a run method whose containing type has `[Workflow]`.
+  typed lambdas — or `ChildWorkflowOps.ExecuteAsync` / `ChildWorkflowOps.StartAsync`
+  (lambda, single-parameter, and no-argument overloads) — resolve to a run method
+  whose containing type has `[Workflow]`.
 - **Nexus edges** — `Workflow.CreateNexusWorkflowClient("service")` (service
   boundary/typed) and `NexusWorkflowClient.StartNexusOperationAsync(...)`
   (operation). Typed operations resolve to a `nexus` node; string-named ones
   become `Unknown:NexusService` / `Unknown:NexusOperation` boundary nodes.
 - **Task-queue nodes + edges** — constant strings are extracted from
   `TemporalWorkerOptions("queue")` (constructor argument) or
-  `TaskQueue = "queue"` object initializers, and from client start options
-  (`StartWorkflowOptions { TaskQueue = "..." }`). Workflows are associated via
+  `TaskQueue = "queue"` object initializers, from client start options
+  (`StartWorkflowOptions { TaskQueue = "..." }`), and from the hosting starter's
+  `AddTemporalWorker("queue")` call. Workflows are associated via
   `AddWorkflow<T>()` calls on the worker-options instance (fluent chains and
-  simple local variables are followed) and via client
+  simple local variables are followed), via `.AddWorkflow<T>()` /
+  `.AddDiscoveredTypes()` chained off `AddTemporalWorker`, and via client
   `StartWorkflowAsync` / `ExecuteWorkflowAsync` typed lambdas.
 - **Boundary (`Unknown:*`) nodes** — whenever a call uses the *string-named*
   overload (the first argument is a string constant), or a typed lambda resolves
@@ -424,7 +429,10 @@ digraph temporal_topology {
   the fluent form (`new TemporalWorkerOptions("q").AddWorkflow<W>()`) and for a
   simple local variable holding the options; field/property indirection is not
   followed. Client association recognizes `TaskQueue = "..."` object
-  initializers on start options.
+  initializers on start options. The hosting starter's
+  `AddTemporalWorker("q").AddDiscoveredTypes()` associates the workflows declared
+  in the *same compilation* as the call (a proxy for the scanned assembly); a
+  discovery call in one project does not reach workflows in a sibling project.
 - **Nexus services are not first-class nodes.** Typed nexus *operations* get a
   `nexus` node; string-named services/operations become `Unknown:` boundaries.
   The service → operation relationship is not linked.
