@@ -14,7 +14,8 @@ claim-check payload stores backed by Azure Blob Storage and Amazon S3. Pair with
   container (connection string or managed identity).
 - **`S3ClaimCheckStore`** — an `IClaimCheckStore` over an Amazon S3 bucket.
 - **`AzureKeyVaultCertificateSource`** — resolves the mTLS client certificate
-  from an Azure Key Vault PFX secret, converting it to PEM.
+  from an Azure Key Vault PFX secret, converting it to PEM (`PfxToPem`
+  helpers are public for direct use).
 - **`AwsSecretsManagerCertificateSource`** — resolves the mTLS client
   certificate and key from AWS Secrets Manager.
 - **`AzureKeyVaultSecretResolver`** — an `ISecretResolver` fetching arbitrary
@@ -42,7 +43,8 @@ builder.Services.AddAzureKeyVaultCertificateSource();
       "Source": "azureKeyVault",
       "AzureKeyVault": {
         "VaultUri": "https://my-vault.vault.azure.net",
-        "CertificateName": "temporal-client"
+        "CertificateName": "temporal-client",
+        "Password": null
       }
     }
   }
@@ -59,7 +61,8 @@ For AWS:
       "AwsSecretsManager": {
         "Region": "us-east-1",
         "CertificateSecretId": "temporal-client-cert",
-        "PrivateKeySecretId": "temporal-client-key"
+        "PrivateKeySecretId": "temporal-client-key",
+        "ServerRootCACertSecretId": null
       }
     }
   }
@@ -67,7 +70,9 @@ For AWS:
 ```
 
 The hosting starter (`Kogoshvili.Temporal.Hosting`) resolves these at startup via
-`TemporalCertificateLoader`.
+`TemporalCertificateLoader`. For the AWS source, `Region` is required (it is
+used to resolve the region endpoint at startup even though validation only
+enforces the two secret ids).
 
 ## Secret resolution
 
@@ -111,7 +116,7 @@ var s3Store = new S3ClaimCheckStore(
     "temporal-claim-check");
 
 var codec = new CompositePayloadCodec(
-    new EncryptionCodec("demo-key-16-bytes!"),
+    new EncryptionCodec("test-key-16bytes"),
     new ClaimCheckCodec(s3Store, thresholdBytes: 1024 * 1024));
 
 var client = await TemporalClient.ConnectAsync(new("localhost:7233")

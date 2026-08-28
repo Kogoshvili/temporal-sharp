@@ -35,6 +35,7 @@ jobs:
         run: |
           dotnet pack src/Temporal.Analyzers/Temporal.Analyzers.csproj --no-build -c Release -o artifacts
           dotnet pack src/Temporal.Cli/Temporal.Cli.csproj --no-build -c Release -o artifacts
+          dotnet pack templates/Temporal.Templates/Temporal.Templates.csproj --no-build -c Release -o artifacts
 
       - name: Upload packages
         uses: actions/upload-artifact@v4

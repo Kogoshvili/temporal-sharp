@@ -17,23 +17,25 @@ targets **net8.0**.
 ## API
 
 - **`ReplayHarness : IAsyncDisposable`** — owns a `WorkflowEnvironment` and its
-  `ITemporalClient`.
+  `ITemporalClient` (exposed as `Environment` / `Client`).
   - `StartTimeSkippingAsync()` / `StartLocalAsync()` — start a time-skipping or
-    full local Temporal server.
+    full local Temporal server (option overloads accept the SDK's
+    `WorkflowEnvironmentStartTimeSkippingOptions` / `WorkflowEnvironmentStartLocalOptions`).
   - `CaptureAsync<TWorkflow, TResult>(...)` — run a workflow to completion and
-    capture its `WorkflowHistory`.
+    capture its result and `WorkflowHistory`.
   - `ReplayAsync<TWorkflow>(history)` — replay a history via `WorkflowReplayer`.
   - `VerifyAsync<TWorkflow, TResult>(...)` — capture + replay in one step.
 - **`ReplayResult`** — `Succeeded`, `ReplayFailure`, `SnapshotJson`,
   `ThrowIfFailed()`.
 - **`Replay`** — replay histories from a fixed source without a local test
   environment:
-  - `FromJsonAsync<TWorkflow>(json, workflowId)` — replay one golden history.
-  - `FromDirectoryAsync<TWorkflow>(dir)` — replay every `*.json` golden file.
+  - `FromJsonAsync<TWorkflow>(historyJson, workflowId)` — replay one golden history.
+  - `FromDirectoryAsync<TWorkflow>(dir, pattern = "*.json")` — replay every
+    `*.json` golden file matching `pattern`.
   - `FromServerAsync<TWorkflow>(client, workflowType, executionStatus, limit)` —
     replay recorded histories from a live Temporal service.
-- **`Snapshot`** — `ToJson` / `FromJson` / `AssertEquivalent` for JSON snapshot
-  comparison.
+- **`Snapshot`** — `ToJson` / `FromJson` / `AssertEquivalent` /
+  `AreEquivalent` for JSON snapshot comparison.
 - **`ReplayMismatchException`** — thrown on replay divergence or snapshot
   mismatch.
 

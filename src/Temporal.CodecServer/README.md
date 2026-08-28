@@ -39,14 +39,15 @@ The endpoints accept the Temporal `Payloads` protobuf-as-JSON envelope and follo
 the [codec server protocol](https://github.com/temporalio/samples-go/tree/main/codec-server#codec-server-protocol):
 `POST /encode` and `POST /decode`, plus `POST /{namespace}/encode` /
 `POST /{namespace}/decode` for namespace-scoped deployments. The `X-Namespace`
-header is left available to the codec.
+header is accepted (and permitted by CORS) but not consumed by the codec.
 
 ## CORS
 
 `AddTemporalCodecServer` registers a CORS policy allowing the Temporal Cloud UI
 (`https://cloud.temporal.io`) and the local dev UI (`http://localhost:8080`,
 `http://localhost:8233`), with `X-Namespace`, `Content-Type`, and `Authorization`
-headers. Override with `AllowedOrigins` / `AllowCredentials`.
+headers. Override with `AllowedOrigins` / `AllowCredentials`. The same options
+can instead be passed to `MapTemporalCodecServer(options)`.
 
 ## Authentication
 
@@ -58,8 +59,9 @@ Two modes, matching the Temporal Web UI's codec-server options:
   `Audience: https://saas-api.tmprl.cloud`).
 - **Include cross-origin credentials** (`Auth:IncludeCrossOriginCredentials = true`)
   — the codec server keeps its own session via an OAuth2 authorization-code flow,
-  so opening the Temporal UI redirects through your IdP and back (a login route
-  is mapped at `/codec/login`). Set `OidcAuthority`, `ClientId`, and
+  so opening the Temporal UI redirects through your IdP and back (login and
+  logout routes are mapped at `/codec/login` and `/codec/logout`, configurable
+  via `LoginPath` / `LogoutPath`). Set `OidcAuthority`, `ClientId`, and
   `ClientSecret`.
 
 ```csharp
@@ -69,6 +71,7 @@ builder.Services.AddTemporalCodecServer(o =>
     // o.Auth.IncludeCrossOriginCredentials = true;   // or your own login flow
     // o.Auth.OidcAuthority = "https://login.example.com";
     // o.Auth.ClientId = "...";
+    // o.Auth.RequireHttpsMetadata = true;             // default; set false for localhost HTTP
 });
 ```
 

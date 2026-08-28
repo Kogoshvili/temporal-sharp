@@ -38,10 +38,13 @@ await builder.Build().RunAsync();
 ```
 
 **Configured** — the same starter call, but `appsettings.json` turns on
-encryption + claim-check (`DataConverter`), metrics, tracing, core log
-forwarding, connection transport options, per-queue worker tuning,
-`ActivityOptions` presets, and `Workflows` presets + ID conventions. It also
-hosts the codec server and a health-check endpoint.
+encryption + claim-check + per-field `Secret<T>` encryption (`DataConverter`),
+metrics, tracing, core log forwarding, connection transport options, per-queue
+worker tuning, `ActivityOptions` presets, `Workflows` presets + ID conventions,
+schedules, search-attribute bootstrap, and multi-namespace clients. It also
+hosts the codec server and a health-check endpoint, and demonstrates saga
+compensation, child/local workflows, activity-lifetime auto-discovery, and
+heartbeating activities.
 
 **Raw** — no starter at all: it builds the `TemporalClient`, the runtime, a
 hand-rolled metrics interceptor, the connection waiter, and the `DataConverter`
@@ -109,22 +112,28 @@ automatically. The `Raw` demo has no such toggle and always needs a server.
 | Key | Purpose |
 | --- | --- |
 | `Temporal:TargetHost` | Server `host:port` to connect to. |
+| `Temporal:Namespace` / `Temporal:Namespaces` | Default + additional namespaces (per-namespace clients via `ITemporalClientFactory`). |
+| `Temporal:ApiKey` | API key for Temporal Cloud. |
 | `Temporal:RpcRetry` | Connection-level RPC retry policy (intervals, multiplier, max retries/elapsed). |
 | `Temporal:KeepAlive` | HTTP/2 keep-alive ping interval and timeout. |
 | `Temporal:HttpConnectProxy` | Optional HTTP CONNECT proxy (`TargetHost`, `Username`, `Password`). |
 | `Temporal:DnsLoadBalancing` | Optional periodic DNS re-resolution (`ResolutionInterval`). |
 | `Temporal:GrpcCompression` | Transport gRPC compression (`Mode`: `"gzip"` or `"none"`). |
 | `Temporal:ConnectionWait` | Startup wait/retry before workers poll (`Enabled`, `Timeout`, `InitialDelay`, `MaxDelay`). |
+| `Temporal:Logging` | Core (Rust bridge) log forwarding into the app's `ILogger` pipeline. |
 | `Temporal:Metrics` | `System.Diagnostics.Metrics` meter with client/activity interceptors + Prometheus/OTel Core export. |
 | `Temporal:Tracing` | Wires the SDK `TracingInterceptor` (`ActivitySource` spans) across client and workers. |
 | `Temporal:TestServer` | In-process dev server toggle (`Enabled`, `Port`). |
 | `Temporal:Tls` | mTLS / server-root CA config, from `file`, `environment`, `azureKeyVault`, or `awsSecretsManager` sources. |
 | `Temporal:DataConverter:Encryption` | AES-GCM payload encryption (`Enabled`, `Key`, `KeyId`). |
 | `Temporal:DataConverter:ClaimCheck` | Large-payload offload (`Enabled`, `ThresholdBytes`, `Directory`). |
+| `Temporal:DataConverter:Secret` | Per-field `Secret<T>` encryption (`Enabled`, `Source`, `SecretId`, `KeyId`). |
 | `Temporal:Workers` | Per-queue worker tuning (concurrency, graceful shutdown, cached workflows, deployment). |
 | `Temporal:ActivityOptions` | Default + named `ActivityOptions` presets consumed from workflows via `ActivityOptionsRegistry`. |
 | `Temporal:Workflows` | Default + per-type `WorkflowOptions` presets and workflow-ID conventions, consumed via `IWorkflowOps`. |
 | `Temporal:WorkflowSettings` | Per-type typed settings read from inside workflows via `WorkflowSettings.GetAsync<T>()`. |
+| `Temporal:Schedules` | Config-driven idempotent schedule registration. |
+| `Temporal:SearchAttributes` | Search-attribute bootstrap (declare + idempotently register keys). |
 | `Temporal:HealthChecks` | Client/worker liveness check toggle (`Enabled`). |
 
 ## Analyzer sample

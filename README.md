@@ -1,40 +1,56 @@
 # Kogoshvili.Temporal
 
-A suite of static-analysis tooling for the [Temporal](https://temporal.io) .NET SDK.
-It catches non-deterministic code and SDK feature-misuse in your workflows before
-they hit production replay bugs.
+A suite of static-analysis tooling and libraries for the
+[Temporal](https://temporal.io) .NET SDK. It catches non-deterministic code and
+SDK feature-misuse in your workflows before they hit production replay bugs, and
+ships libraries for building and operating Temporal workers.
 
-## Tools
+## Packages
 
 Two tools, one rule engine:
 
-- **`Kogoshvili.Temporal.Analyzers`** — a NuGet analyzer package that plugs into
-  `dotnet build`, Visual Studio, and Rider.
-- **`Kogoshvili.Temporal.Cli`** — a standalone CLI (`dotnet tool`, invoked as
-  `temporal-sharp`) for CI pipelines, so findings stay visible in PRs even when
-  a project already ignores warnings.
+- **[`Kogoshvili.Temporal.Analyzers`](src/Temporal.Analyzers/README.md)** — a
+  Roslyn analyzer package that plugs into `dotnet build`, Visual Studio, and
+  Rider.
+- **[`Kogoshvili.Temporal.Cli`](src/Temporal.Cli/README.md)** — a standalone CLI
+  (`dotnet tool`, invoked as `temporal-sharp`) for CI pipelines: `analyze`,
+  `map`, `history`, `docs`, and `preset`.
 
-See [`RULES.md`](RULES.md) for the full rule catalog.
+Six libraries for building and operating Temporal workers:
 
-## Libraries
+- **[`Kogoshvili.Temporal.Hosting`](src/Temporal.Hosting/README.md)** — a
+  generic-host worker starter: config binding, convention-based workflow/activity
+  auto-discovery, a shared `DataConverter` (encryption + claim-check), metrics,
+  and a test-server toggle.
+- **[`Kogoshvili.Temporal.Codec`](src/Temporal.Codec/README.md)** — composable
+  payload codecs (AES-GCM encryption, claim-check offloading, ordered chains,
+  per-field `Secret<T>` encryption).
+- **[`Kogoshvili.Temporal.CodecServer`](src/Temporal.CodecServer/README.md)** — a
+  ready-made HTTP codec server for the Web UI/CLI, with JWT-bearer and OAuth2
+  authorization-code auth.
+- **[`Kogoshvili.Temporal.Cloud`](src/Temporal.Cloud/README.md)** — Azure/AWS
+  credential resolution, Blob/S3 claim-check stores, and TLS certificate sources
+  (Key Vault / Secrets Manager).
+- **[`Kogoshvili.Temporal.Configuration`](src/Temporal.Configuration/README.md)** —
+  shared connection config (loads a `TemporalClient` from `appsettings.json` /
+  `Temporal__*` env vars).
+- **[`Kogoshvili.Temporal.Testing`](src/Temporal.Testing/README.md)** — a
+  replay/regression harness built on `WorkflowReplayer`.
 
-Alongside the tools, the suite ships a set of .NET libraries for building and
-operating Temporal workers:
-
-- **`Kogoshvili.Temporal.Hosting`** — a generic-host worker starter: config
-  binding, convention-based workflow/activity auto-discovery, a shared
-  `DataConverter` (encryption + claim-check), metrics, and a test-server toggle.
-- **`Kogoshvili.Temporal.Codec`** — composable payload codecs (AES-GCM
-  encryption, claim-check offloading, ordered chains).
-- **`Kogoshvili.Temporal.CodecServer`** — a ready-made HTTP codec server for the
-  Web UI/CLI, with JWT-bearer and OAuth2 authorization-code auth.
-- **`Kogoshvili.Temporal.Cloud`** — Azure/AWS credential resolution and
-  Blob/S3 claim-check stores.
-- **`Kogoshvili.Temporal.Configuration`** / **`Kogoshvili.Temporal.Testing`** —
-  shared connection config and a replay/regression harness.
-
-See [`samples/`](samples/) for runnable demos of the hosting starter and codec
+See [`RULES.md`](RULES.md) for the full rule catalog, and
+[`samples/`](samples/) for runnable demos of the hosting starter and codec
 server.
+
+## Templates
+
+Install project templates for a ready-to-run start:
+
+```sh
+dotnet new install Kogoshvili.Temporal.Templates
+dotnet new temporal-codec-server -o MyCodecServer   # a codec server for the Web UI/CLI
+```
+
+See [`templates/`](templates/) for the full template catalog.
 
 ## Install
 
@@ -43,128 +59,8 @@ dotnet add package Kogoshvili.Temporal.Analyzers   # analyzer, via NuGet
 dotnet tool install -g Kogoshvili.Temporal.Cli     # CLI, invoked as `temporal-sharp`
 ```
 
-## CLI
-
-```
-temporal-sharp analyze <path.sln|path.csproj> [options]
-  --format <console|json|sarif>          Output format (default: console).
-  --fail-on <none|info|warning|error>    Exit non-zero on findings at or above the given severity.
-  --severity <TMPxxxx=severity>          Override a rule's severity (repeatable).
-
-temporal-sharp preset <recommended|strict> [--write <file>]
-                                         Emit an .editorconfig severity block for a preset.
-```
-
-### Severity presets
-
-Two named presets are available as ready-to-copy `.editorconfig` bundles under
-[`editorconfig/`](editorconfig/) — `recommended` (today's defaults) and `strict`
-(every rule, including opt-in rules, promoted to `error`). Regenerate them with
-`temporal-sharp preset`, or copy the block straight into your `.editorconfig`.
-
-### GitHub Actions
-
-Run `temporal-sharp` in CI as a pull-request gate, and optionally upload SARIF
-so findings appear as GitHub code-scanning annotations:
-
-```yaml
-name: temporal-sharp
-
-on:
-  pull_request:
-  push:
-    branches: [main]
-
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Install temporal-sharp
-        run: dotnet tool install --global Kogoshvili.Temporal.Cli
-
-      - name: Run temporal-sharp
-        run: |
-          export PATH="$PATH:$HOME/.dotnet/tools"
-          temporal-sharp analyze ./MyApp.sln --fail-on warning
-
-      # Optional: emit SARIF and upload for GitHub code scanning.
-      - name: Run temporal-sharp (SARIF)
-        run: |
-          export PATH="$PATH:$HOME/.dotnet/tools"
-          temporal-sharp analyze ./MyApp.sln --format sarif > temporal.sarif
-
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: temporal.sarif
-```
-
-## Configuration
-
-Suppress a single finding inline with `#pragma warning disable` / `restore`, or
-disable a rule project-wide via `.editorconfig`
-(`dotnet_diagnostic.TMPxxxx.severity = none`). Both mechanisms work in the
-analyzer package and the CLI.
-
-```csharp
-#pragma warning disable TMP0101
-var now = DateTime.Now;
-#pragma warning restore TMP0101
-```
-
-Opt-in rules (`TMP2103`, `TMP2111`, `TMP2147`, `TMP2151`, `TMP2161`,
-`TMP2171`, `TMP3104`, `TMP4104`) are enabled via
-`.editorconfig`:
-
-```ini
-dotnet_diagnostic.TMP2103.severity = warning
-dotnet_diagnostic.TMP2111.severity = warning
-dotnet_diagnostic.TMP2147.severity = warning
-dotnet_diagnostic.TMP2151.severity = warning
-dotnet_diagnostic.TMP2161.severity = warning
-dotnet_diagnostic.TMP2171.severity = warning
-dotnet_diagnostic.TMP3104.severity = warning
-dotnet_diagnostic.TMP4104.severity = warning
-```
-
-Two rules take custom config keys:
-
-- `kogoshvili.temporal.sensitive_pattern` (regex for `TMP2151` sensitive args).
-- `kogoshvili.temporal.search_attributes` (alias=attribute map for `TMP2161`), e.g.:
-
-```ini
-[*.cs]
-kogoshvili.temporal.search_attributes = user_id=user_id, client_id=user_id
-```
-
-Two more opt-in features are configured the same way:
-
-- `kogoshvili.temporal.workflow_paths` — comma-separated path globs (e.g.
-  `**/Workflows/**`) that treat files as workflow code even without a `[Workflow]`
-  attribute, so rules fire for non-annotated helpers.
-- `kogoshvili.temporal.unsafe_namespaces` — comma-separated namespace prefixes
-  that workflow code must not import (`TMP2147`, off by default):
-
-```ini
-[*.cs]
-kogoshvili.temporal.workflow_paths = **/Workflows/**
-kogoshvili.temporal.unsafe_namespaces = System.IO, System.Net.Http
-dotnet_diagnostic.TMP2147.severity = warning
-```
-
-## Alternatives
-
-Kogoshvili.Temporal covers the same ground as the Go ecosystem's tools, for .NET:
-
-- **[workflowcheck](https://github.com/temporalio/sdk-go/tree/main/contrib/tools/workflowcheck)** — Temporal's first-party Go determinism analyzer.
-- **[temporalcheck-lint](https://github.com/samgozman/temporalcheck-lint)** — a community Go type-safety/feature-misuse linter.
-- **[eslint-plugin-temporal](https://github.com/stevekinney/eslint-plugin-temporal)** — a community JavaScript/TypeScript Temporal linter.
+Each package has its own README covering its configuration and usage — see the
+links above.
 
 ## License
 

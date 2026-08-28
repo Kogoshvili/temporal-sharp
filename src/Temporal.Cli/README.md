@@ -1,4 +1,119 @@
-# temporal-sharp `map` — static workflow topology graph
+# `temporal-sharp` — the Kogoshvili.Temporal CLI
+
+A standalone CLI (`dotnet tool`) for the `Kogoshvili.Temporal` tool suite.
+Install it globally:
+
+```sh
+dotnet tool install -g Kogoshvili.Temporal.Cli
+```
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| [`analyze`](#analyze) | The default — runs the Roslyn analyzers over a solution and reports findings. |
+| [`map`](#map--static-workflow-topology-graph) | Produces a static workflow topology graph (Mermaid/JSON/HTML/DOT). |
+| [`history`](#history) | Downloads recorded workflow histories for later replay. |
+| [`docs`](#docs) | Regenerates the `RULES.md` rule catalog from the analyzer descriptors. |
+| [`preset`](#preset) | Emits an `.editorconfig` severity block for a named preset. |
+
+### `analyze`
+
+Run the analyzers over a solution or project, with selectable output format,
+exit-code threshold, and per-rule severity overrides:
+
+```
+temporal-sharp analyze <path.sln|path.csproj> [options]
+  --format <console|json|sarif>          Output format (default: console).
+  --fail-on <none|info|warning|error>    Exit non-zero on findings at or above the given severity (default: none).
+  --severity <TMPxxxx=severity>          Override a rule's severity (repeatable).
+```
+
+When `analyze` is invoked without a subcommand (i.e. `temporal-sharp
+<path.sln>`), it is the default action.
+
+#### GitHub Actions
+
+Run `temporal-sharp` in CI as a pull-request gate, and optionally upload SARIF
+so findings appear as GitHub code-scanning annotations:
+
+```yaml
+name: temporal-sharp
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install temporal-sharp
+        run: dotnet tool install --global Kogoshvili.Temporal.Cli
+
+      - name: Run temporal-sharp
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          temporal-sharp analyze ./MyApp.sln --fail-on warning
+
+      # Optional: emit SARIF and upload for GitHub code scanning.
+      - name: Run temporal-sharp (SARIF)
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          temporal-sharp analyze ./MyApp.sln --format sarif > temporal.sarif
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: temporal.sarif
+```
+
+### `history`
+
+Download recorded workflow histories as `*.json` files for later replay with
+`Kogoshvili.Temporal.Testing`:
+
+```
+temporal-sharp history download <workflowType> [options]
+  --execution-status <status>  Filter by execution status (default: Completed).
+  --limit <n>                  Maximum number of histories to download.
+  --out <dir>                  Directory to write *.json histories into (required).
+  --config <path>              JSON config file (default: appsettings.json + Temporal__* env vars).
+```
+
+Authentication uses the shared `Temporal` configuration section and
+`Temporal__*` environment variables (including Cloud mTLS / API key).
+
+### `docs`
+
+Regenerate the rule catalog from the analyzer descriptors:
+
+```
+temporal-sharp docs [output-file]
+```
+
+Defaults to writing `RULES.md` in the current directory.
+
+### `preset`
+
+Emit an `.editorconfig` severity block for a named preset:
+
+```
+temporal-sharp preset <recommended|strict> [--write <file>]
+```
+
+See the [repository README](../../README.md) for the preset details.
+
+---
+
+# `map` — static workflow topology graph
 
 The `map` subcommand of the `temporal-sharp` CLI produces a static **topology
 graph** of a Temporal .NET codebase: workflows, their signal/query/update

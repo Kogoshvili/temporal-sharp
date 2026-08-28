@@ -39,8 +39,9 @@ using Temporalio.Client;
 using Temporalio.Converters;
 
 // Encrypt, then offload anything over 1 MiB to a local directory.
+// The key must be exactly 16, 24, or 32 ASCII bytes.
 var codec = new CompositePayloadCodec(
-    new EncryptionCodec("demo-key-16-bytes!"),
+    new EncryptionCodec("test-key-16bytes"),
     new ClaimCheckCodec(new FileSystemClaimCheckStore("/tmp/claim-check"), thresholdBytes: 1024 * 1024));
 
 var client = await TemporalClient.ConnectAsync(new("localhost:7233")
@@ -71,7 +72,7 @@ class Patient
 }
 
 var interceptor = new SecretEncryptionInterceptor(
-    keyResolver, secretId: "ssn-key", keyId: "ssn-v1");
+    resolver, secretId: "ssn-key", keyId: "ssn-v1");
 
 // On the client, Secret<T> values in workflow/signal/query arguments are
 // encrypted automatically; on the worker, activity arguments are decrypted
@@ -87,6 +88,12 @@ client with plaintext and let the interceptor encrypt it; read `.Value` in an
 activity after the interceptor has decrypted it. Its serialized form is the
 same `{ encoding, encryption-key-id, data }` shape the encryption codec emits,
 so it is indistinguishable from an encrypted payload in the UI.
+
+`Secret<T>` implements the non-generic `ISecret` marker interface, and its
+JSON form is produced by `SecretJsonConverterFactory` (a
+`System.Text.Json.JsonConverterFactory`). The converter fails loudly if asked to
+serialize a `Secret<T>` still holding plaintext — encryption happens in the
+interceptor before serialization, so plaintext never reaches the wire.
 
 Azure Blob and AWS S3 stores are provided by
 `Kogoshvili.Temporal.Cloud`, and a ready-made HTTP codec server (for the

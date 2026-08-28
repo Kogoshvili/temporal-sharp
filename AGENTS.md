@@ -26,6 +26,8 @@ Eight `src/` projects (two tools + six library packages):
 
 Only `Temporal.Analyzers` and `Temporal.Cli` are packed/published by CI; the others are packable but not published. All are net8.0 except the analyzer.
 
+`templates/Temporal.Templates` is a `dotnet new` template pack (`PackageType=Template`) containing the `temporal-codec-server` template. Template conditionals use the per-file-type syntax: bare `#if` in `.cs`, `//#if`/`//#endif` in `.json`, and `<!--#if -->`/`<!--#endif -->` in `.csproj`/MSBuild.
+
 Tests (eight projects under `tests/`):
 - `Temporal.Analyzers.Tests` — Roslyn analyzer-testing framework; injects stub Temporal types by name from `TestStubs.cs` and never references the real SDK.
 - `Temporal.Cli.Tests` — docs/preset generation, call graph, topology.

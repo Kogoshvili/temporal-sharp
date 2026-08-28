@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Kogoshvili.Temporal",
+  "classifications": [ "Temporal", "Web", "Codec" ],
+  "identity": "Kogoshvili.Temporal.Templates.CodecServer",
+  "name": "Temporal Codec Server",
+  "shortName": "temporal-codec-server",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "CodecServerApp",
+  "preferNameDirectory": true,
+  "symbols": {
+    "codec": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "both",
+      "choices": [
+        { "choice": "encryption", "description": "AES-GCM payload encryption only." },
+        { "choice": "claim-check", "description": "Claim-check (large-payload offload) only." },
+        { "choice": "both", "description": "Encryption + claim-check composed." }
+      ],
+      "description": "Which payload codec(s) to wire."
+    },
+    "auth": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "none",
+      "choices": [
+        { "choice": "none", "description": "No authentication (localhost / dev)." },
+        { "choice": "pass-token", "description": "Validate the Temporal UI's JWT access token." },
+        { "choice": "cross-origin", "description": "OAuth2 authorization-code (cookie) login flow." }
+      ],
+      "description": "Authentication mode for the codec endpoints."
+    },
+    "keySource": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "config",
+      "choices": [
+        { "choice": "config", "description": "Inline key in appsettings.json." },
+        { "choice": "azureKeyVault", "description": "Resolve the key from Azure Key Vault." },
+        { "choice": "awsSecretsManager", "description": "Resolve the key from AWS Secrets Manager." }
+      ],
+      "description": "Where the encryption key comes from."
+    },
+    "port": {
+      "type": "parameter",
+      "datatype": "integer",
+      "defaultValue": "5000",
+      "replaces": "PORT",
+      "description": "HTTP listen port."
+    },
+    "EnableEncryption": {
+      "type": "computed",
+      "value": "codec == \"encryption\" || codec == \"both\""
+    },
+    "EnableClaimCheck": {
+      "type": "computed",
+      "value": "codec == \"claim-check\" || codec == \"both\""
+    },
+    "UseVault": {
+      "type": "computed",
+      "value": "keySource != \"config\""
+    },
+    "UseAzure": {
+      "type": "computed",
+      "value": "keySource == \"azureKeyVault\""
+    },
+    "UseAws": {
+      "type": "computed",
+      "value": "keySource == \"awsSecretsManager\""
+    },
+    "UseAuth": {
+      "type": "computed",
+      "value": "auth != \"none\""
+    },
+    "UsePassToken": {
+      "type": "computed",
+      "value": "auth == \"pass-token\""
+    },
+    "UseCrossOrigin": {
+      "type": "computed",
+      "value": "auth == \"cross-origin\""
+    }
+  }
+}

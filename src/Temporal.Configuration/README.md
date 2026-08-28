@@ -7,15 +7,29 @@ all behave the same way.
 
 ## What it provides
 
-- **`TemporalConnectionOptions`** — target host, namespace, API key, TLS.
+- **`TemporalConnectionOptions`** — the connection shape: target host, namespace,
+  API key, TLS, plus the connection-level option groups below.
 - **`TemporalTlsOptions`** — mTLS certificates from files, environment
   variables, or (via `Kogoshvili.Temporal.Cloud`) Azure Key Vault / AWS Secrets
   Manager.
 - **`ITlsCertificateSource`** / **`TlsCertificateMaterial`** — pluggable
-  certificate resolution.
-- **`ClientOptionsFactory`** — maps options to `TemporalClientConnectOptions`.
+  certificate resolution (`FileTlsCertificateSource`,
+  `EnvironmentTlsCertificateSource`).
+- **`ClientOptionsFactory`** — mutates a `TemporalClientConnectOptions` in place
+  from the resolved options (`Apply(...)`), including TLS material.
 - **`TemporalConfig`** — loads options from `appsettings.json` + `Temporal__*`
   environment variables and builds an authenticated `ITemporalClient`.
+- Connection option groups:
+  - **`TemporalRpcRetryOptions`** — RPC retry policy (interval, multiplier, max
+    retries/elapsed).
+  - **`TemporalKeepAliveOptions`** — HTTP/2 keep-alive ping interval and timeout.
+  - **`TemporalHttpConnectProxyOptions`** — HTTP CONNECT proxy (target host,
+    username, password).
+  - **`TemporalDnsLoadBalancingOptions`** — periodic DNS re-resolution interval.
+  - **`TemporalGrpcCompressionOptions`** — transport gRPC compression mode.
+- **`TlsContent`** — helpers for decoding/encoding PEM (base64 or raw).
+- **`AzureKeyVaultTlsOptions`** / **`AwsSecretsManagerTlsOptions`** — the
+  nested config for the cloud TLS certificate sources.
 
 ## Configuration
 
@@ -26,10 +40,24 @@ all behave the same way.
     "Namespace": "my-namespace.a1b2c",
     "ApiKey": "…",
     "Tls": {
+      "Disabled": false,
       "Domain": null,
+      "Source": "file",
+      "ServerRootCACertPath": "/path/to/ca.pem",
       "ClientCertPath": "/path/to/client.pem",
       "ClientPrivateKeyPath": "/path/to/client.key"
-    }
+    },
+    "RpcRetry": {
+      "InitialInterval": "00:00:00.100",
+      "Multiplier": 1.5,
+      "MaxInterval": "00:00:05",
+      "MaxElapsedTime": "00:00:10",
+      "MaxRetries": 10
+    },
+    "KeepAlive": { "Interval": "00:00:30", "Timeout": "00:00:15" },
+    "HttpConnectProxy": { "TargetHost": null, "Username": null, "Password": null },
+    "DnsLoadBalancing": { "ResolutionInterval": null },
+    "GrpcCompression": { "Mode": "gzip" }
   }
 }
 ```
@@ -83,6 +111,9 @@ builder.Services.AddAzureKeyVaultCertificateSource();
 }
 ```
 
+`Tls:Disabled` skips TLS entirely, and `Tls:Domain` sets the expected server
+hostname/domain.
+
 ## Usage
 
 ```csharp
@@ -96,5 +127,11 @@ ITemporalClient client = await TemporalConfig.ConnectAsync();
 var options = TemporalConfig.Load();
 ITemporalClient client2 = await TemporalConfig.ConnectAsync(options);
 ```
+
+`TemporalConfig` also exposes `Load(IConfiguration)` (bind from an existing
+configuration), `BuildConfiguration(appSettingsPath)` (build the merged
+`appsettings.json` + env-var configuration), and
+`ToConnectOptions(TemporalConnectionOptions)` (map options to the SDK connect
+options).
 
 Not affiliated with or endorsed by Temporal Technologies.
