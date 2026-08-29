@@ -114,7 +114,11 @@ temporal-sharp history download <workflowType> [options]
 ```
 
 Authentication uses the shared `Temporal` configuration section and
-`Temporal__*` environment variables (including Cloud mTLS / API key).
+`Temporal__*` environment variables (including Cloud mTLS / API key). TLS
+client certificates may be sourced from a file, environment variables, Azure
+Key Vault (`Temporal:Tls:Source=azureKeyVault`), or AWS Secrets Manager
+(`Temporal:Tls:Source=awsSecretsManager`) — the cloud sources resolve via the
+default Azure/AWS credential chain at connect time.
 
 ```sh
 temporal-sharp history download OrderWorkflow --out ./histories

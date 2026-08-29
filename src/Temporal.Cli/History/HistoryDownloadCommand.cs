@@ -27,7 +27,7 @@ internal static class HistoryDownloadCommand
         try
         {
             var configuration = TemporalConfig.BuildConfiguration(options.Config);
-            var client = await TemporalConfig.ConnectAsync(configuration).ConfigureAwait(false);
+            var client = await TemporalClientConnector.ConnectAsync(configuration).ConfigureAwait(false);
 
             Directory.CreateDirectory(options.OutDir);
 
