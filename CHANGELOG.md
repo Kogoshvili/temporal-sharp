@@ -4,8 +4,15 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.0] - 2026-08-31
+
+- Pre-v1 hardening: ship XML docs and package icon, fix template restore, pin Roslyn
+- Support cloud TLS cert sources in temporal-sharp history
+- Recognize Hosting facade APIs in temporal-sharp map
+
 ## [1.0.0-beta.10] - 2026-08-28
 
+- Prepare v1.0.0-beta.10 release
 - Rework library READMEs/docs to minimal-first structure
 - Tune Dependabot: block .NET 10 majors + bump Google.Protobuf (#13)
 - Bump actions/checkout from 4 to 7 (#3)
