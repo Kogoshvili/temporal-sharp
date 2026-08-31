@@ -4,10 +4,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Kogoshvili.Temporal.Testing</RootNamespace>
     <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Kogoshvili.Temporal.Testing</PackageId>
     <Description>Part of the Kogoshvili.Temporal tool suite — replay/regression test harness for Temporal .NET workflows. Runs workflows against a real Temporal test environment, snapshots their event history, and replays it via WorkflowReplayer to catch non-determinism. Not affiliated with or endorsed by Temporal Technologies.</Description>
     <PackageTags>temporal;temporalio;workflows;testing;replay;determinism;xunit;csharp;dotnet</PackageTags>
-    <PackageReleaseNotes>Initial beta release: replay/regression test harness (ReplayHarness, ReplayResult, Snapshot) for Temporal .NET workflows.</PackageReleaseNotes>
+    <PackageReleaseNotes>Replay/regression harness for Temporal .NET workflows: capture histories from a live server and replay them to catch non-determinism.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

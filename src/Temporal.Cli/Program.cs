@@ -12,6 +12,18 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        if (args.Any(a => a is "--help" or "-h" or "help"))
+        {
+            PrintHelp(Console.Out);
+            return 0;
+        }
+
+        if (args.Contains("--version"))
+        {
+            Console.Out.WriteLine(GetVersion());
+            return 0;
+        }
+
         if (args.Length > 0 && args[0] == "map")
         {
             return await MapCommand.RunAsync(args).ConfigureAwait(false);
@@ -71,6 +83,32 @@ internal static class Program
             Console.Error.WriteLine($"Error: {ex.Message}");
             return 2;
         }
+    }
+
+    private static void PrintHelp(TextWriter writer)
+    {
+        writer.WriteLine("temporal-sharp — static analysis and tooling for Temporal .NET workflows.");
+        writer.WriteLine();
+        writer.WriteLine("Usage: temporal-sharp [command] [options]");
+        writer.WriteLine();
+        writer.WriteLine("Commands:");
+        writer.WriteLine("  analyze (default)  Run the Kogoshvili.Temporal analyzers on a solution or project.");
+        writer.WriteLine("  map                Generate a workflow topology graph (mermaid, json, html, or dot).");
+        writer.WriteLine("  history            Download workflow histories for replay testing.");
+        writer.WriteLine("  docs               Generate the rule catalog markdown (RULES.md).");
+        writer.WriteLine("  preset             Generate a recommended or strict .editorconfig preset.");
+        writer.WriteLine();
+        Options.PrintUsage(writer);
+    }
+
+    private static string GetVersion()
+    {
+        var assembly = typeof(Program).Assembly;
+        var informational = assembly
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .FirstOrDefault()?.InformationalVersion;
+        return informational ?? assembly.GetName().Version?.ToString(3) ?? "unknown";
     }
 
     private static int RunDocs(string[] args)

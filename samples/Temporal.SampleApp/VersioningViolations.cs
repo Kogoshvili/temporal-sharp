@@ -22,3 +22,18 @@ public class VersioningViolations
         }
     }
 }
+
+// TMP4108 — busy-polling the worker-deployment-version flag on a timer; the
+// flag only refreshes at workflow task boundaries.
+[Workflow]
+public class VersionFlagPollingViolations
+{
+    [WorkflowRun]
+    public async Task RunAsync()
+    {
+        while (!Workflow.TargetWorkerDeploymentVersionChanged)
+        {
+            await Workflow.DelayAsync(1000);
+        }
+    }
+}

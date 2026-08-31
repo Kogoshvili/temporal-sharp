@@ -7,9 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Kogoshvili.Temporal.CodecServer" />
+    <PackageReference Include="Kogoshvili.Temporal.CodecServer" Version="1.0.0-*" />
 <!--#if (UseVault) -->
-    <PackageReference Include="Kogoshvili.Temporal.Cloud" />
+    <PackageReference Include="Kogoshvili.Temporal.Cloud" Version="1.0.0-*" />
 <!--#endif -->
   </ItemGroup>
 

@@ -38,6 +38,14 @@ public static class ActivityViolationActivities
             await Task.Delay(1);
         }
     }
+
+    // TMP2134 — bare base exception thrown from an activity (prefer
+    // ApplicationFailureException for a typed failure).
+    [Activity]
+    public static Task ThrowBaseException()
+    {
+        throw new Exception("boom");
+    }
 }
 
 [Workflow]

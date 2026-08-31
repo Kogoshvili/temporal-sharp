@@ -21,6 +21,14 @@ public sealed class TemporalTlsOptions
     /// Gets or sets the certificate source: <c>file</c>, <c>environment</c>,
     /// <c>azureKeyVault</c>, or <c>awsSecretsManager</c>. Default is <c>file</c>.
     /// </summary>
+    /// <remarks>
+    /// Only the <c>file</c> and <c>environment</c> sources are resolved
+    /// synchronously by <c>TemporalConfig.ConnectAsync</c> /
+    /// <c>ClientOptionsFactory.Apply</c>. The cloud sources are resolved by the
+    /// hosting starter (or manually via an <c>ITlsCertificateSource</c>); using
+    /// them without that resolution silently connects without the configured
+    /// client certificate.
+    /// </remarks>
     public string Source { get; set; } = "file";
 
     /// <summary>Gets or sets the path to the server root CA certificate (PEM).</summary>

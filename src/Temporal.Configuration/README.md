@@ -160,6 +160,15 @@ is rejected by `TemporalTlsOptions.Validate()`.
 
 ### Cloud TLS resolution
 
+> **Important:** `TemporalConfig.ConnectAsync()` and
+> `TemporalConfig.ToConnectOptions()` resolve only the `file` and
+> `environment` sources. If `Tls:Source` is `azureKeyVault` or
+> `awsSecretsManager`, a client built through `Kogoshvili.Temporal.Configuration`
+> alone connects **without** the configured client certificate — no error is
+> raised. Use the cloud sources only through the hosting starter, or resolve
+> the certificate material yourself (via an `ITlsCertificateSource`) and call
+> `ClientOptionsFactory.BuildTls(TlsCertificateMaterial, TemporalTlsOptions)`.
+
 The `file` and `environment` sources are resolved synchronously by
 `ClientOptionsFactory` when the connect options are built. The cloud sources
 (`azureKeyVault` / `awsSecretsManager`) are asynchronous and are skipped there;

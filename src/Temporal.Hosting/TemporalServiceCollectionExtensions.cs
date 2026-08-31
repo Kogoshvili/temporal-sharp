@@ -144,7 +144,7 @@ public static class TemporalServiceCollectionExtensions
     /// or activity types are registered automatically — register them explicitly
     /// on the returned builder (e.g. <c>AddWorkflow{T}()</c>,
     /// <c>AddSingletonActivities{T}()</c>), or opt into convention-based
-    /// auto-discovery with <see cref="TemporalWorkerDiscoveryExtensions.AddDiscoveredTypes"/>.
+    /// auto-discovery with <c>AddDiscoveredTypes()</c>.
     /// </summary>
     /// <param name="builder">Builder returned by <c>AddTemporal</c>.</param>
     /// <param name="taskQueue">Task queue the worker polls.</param>
@@ -184,7 +184,7 @@ public static class TemporalServiceCollectionExtensions
     /// Registers a hosted Temporal worker for the given task queue. No workflow
     /// or activity types are registered automatically — register them explicitly
     /// on the returned builder, or opt into auto-discovery with
-    /// <see cref="TemporalWorkerDiscoveryExtensions.AddDiscoveredTypes"/>.
+    /// <c>AddDiscoveredTypes()</c>.
     /// </summary>
     /// <param name="services">Service collection.</param>
     /// <param name="taskQueue">Task queue the worker polls.</param>

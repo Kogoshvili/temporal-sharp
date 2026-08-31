@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   actions: write
 
 jobs:
@@ -24,7 +25,11 @@ jobs:
       - name: Update CHANGELOG.md
         run: bash scripts/update-changelog.sh "${{ github.event.inputs.version }}"
 
-      - name: Commit, tag, and push
+      # Branch protection on main requires changes to go through a PR, so the
+      # changelog commit is opened as a PR, CI-verified, squash-merged, and the
+      # tag is placed on the merge commit (keeping changelog + tag in one
+      # commit for MinVer).
+      - name: Commit changelog update
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -32,11 +37,38 @@ jobs:
           if git diff --cached --quiet; then
             echo "CHANGELOG.md is up to date."
           else
+            git checkout -b "release-prep/v${{ github.event.inputs.version }}"
             git commit -m "Prepare v${{ github.event.inputs.version }} release"
+            git push -u origin "release-prep/v${{ github.event.inputs.version }}"
+            echo "created_pr=true" >> "$GITHUB_ENV"
           fi
-          git pull --rebase origin main
+
+      - name: Create release PR
+        if: env.created_pr == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "release-prep/v${{ github.event.inputs.version }}" \
+            --title "Prepare v${{ github.event.inputs.version }} release" \
+            --body "Automated changelog update for v${{ github.event.inputs.version }}."
+
+      - name: Merge release PR
+        if: env.created_pr == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr checks "release-prep/v${{ github.event.inputs.version }}" --watch --fail-fast
+          gh pr merge "release-prep/v${{ github.event.inputs.version }}" --squash --delete-branch
+
+      - name: Tag and push
+        run: |
+          git fetch origin main --tags --force
+          git checkout main
+          git pull --ff-only origin main
           git tag "v${{ github.event.inputs.version }}"
-          git push origin main "v${{ github.event.inputs.version }}"
+          git push origin "v${{ github.event.inputs.version }}"
 
       - name: Trigger publish
         env:

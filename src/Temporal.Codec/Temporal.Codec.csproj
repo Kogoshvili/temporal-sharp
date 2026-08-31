@@ -3,10 +3,11 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Kogoshvili.Temporal.Codec</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Kogoshvili.Temporal.Codec</PackageId>
     <Description>Part of the Kogoshvili.Temporal tool suite — composable payload codecs for the Temporal .NET SDK: AES-GCM encryption, claim-check offloading (large payloads to a pluggable store), and ordered codec chains. Not affiliated with or endorsed by Temporal Technologies.</Description>
     <PackageTags>temporal;temporalio;codec;encryption;claim-check;payload-codec;dataconverter;csharp;dotnet</PackageTags>
-    <PackageReleaseNotes>Initial release: encryption, claim-check, and composite payload codecs.</PackageReleaseNotes>
+    <PackageReleaseNotes>Composable Temporal payload codecs: AES-GCM encryption, claim-check offloading, ordered chains, and per-field Secret&lt;T&gt; encryption.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

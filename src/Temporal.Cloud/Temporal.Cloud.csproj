@@ -3,10 +3,11 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Kogoshvili.Temporal.Cloud</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Kogoshvili.Temporal.Cloud</PackageId>
     <Description>Part of the Kogoshvili.Temporal tool suite — Azure and AWS integration for the Temporal .NET SDK: credential resolution and claim-check payload stores backed by Azure Blob Storage and Amazon S3. Not affiliated with or endorsed by Temporal Technologies.</Description>
     <PackageTags>temporal;temporalio;azure;aws;blob-storage;s3;claim-check;credentials;csharp;dotnet</PackageTags>
-    <PackageReleaseNotes>Initial release: Azure/AWS credential resolution and Blob/S3 claim-check stores.</PackageReleaseNotes>
+    <PackageReleaseNotes>Azure/AWS integrations for Temporal: credential resolution, Blob/S3 claim-check stores, and Key Vault/Secrets Manager TLS certificate sources.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

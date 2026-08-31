@@ -3,6 +3,10 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!-- The DiagnosticAnalyzers only use compiler APIs, but the code fix
+         providers in this assembly require Microsoft.CodeAnalysis.Workspaces,
+         which trips RS1038. -->
+    <NoWarn>$(NoWarn);RS1038</NoWarn>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <DevelopmentDependency>true</DevelopmentDependency>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
@@ -11,7 +15,7 @@
     <PackageId>Kogoshvili.Temporal.Analyzers</PackageId>
     <Description>Part of the Kogoshvili.Temporal tool suite — Roslyn analyzer for determinism and SDK feature-misuse checks in the Temporal .NET SDK. Not affiliated with or endorsed by Temporal Technologies.</Description>
     <PackageTags>temporal;temporalio;roslyn;analyzer;workflows;determinism;static-analysis;csharp;dotnet</PackageTags>
-    <PackageReleaseNotes>Initial beta release: 98 rules across determinism, shared-state, and SDK feature-misuse categories.</PackageReleaseNotes>
+    <PackageReleaseNotes>96 analyzer rules for workflow determinism, shared-state, and Temporal SDK feature misuse — see RULES.md in the repository for the full rule catalog.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

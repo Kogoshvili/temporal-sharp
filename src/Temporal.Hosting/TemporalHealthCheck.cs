@@ -20,6 +20,11 @@ public sealed class TemporalHealthCheck : IHealthCheck
     private readonly TemporalWorkerTaskQueueRegistry registry;
     private readonly ILogger<TemporalHealthCheck> logger;
 
+    /// <summary>Initializes the health check.</summary>
+    /// <param name="client">The shared lazy Temporal client used to query the server.</param>
+    /// <param name="options">The temporal options snapshot, used to read the health-check toggle.</param>
+    /// <param name="registry">The task-queue registry listing the worker queues to check.</param>
+    /// <param name="logger">The logger.</param>
     public TemporalHealthCheck(
         ITemporalClient client,
         IOptionsMonitor<TemporalOptions> options,

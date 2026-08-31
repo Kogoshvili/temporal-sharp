@@ -37,6 +37,9 @@ public class DeterminismViolations
         // TMP0112 — un-awaited (floating) task
         DoWorkAsync();
 
+        // TMP0148 — Task.WhenAll instead of Workflow.WhenAllAsync
+        await Task.WhenAll(Task.CompletedTask, Task.CompletedTask);
+
         // TMP0141 — concurrency (no Workflow.* replacement)
         _ = System.Threading.ThreadPool.QueueUserWorkItem(_ => { });
 

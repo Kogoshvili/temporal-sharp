@@ -3,10 +3,11 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Kogoshvili.Temporal.Configuration</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Kogoshvili.Temporal.Configuration</PackageId>
     <Description>Part of the Kogoshvili.Temporal tool suite — shared Temporal connection configuration for the Kogoshvili.Temporal.Hosting starter, the Kogoshvili.Temporal.Testing harness, and the temporal-sharp CLI. Loads a Temporal connection from appsettings.json or Temporal__* environment variables and builds an authenticated TemporalClient. Not affiliated with or endorsed by Temporal Technologies.</Description>
     <PackageTags>temporal;temporalio;configuration;connection;workflows;csharp;dotnet</PackageTags>
-    <PackageReleaseNotes>Initial release: shared Temporal connection options and configuration loader.</PackageReleaseNotes>
+    <PackageReleaseNotes>Shared Temporal connection configuration: build a TemporalClient from appsettings.json or Temporal__* environment variables.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

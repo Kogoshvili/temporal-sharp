@@ -7,6 +7,9 @@ namespace Kogoshvili.Temporal.Testing;
 /// </summary>
 public sealed class ReplayResult
 {
+    /// <summary>Initializes the result with the captured snapshot and the replay outcome.</summary>
+    /// <param name="snapshotJson">The captured workflow event history as JSON.</param>
+    /// <param name="replayFailure">The replay failure, or null when the replay was deterministic.</param>
     public ReplayResult(string snapshotJson, Exception? replayFailure)
     {
         SnapshotJson = snapshotJson;

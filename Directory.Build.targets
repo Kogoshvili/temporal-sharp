@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- The package icon is wired for every project that sets PackageId (the
+         eight src packages + the template pack). Gated here (not in
+         Directory.Build.props) because PackageId is defined in the project
+         body, which imports after .props but before .targets. -->
+  <ItemGroup Condition="'$(PackageId)' != ''">
+    <None Include="$(MSBuildThisFileDirectory)assets/icon.png" Pack="true" PackagePath="" Visible="false" />
+  </ItemGroup>
+
+</Project>

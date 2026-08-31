@@ -116,6 +116,7 @@ namespace Temporalio.Workflows
         public static System.Threading.CancellationToken CancellationToken => default;
         public static bool ContinueAsNewSuggested => false;
         public static bool AllHandlersFinished => false;
+        public static bool TargetWorkerDeploymentVersionChanged => false;
 
         public static System.Threading.Tasks.Task NonCancellableAsync(System.Func<System.Threading.Tasks.Task> work)
             => System.Threading.Tasks.Task.CompletedTask;
@@ -258,6 +259,12 @@ namespace Temporalio.Client
             System.Linq.Expressions.Expression<System.Func<TWorkflow, System.Threading.Tasks.Task<TResult>>> workflowRunCall,
             StartWorkflowOptions options)
             => System.Threading.Tasks.Task.FromResult(new WorkflowHandle<TResult>());
+
+        public System.Threading.Tasks.Task ExecuteActivityAsync(
+            string activity,
+            System.Collections.Generic.IReadOnlyCollection<object?>? args,
+            Temporalio.Workflows.ActivityOptions options)
+            => System.Threading.Tasks.Task.CompletedTask;
     }
 
     public sealed class WorkflowClient
@@ -290,5 +297,15 @@ namespace Temporalio.Worker
     public sealed class TemporalWorker
     {
         public TemporalWorker(Temporalio.Client.ITemporalClient client, TemporalWorkerOptions options) { }
+    }
+}
+
+namespace Temporalio.Exceptions
+{
+    public sealed class ApplicationFailureException : System.Exception
+    {
+        public ApplicationFailureException(string message, string? errorType = null, bool nonRetryable = false)
+        {
+        }
     }
 }

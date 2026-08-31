@@ -10,6 +10,8 @@ public sealed class TemporalGrpcCompressionOptions
 {
     /// <summary>Compression modes understood by the connection.</summary>
     public const string Gzip = "gzip";
+
+    /// <summary>The <see cref="Mode"/> value that disables transport compression.</summary>
     public const string None = "none";
 
     /// <summary>Gets or sets the compression mode (<c>"gzip"</c> or <c>"none"</c>). Default is gzip.</summary>

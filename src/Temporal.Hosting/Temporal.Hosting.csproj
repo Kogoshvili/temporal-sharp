@@ -3,10 +3,11 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Kogoshvili.Temporal.Hosting</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Kogoshvili.Temporal.Hosting</PackageId>
     <Description>Part of the Kogoshvili.Temporal tool suite — generic-host worker starter for the Temporal .NET SDK. Adds client/worker hosting, convention-based workflow/activity auto-discovery, a metrics interceptor, and a test-server toggle on top of Temporalio.Extensions.Hosting. Not affiliated with or endorsed by Temporal Technologies.</Description>
     <PackageTags>temporal;temporalio;hosting;dependency-injection;workers;workflows;activities;metrics;csharp;dotnet</PackageTags>
-    <PackageReleaseNotes>Initial release: generic-host Temporal worker starter with config binding, auto-discovery, metrics, and a test-server toggle.</PackageReleaseNotes>
+    <PackageReleaseNotes>Generic-host Temporal worker starter: config binding, workflow/activity auto-discovery, shared DataConverter, metrics, tracing, schedules, health checks, and a test-server toggle.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

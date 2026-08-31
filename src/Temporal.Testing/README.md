@@ -66,11 +66,11 @@ only through the live-service replay path, which connects via the shared
 ```json
 {
   "Temporal": {
-    "Address": "my-namespace.tmprl.cloud:7233",
+    "TargetHost": "my-namespace.tmprl.cloud:7233",
     "Namespace": "my-namespace",
     "Tls": {
       "ClientCertPath": "certs/client.pem",
-      "ClientKeyPath": "certs/client.key"
+      "ClientPrivateKeyPath": "certs/client.key"
     }
   }
 }

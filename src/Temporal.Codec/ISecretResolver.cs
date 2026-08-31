@@ -19,5 +19,6 @@ public interface ISecretResolver
 
     /// <summary>Resolves the secret value.</summary>
     /// <param name="secretId">The secret name (Azure Key Vault) or secret id (AWS Secrets Manager).</param>
+    /// <param name="cancellationToken">A token to cancel the resolution.</param>
     Task<string> ResolveAsync(string secretId, CancellationToken cancellationToken = default);
 }

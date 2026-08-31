@@ -36,7 +36,7 @@ internal static class WorkflowTopologyBuilder
     /// <summary>
     /// Builds a single topology graph from multiple solutions. A shared
     /// <see cref="BuilderState"/> keys nodes by fully-qualified type/method name
-    /// (see <see cref="TypeFullName"/>/<see cref="MethodFullName"/>), so a
+    /// (see <c>TypeFullName</c>/<c>MethodFullName</c>), so a
     /// workflow in one solution that invokes a <c>[Workflow]</c>/<c>[Activity]</c>
     /// member defined in another solution (via a shared contract assembly) is
     /// stitched to the same node instead of becoming an <c>Unknown:*</c> boundary.

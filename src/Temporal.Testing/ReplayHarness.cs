@@ -22,8 +22,10 @@ public sealed class ReplayHarness : IAsyncDisposable
         Environment = environment;
     }
 
+    /// <summary>Gets the underlying test environment (time-skipping or local server).</summary>
     public WorkflowEnvironment Environment { get; }
 
+    /// <summary>Gets a client connected to the test environment, for starting workflows and querying state.</summary>
     public ITemporalClient Client => Environment.Client;
 
     /// <summary>Starts a time-skipping test environment (recommended for fast runs).</summary>
@@ -94,5 +96,6 @@ public sealed class ReplayHarness : IAsyncDisposable
         return new ReplayResult(Snapshot.ToJson(history), replay.ReplayFailure);
     }
 
+    /// <summary>Disposes the test environment.</summary>
     public async ValueTask DisposeAsync() => await Environment.DisposeAsync();
 }

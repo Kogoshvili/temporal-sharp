@@ -19,6 +19,10 @@ public sealed class TemporalConnectionWaiter : IHostedService
     private readonly ITemporalClient client;
     private readonly ILogger<TemporalConnectionWaiter> logger;
 
+    /// <summary>Initializes the connection waiter.</summary>
+    /// <param name="options">The temporal options snapshot, used to read the connection-wait settings.</param>
+    /// <param name="client">The shared lazy Temporal client whose connection is opened on success.</param>
+    /// <param name="logger">The logger.</param>
     public TemporalConnectionWaiter(
         IOptionsMonitor<TemporalOptions> options,
         ITemporalClient client,
@@ -29,6 +33,11 @@ public sealed class TemporalConnectionWaiter : IHostedService
         this.logger = logger;
     }
 
+    /// <summary>
+    /// Connects the shared client, retrying with exponential backoff until the
+    /// server is reachable or the configured timeout elapses. No-op when
+    /// connection-wait is disabled or the test server runs in-process.
+    /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         var current = options.CurrentValue;
@@ -75,6 +84,7 @@ public sealed class TemporalConnectionWaiter : IHostedService
         }
     }
 
+    /// <summary>No-op: the shared connection stays open until the host disposes it.</summary>
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     private static TimeSpan NextDelay(TimeSpan delay, TimeSpan maxDelay)

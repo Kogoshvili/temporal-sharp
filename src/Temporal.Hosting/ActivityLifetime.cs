@@ -29,6 +29,8 @@ public enum ActivityLifetime
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class ActivityLifetimeAttribute : Attribute
 {
+    /// <summary>Initializes the attribute with the activity lifetime to use.</summary>
+    /// <param name="lifetime">The registration lifetime for the discovered activity class.</param>
     public ActivityLifetimeAttribute(ActivityLifetime lifetime) => Lifetime = lifetime;
 
     /// <summary>Gets the activity lifetime.</summary>

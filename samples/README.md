@@ -10,7 +10,7 @@ Three companion projects demonstrate the worker starter along two axes —
 
 | Project | What it shows |
 | --- | --- |
-| **`Temporal.HostingDemo.Minimal`** | The smallest possible starter: ~10 lines of code and one config key. Convenience. |
+| **`Temporal.HostingDemo.Minimal`** | The smallest possible starter: ~15 lines of code and two config sections. Convenience. |
 | **`Temporal.HostingDemo.Configured`** | The full kitchen sink — encryption, claim-check, codec server, metrics, tracing, worker tuning, presets, ID conventions, health checks. No loss of configurability. |
 | **`Temporal.HostingDemo.Raw`** | The same app hand-rolled against the raw `Temporalio` SDK, showing exactly what the starter collapses into (no lock-in). |
 
@@ -28,13 +28,21 @@ builder.Services
     .AddTemporal(builder.Configuration)
     .AddTemporalWorker("minimal-queue")
     .AddDiscoveredTypes();
-builder.Services.AddHostedService<GreetingDriver>();
+builder.Services.AddHostedService<DemoDriver>();
 await builder.Build().RunAsync();
 ```
 
 ```jsonc
-// appsettings.json — the only knob it needs (the queue the workflow starts on):
-{ "Temporal": { "Workflows": { "Default": { "TaskQueue": "minimal-queue" } } } }
+// appsettings.json — the queue workflows start on, plus a default
+// activity-options preset:
+{
+  "Temporal": {
+    "Workflows": { "Default": { "TaskQueue": "minimal-queue" } },
+    "ActivityOptions": {
+      "Default": { "ScheduleToCloseTimeout": "00:05:00", "HeartbeatTimeout": "00:00:30" }
+    }
+  }
+}
 ```
 
 **Configured** — the same starter call, but `appsettings.json` turns on

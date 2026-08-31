@@ -1,3 +1,4 @@
+using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
 namespace Kogoshvili.Temporal.SampleApp;
@@ -61,4 +62,45 @@ public class LossyParamWorkflow
 {
     [WorkflowRun]
     public async Task RunAsync(object payload, dynamic value) => await Task.CompletedTask;
+}
+
+// TMP2135 — nonRetryable set on an ApplicationFailureException thrown from
+// workflow code (the flag only affects activity retries).
+[Workflow]
+public class WorkflowNonRetryableViolations
+{
+    [WorkflowRun]
+    public Task RunAsync()
+    {
+        throw new ApplicationFailureException("bad input", nonRetryable: true);
+    }
+}
+
+// TMP3210 — workflow constructor schedules a blocking command.
+[Workflow]
+public class ConstructorCommandViolations
+{
+    public ConstructorCommandViolations()
+    {
+        _ = Workflow.DelayAsync(1000);
+    }
+
+    [WorkflowRun]
+    public async Task RunAsync() => await Task.CompletedTask;
+}
+
+// TMP3213 — standalone-activity client API called from workflow code (also
+// exercises TMP3212: client types referenced from workflow code).
+[Workflow]
+public class StandaloneActivityClientViolations
+{
+    [WorkflowRun]
+    public async Task RunAsync()
+    {
+        Temporalio.Client.TemporalClient client = null!;
+        await client.ExecuteActivityAsync(
+            "Greet",
+            null,
+            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
+    }
 }

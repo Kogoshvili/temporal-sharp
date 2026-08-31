@@ -20,6 +20,10 @@ public sealed class TemporalTestServerService : IHostedService
     private readonly ILogger<TemporalTestServerService> logger;
     private WorkflowEnvironment? environment;
 
+    /// <summary>Initializes the test-server service.</summary>
+    /// <param name="options">The temporal options snapshot, used to read the test-server toggle and port.</param>
+    /// <param name="connectOptions">The shared connect options whose target host is rewritten to the running server.</param>
+    /// <param name="logger">The logger.</param>
     public TemporalTestServerService(
         IOptionsMonitor<TemporalOptions> options,
         TemporalClientConnectOptions connectOptions,
@@ -30,6 +34,10 @@ public sealed class TemporalTestServerService : IHostedService
         this.logger = logger;
     }
 
+    /// <summary>
+    /// Starts the in-process dev server (unless disabled) and writes the
+    /// resolved <c>host:port</c> back into the shared connect options.
+    /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (!options.CurrentValue.TestServer.Enabled)
@@ -54,6 +62,7 @@ public sealed class TemporalTestServerService : IHostedService
         logger.LogInformation("Temporal test server started on {TargetHost}", connectOptions.TargetHost);
     }
 
+    /// <summary>Stops and disposes the in-process dev server.</summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         if (environment is { } started)
