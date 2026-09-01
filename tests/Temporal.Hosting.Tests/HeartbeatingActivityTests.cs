@@ -16,6 +16,18 @@ public class HeartbeatingActivityTests
         public IDisposable Start(TimeSpan? interval = null) => StartAutoHeartbeat(interval);
     }
 
+    // The auto-heartbeat loop ticks on a background timer, so a fixed delay in
+    // the activity body races the first tick and flakes under CI load. Wait
+    // inside the live body (before Dispose cancels the loop) for a tick to land.
+    private static async Task WaitForFirstHeartbeatAsync(IReadOnlyCollection<object?[]> heartbeats)
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        while (heartbeats.Count == 0 && stopwatch.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            await Task.Delay(10);
+        }
+    }
+
     [Fact]
     public async Task Heartbeat_RelaysDetailsToContext()
     {
@@ -74,7 +86,7 @@ public class HeartbeatingActivityTests
             act.DoHeartbeat(progress);
             using (act.Start(TimeSpan.FromMilliseconds(10)))
             {
-                await Task.Delay(100);
+                await WaitForFirstHeartbeatAsync(heartbeats);
             }
         });
 
@@ -93,7 +105,7 @@ public class HeartbeatingActivityTests
         {
             using (act.Start(TimeSpan.FromMilliseconds(10)))
             {
-                await Task.Delay(100);
+                await WaitForFirstHeartbeatAsync(heartbeats);
             }
         });
 

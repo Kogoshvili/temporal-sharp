@@ -59,7 +59,37 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr checks "release-prep/v${{ github.event.inputs.version }}" --watch --fail-fast
+          pr_branch="release-prep/v${{ github.event.inputs.version }}"
+
+          # The changelog PR is authored with this workflow's GITHUB_TOKEN, so
+          # GitHub parks its pull_request CI run in action_required until it is
+          # approved, and the run itself can take a moment to register. Poll
+          # for the run first; "gh pr checks --watch" races startup otherwise.
+          run_id=""
+          for _ in $(seq 1 30); do
+            run_id=$(gh run list --branch "$pr_branch" --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            if [ -n "$run_id" ]; then
+              break
+            fi
+            sleep 10
+          done
+          if [ -z "$run_id" ]; then
+            echo "::error::No CI run registered for $pr_branch within 5 minutes."
+            exit 1
+          fi
+
+          # Approve the parked run; fail loudly rather than merging unverified.
+          conclusion=$(gh run view "$run_id" --json conclusion --jq '.conclusion // empty')
+          if [ "$conclusion" = "action_required" ]; then
+            if gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/approve" >/dev/null 2>&1; then
+              echo "Approved CI run $run_id (was waiting for authorization)."
+            else
+              echo "::error::CI run $run_id is waiting for approval and could not be approved automatically. Approve it at https://github.com/${GITHUB_REPOSITORY}/actions/runs/${run_id} and re-run."
+              exit 1
+            fi
+          fi
+
+          gh run watch "$run_id" --exit-status
           gh pr merge "release-prep/v${{ github.event.inputs.version }}" --squash --delete-branch
 
       - name: Tag and push
