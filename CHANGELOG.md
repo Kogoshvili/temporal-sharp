@@ -4,8 +4,14 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.1] - 2026-09-01
+
+- Add TMP2148/TMP3220 rules and make docs command internal-only
+- Rework Testing README demos: live service first, then golden files
+
 ## [1.0.0] - 2026-08-31
 
+- Prepare v1.0.0 release
 - Pre-v1 hardening: ship XML docs and package icon, fix template restore, pin Roslyn
 - Support cloud TLS cert sources in temporal-sharp history
 - Recognize Hosting facade APIs in temporal-sharp map
