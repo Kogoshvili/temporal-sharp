@@ -167,6 +167,13 @@ internal static class TestStubs
             {
                 public static WorkflowLogger Logger => new WorkflowLogger();
 
+                public static class Unsafe
+                {
+                    public static bool IsReplaying => false;
+
+                    public static bool IsReplayingHistoryEvents => false;
+                }
+
                 public static System.DateTime UtcNow => default;
 
                 public static System.Guid NewGuid() => default;

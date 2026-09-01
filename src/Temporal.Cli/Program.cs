@@ -95,7 +95,6 @@ internal static class Program
         writer.WriteLine("  analyze (default)  Run the Kogoshvili.Temporal analyzers on a solution or project.");
         writer.WriteLine("  map                Generate a workflow topology graph (mermaid, json, html, or dot).");
         writer.WriteLine("  history            Download workflow histories for replay testing.");
-        writer.WriteLine("  docs               Generate the rule catalog markdown (RULES.md).");
         writer.WriteLine("  preset             Generate a recommended or strict .editorconfig preset.");
         writer.WriteLine();
         Options.PrintUsage(writer);

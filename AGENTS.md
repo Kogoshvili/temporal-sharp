@@ -43,7 +43,9 @@ Tests (eight projects under `tests/`):
 `src/Temporal.Analyzers/Diagnostics/DiagnosticDescriptors.cs` is the single source of truth. Derived artifacts, regenerated (never hand-edited):
 
 - `RULES.md` — `dotnet run --project src/Temporal.Cli -- docs` (or `temporal-sharp docs`).
-- `editorconfig/recommended.editorconfig` / `strict.editorconfig` — `temporal-sharp preset <recommended|strict>`.
+- `editorconfig/recommended.editorconfig` / `strict.editorconfig` — `temporal-sharp preset <recommended|strict> [--write <file>]`.
+
+The `docs` command is internal tooling (used by CI's `docs.yml` and maintainers to regenerate `RULES.md`). It must NOT be advertised in the CLI's `--help` output or `src/Temporal.Cli/README.md` — it is intentionally undocumented user-facing; do not add it back there.
 
 `DocumentationSyncTests` and `ConsistencyTests` fail the build if descriptors, `RULES.md`, and analyzer `SupportedDiagnostics` drift. **Adding a rule requires four coordinated edits**: descriptor in `DiagnosticDescriptors.cs`, declaration in an analyzer's `SupportedDiagnostics`, an entry in `src/Temporal.Analyzers/AnalyzerReleases.Unshipped.md`, and a regenerated `RULES.md`. `docs.yml` auto-commits `RULES.md` on pushes to `main` touching `DiagnosticDescriptors.cs`, but run `docs` locally before committing descriptor changes.
 

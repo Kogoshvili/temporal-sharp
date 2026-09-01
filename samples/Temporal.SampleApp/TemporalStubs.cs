@@ -113,6 +113,13 @@ namespace Temporalio.Workflows
         public static DeterministicRandom Random => new();
         public static WorkflowLogger Logger => new();
 
+        public static class Unsafe
+        {
+            public static bool IsReplaying => false;
+
+            public static bool IsReplayingHistoryEvents => false;
+        }
+
         public static System.Threading.CancellationToken CancellationToken => default;
         public static bool ContinueAsNewSuggested => false;
         public static bool AllHandlersFinished => false;

@@ -27,7 +27,6 @@ console.
 | `analyze` (default) | Runs the Roslyn analyzers over a solution and reports findings. |
 | `map` | Produces a static workflow topology graph (Mermaid/JSON/HTML/DOT). |
 | `history` | Downloads recorded workflow histories for later replay. |
-| `docs` | Regenerates the `RULES.md` rule catalog from the analyzer descriptors. |
 | `preset` | Emits an `.editorconfig` severity block for a named preset. |
 
 ### `analyze`
@@ -124,16 +123,6 @@ default Azure/AWS credential chain at connect time.
 temporal-sharp history download OrderWorkflow --out ./histories
 temporal-sharp history download OrderWorkflow --execution-status Failed --limit 20 --out ./histories
 ```
-
-### `docs`
-
-Regenerate the rule catalog from the analyzer descriptors:
-
-```text
-temporal-sharp docs [output-file]
-```
-
-Defaults to writing `RULES.md` in the current directory.
 
 ### `preset`
 

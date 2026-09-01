@@ -522,6 +522,13 @@ internal static class DiagnosticDescriptors
         "A workflow must have a parameterless constructor unless one is marked [WorkflowInit]; otherwise the worker cannot instantiate it and throws at startup.",
         severity: DiagnosticSeverity.Error);
 
+    internal static readonly DiagnosticDescriptor WorkflowNonInitParameterizedCtor = Create(
+        "TMP3220",
+        SdkMisuseCategory,
+        "Parameterized constructor without [WorkflowInit] in a [Workflow] class",
+        "[Workflow] class '{0}' has a constructor that is neither parameterless nor marked [WorkflowInit]; the worker never invokes it",
+        "The worker only ever calls the parameterless constructor or the one marked [WorkflowInit]; any other parameterized constructor is dead code — typically a workaround for injecting ambient state such as singletons or configuration. Receive workflow arguments via [WorkflowInit] instead, or remove the constructor.");
+
     internal static readonly DiagnosticDescriptor WorkflowConstructorCommand = Create(
         "TMP3210",
         SdkMisuseCategory,
@@ -609,6 +616,13 @@ internal static class DiagnosticDescriptors
         "Namespace '{0}' is configured as unsafe for workflow code",
         "Importing namespaces that provide I/O, networking, or other non-deterministic APIs into workflow code invites replay bugs. Configure kogoshvili.temporal.unsafe_namespaces with a list of namespace prefixes that workflow code must not import.",
         isEnabledByDefault: false);
+
+    internal static readonly DiagnosticDescriptor WorkflowUnsafeUsage = Create(
+        "TMP2148",
+        SdkMisuseCategory,
+        "Workflow.Unsafe used in workflow code",
+        "'{0}' is from Workflow.Unsafe and should not be used in workflow code in most cases",
+        "Workflow.Unsafe (for example IsReplaying) should not be used in most cases: branching on replay status breaks determinism. For logging use Workflow.Logger and for metrics use Workflow.Metrics; both are replay-aware. If you know what you are doing and why, suppress this diagnostic with #pragma warning disable TMP2148.");
 
     internal static readonly DiagnosticDescriptor BigIntegerInPayload = Create(
         "TMP2142",

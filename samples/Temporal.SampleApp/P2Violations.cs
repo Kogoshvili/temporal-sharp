@@ -103,6 +103,46 @@ public class ParameterizedCtorWorkflow
     public async Task RunAsync() => await Task.CompletedTask;
 }
 
+// TMP3220 — parameterized constructor chained from the parameterless one as a
+// singleton workaround; the worker never invokes the parameterized constructor.
+[Workflow]
+public class ChainedCtorWorkflow
+{
+    private const string LegacyName = "legacy";
+
+    private readonly string name;
+
+    public ChainedCtorWorkflow()
+        : this(LegacyName)
+    {
+    }
+
+    public ChainedCtorWorkflow(string name)
+    {
+        this.name = name;
+    }
+
+    [WorkflowRun]
+    public async Task RunAsync() => await Task.CompletedTask;
+}
+
+// TMP2148 — Workflow.Unsafe used to branch workflow logic.
+[Workflow]
+public class UnsafeReplayBranchWorkflow
+{
+    [WorkflowRun]
+    public async Task RunAsync()
+    {
+        if (Workflow.Unsafe.IsReplaying)
+        {
+            await Workflow.ExecuteActivityAsync(
+                "Notify",
+                null,
+                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) });
+        }
+    }
+}
+
 // TMP2122 — continue-as-new without passing workflow state.
 [Workflow]
 public class StatelessContinueAsNewWorkflow

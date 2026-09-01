@@ -29,6 +29,7 @@ TMP3216 | SdkMisuse | Warning | Signal handler schedules activities/child workfl
 TMP3217 | SdkMisuse | Warning | Workflow may complete while async handlers are pending
 TMP3218 | SdkMisuse | Error | [WorkflowInit] and [WorkflowRun] parameter lists mismatch
 TMP3219 | SdkMisuse | Error | [Workflow] class with no parameterless constructor and no [WorkflowInit]
+TMP3220 | SdkMisuse | Warning | Parameterized constructor without [WorkflowInit] in a [Workflow] class (dead code)
 TMP2123 | SdkMisuse | Error | catch swallows a ContinueAsNewException
 TMP2124 | SdkMisuse | Warning | Cleanup after cancellation not in a non-cancellable scope
 TMP2122 | SdkMisuse | Warning | Continue-as-new without passing current workflow state
@@ -56,6 +57,7 @@ TMP4105 | BestPractice | Info | Hard-coded task-queue name instead of a shared c
 TMP4106 | BestPractice | Warning | Consecutive ExecuteLocalActivityAsync calls with no intervening workflow command
 TMP4107 | BestPractice | Warning | Local activity performs blocking or network I/O
 TMP2147 | SdkMisuse | Disabled | using directive for a namespace configured as unsafe for workflow code
+TMP2148 | SdkMisuse | Warning | Workflow.Unsafe (IsReplaying) used in workflow code
 TMP0148 | Determinism | Info | Task.WhenAll in workflow code (use Workflow.WhenAllAsync)
 TMP3210 | SdkMisuse | Error | Workflow instance constructor schedules a blocking workflow command
 TMP3213 | SdkMisuse | Error | Standalone activity client API (ExecuteActivityAsync / StartActivityAsync / GetActivityHandle) called from workflow code

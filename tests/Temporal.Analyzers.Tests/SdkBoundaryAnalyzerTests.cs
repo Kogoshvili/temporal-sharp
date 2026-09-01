@@ -177,4 +177,47 @@ public class SdkBoundaryAnalyzerTests
                 }
             }
             """);
+
+    [Fact]
+    public Task WorkflowUnsafeIsReplayingInWorkflow_Reports()
+        => Verify(Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    if (Temporalio.Workflows.Workflow.Unsafe.{|TMP2148:IsReplaying|})
+                    {
+                        Temporalio.Workflows.Workflow.Logger.LogInformation("replaying");
+                    }
+                }
+            }
+            """);
+
+    [Fact]
+    public Task WorkflowUnsafeUsingStatic_Reports()
+        => Verify("""
+            using static Temporalio.Workflows.Workflow.Unsafe;
+
+            """ + Stubs + """
+            [Temporalio.Workflows.Workflow]
+            public class W
+            {
+                [Temporalio.Workflows.WorkflowRun]
+                public async System.Threading.Tasks.Task Run()
+                {
+                    var r = {|TMP2148:IsReplayingHistoryEvents|};
+                }
+            }
+            """);
+
+    [Fact]
+    public Task WorkflowUnsafeOutsideWorkflow_DoesNotReport()
+        => Verify(Stubs + """
+            public class Plain
+            {
+                public bool Check() => Temporalio.Workflows.Workflow.Unsafe.IsReplaying;
+            }
+            """);
 }

@@ -10,7 +10,9 @@ namespace Kogoshvili.Temporal.Analyzers.Analyzers;
 
 /// <summary>
 /// Flags SDK-boundary mistakes: client/worker types referenced from workflow
-/// code (TMP3212) and use of internal <c>Temporalio.*</c> namespaces (TMP2146).
+/// code (TMP3212), use of internal <c>Temporalio.*</c> namespaces (TMP2146),
+/// standalone-activity client APIs invoked from workflow code (TMP3213), and
+/// <c>Workflow.Unsafe</c> members used from workflow code (TMP2148).
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
@@ -18,6 +20,8 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
     private static readonly ImmutableHashSet<string> InternalNamespacePrefixes = ImmutableHashSet.Create(
         StringComparer.Ordinal,
         "Temporalio.Bridge");
+
+    private const string WorkflowUnsafeType = "Temporalio.Workflows.Workflow.Unsafe";
 
     private static readonly ImmutableHashSet<string> StandaloneActivityClientTypes = ImmutableHashSet.Create(
         StringComparer.Ordinal,
@@ -35,7 +39,8 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
         ImmutableArray.Create(
             DiagnosticDescriptors.ClientOrWorkerTypeInWorkflow,
             DiagnosticDescriptors.InternalTemporalNamespace,
-            DiagnosticDescriptors.StandaloneActivityInWorkflow);
+            DiagnosticDescriptors.StandaloneActivityInWorkflow,
+            DiagnosticDescriptors.WorkflowUnsafeUsage);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -61,6 +66,14 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
             startContext.RegisterSyntaxNodeAction(
                 c => AnalyzeStandaloneActivityInvocation(c, state),
                 SyntaxKind.InvocationExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeUnsafeMemberAccess(c, state),
+                SyntaxKind.SimpleMemberAccessExpression);
+
+            startContext.RegisterSyntaxNodeAction(
+                c => AnalyzeUnsafeBareIdentifier(c, state),
+                SyntaxKind.IdentifierName);
         });
     }
 
@@ -85,6 +98,50 @@ public sealed class SdkBoundaryAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.StandaloneActivityInWorkflow,
             invocation.GetLocation(),
             method.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+    }
+
+    // TMP2148 — Workflow.Unsafe members accessed from workflow-reachable code.
+    private static void AnalyzeUnsafeMemberAccess(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var memberAccess = (MemberAccessExpressionSyntax)context.Node;
+        var symbol = context.SemanticModel.GetSymbolInfo(memberAccess).Symbol;
+        ReportIfWorkflowUnsafe(context, state, symbol, memberAccess, memberAccess.Name.GetLocation());
+    }
+
+    // TMP2148 — bare Workflow.Unsafe members via 'using static', e.g. IsReplaying.
+    private static void AnalyzeUnsafeBareIdentifier(SyntaxNodeAnalysisContext context, CompilationAnalysisState state)
+    {
+        var identifier = (IdentifierNameSyntax)context.Node;
+        if (identifier.Parent is MemberAccessExpressionSyntax { Name: var name } && name == identifier)
+        {
+            return;
+        }
+
+        var symbol = context.SemanticModel.GetSymbolInfo(identifier).Symbol;
+        ReportIfWorkflowUnsafe(context, state, symbol, identifier, identifier.GetLocation());
+    }
+
+    private static void ReportIfWorkflowUnsafe(
+        SyntaxNodeAnalysisContext context,
+        CompilationAnalysisState state,
+        ISymbol? symbol,
+        SyntaxNode node,
+        Location location)
+    {
+        if (symbol is not (IPropertySymbol or IMethodSymbol or IFieldSymbol or IEventSymbol) ||
+            symbol.ContainingType is null ||
+            // TypeNames.FullName only composes namespace + name, so a nested
+            // type's containing-type chain must be rendered via display format.
+            symbol.ContainingType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) != WorkflowUnsafeType ||
+            !state.IsWorkflowReachable(node, context.SemanticModel))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.WorkflowUnsafeUsage,
+            location,
+            symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
     }
 
     // TMP3212 — client/worker type referenced from workflow-reachable code.

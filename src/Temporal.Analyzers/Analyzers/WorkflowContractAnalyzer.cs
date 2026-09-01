@@ -25,6 +25,7 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
             DiagnosticDescriptors.MixedWorkflowAndActivity,
             DiagnosticDescriptors.WorkflowInitMismatch,
             DiagnosticDescriptors.WorkflowParameterizedCtor,
+            DiagnosticDescriptors.WorkflowNonInitParameterizedCtor,
             DiagnosticDescriptors.WorkflowConstructorCommand);
 
     public override void Initialize(AnalysisContext context)
@@ -151,24 +152,34 @@ public sealed class WorkflowContractAnalyzer : DiagnosticAnalyzer
         }
 
         // TMP3219 — [Workflow] type with no parameterless constructor and no [WorkflowInit].
+        // TMP3220 — any parameterized constructor without [WorkflowInit] is dead
+        // code the worker never calls (a workaround vector for ambient state).
         if (WorkflowDetection.IsWorkflowType(type))
         {
             var initCtor = methods.FirstOrDefault(m =>
                 m.MethodKind == MethodKind.Constructor && WorkflowDetection.IsWorkflowInit(m));
 
-            // A parameterless constructor satisfies the SDK contract; a
-            // parameterized constructor coexisting with one is valid and harmless.
+            // A parameterless constructor satisfies the SDK contract.
             var hasParameterlessCtor = methods.Any(m =>
                 m.MethodKind == MethodKind.Constructor && !m.IsStatic && m.Parameters.Length == 0);
 
+            var parameterizedCtors = methods.Where(m =>
+                m.MethodKind == MethodKind.Constructor &&
+                !m.IsStatic &&
+                m.Parameters.Length > 0);
+
             if (initCtor is null && !hasParameterlessCtor)
             {
-                foreach (var ctor in methods.Where(m =>
-                             m.MethodKind == MethodKind.Constructor &&
-                             !m.IsStatic &&
-                             m.Parameters.Length > 0))
+                foreach (var ctor in parameterizedCtors)
                 {
                     Report(context, FirstLocation(ctor), type.Name, DiagnosticDescriptors.WorkflowParameterizedCtor);
+                }
+            }
+            else
+            {
+                foreach (var ctor in parameterizedCtors.Where(m => !WorkflowDetection.IsWorkflowInit(m)))
+                {
+                    Report(context, FirstLocation(ctor), type.Name, DiagnosticDescriptors.WorkflowNonInitParameterizedCtor);
                 }
             }
         }
