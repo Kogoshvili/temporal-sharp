@@ -10,13 +10,14 @@ Unlike `Kogoshvili.Temporal.Analyzers`, this library references the real
 
 ## Minimal setup
 
-Replay a workflow by capturing its history and replaying it in one step. The
-harness owns a time-skipping `WorkflowEnvironment` and its client:
+Replay recorded histories for a workflow type from a live Temporal service —
+Cloud or self-hosted. The replayer registers the workflow type; the connection
+comes from the shared `Kogoshvili.Temporal.Configuration` project (see
+[Configuration](#configuration)):
 
 ```csharp
+using Kogoshvili.Temporal.Configuration;
 using Kogoshvili.Temporal.Testing;
-using Temporalio.Client;
-using Temporalio.Worker;
 using Temporalio.Workflows;
 
 [Workflow]
@@ -30,38 +31,23 @@ public class GreetingWorkflow
     }
 }
 
-public class ReplayHarnessTests : IAsyncLifetime
+var client = await TemporalConfig.ConnectAsync();
+
+await foreach (var result in Replay.FromServerAsync<GreetingWorkflow>(
+    client,
+    workflowType: "GreetingWorkflow",
+    executionStatus: "Completed",
+    limit: 50))
 {
-    private ReplayHarness _harness = null!;
-
-    public async Task InitializeAsync() =>
-        _harness = await ReplayHarness.StartTimeSkippingAsync();
-
-    public async Task DisposeAsync() => await _harness.DisposeAsync();
-
-    [Fact]
-    public async Task DeterministicWorkflow_Replays_WithoutFailure()
-    {
-        var result = await _harness.VerifyAsync<GreetingWorkflow, string>(
-            new TemporalWorkerOptions("replay-test-queue").AddWorkflow<GreetingWorkflow>(),
-            workflow => workflow.RunAsync("world"),
-            new WorkflowOptions { Id = "greeting-replay", TaskQueue = "replay-test-queue" });
-
-        Assert.True(result.Succeeded, result.ReplayFailure?.ToString());
-    }
+    result.ThrowIfFailed();
 }
 ```
 
-`VerifyAsync` captures the history, replays it, and returns a `ReplayResult`
-whose `Succeeded` reflects whether the replay was deterministic. The harness can
-also be used directly with `await using` instead of an xUnit fixture.
-
 ## Configuration
 
-The local harness is code-only and needs no configuration. Configuration enters
-only through the live-service replay path, which connects via the shared
-`Kogoshvili.Temporal.Configuration` project reading the `Temporal` section of
-`appsettings.json` (plus `Temporal__*` environment variables):
+The live-service replay path connects via the shared
+`Kogoshvili.Temporal.Configuration` project, which reads the `Temporal` section
+of `appsettings.json` (plus `Temporal__*` environment variables):
 
 ```json
 {
@@ -76,24 +62,40 @@ only through the live-service replay path, which connects via the shared
 }
 ```
 
+`TemporalConfig.ConnectAsync()` has overloads for no-arg, `IConfiguration`, and
+`TemporalConnectionOptions`.
+
+## Golden files
+
+Replay JSON histories checked into the repo — exported with the Temporal CLI
+(`temporal workflow show --output json`), downloaded with the `temporal-sharp`
+CLI, or exported from the web UI. No server, test environment, or credentials
+needed at test time — only the workflow type under test.
+
+`history download` fetches recorded histories from a live service using the
+same shared configuration as the replay path (`appsettings.json` +
+`Temporal__*` environment variables) and writes one `*.json` file per workflow
+id:
+
+```shell
+temporal-sharp history download GreetingWorkflow --out histories --limit 50
+```
+
 ```csharp
-using Kogoshvili.Temporal.Configuration;
 using Kogoshvili.Temporal.Testing;
 
-var client = await TemporalConfig.ConnectAsync();
+// One exported history; the workflow id is passed explicitly
+var result = await Replay.FromJsonAsync<GreetingWorkflow>(
+    await File.ReadAllTextAsync("histories/greeting-replay.json"),
+    workflowId: "greeting-replay");
+result.ThrowIfFailed();
 
-await foreach (var result in Replay.FromServerAsync<GreetingWorkflow>(
-    client,
-    workflowType: "GreetingWorkflow",
-    executionStatus: "Completed",
-    limit: 50))
+// Every JSON history in a directory; file names (minus extension) become workflow ids
+foreach (var result in await Replay.FromDirectoryAsync<GreetingWorkflow>("histories"))
 {
     result.ThrowIfFailed();
 }
 ```
-
-`TemporalConfig.ConnectAsync()` has overloads for no-arg, `IConfiguration`, and
-`TemporalConnectionOptions`.
 
 ## Full configuration
 
@@ -101,16 +103,16 @@ await foreach (var result in Replay.FromServerAsync<GreetingWorkflow>(
 
 There are three ways to feed histories into `WorkflowReplayer`:
 
-1. **Live, local capture** — `ReplayHarness.VerifyAsync` starts a bundled local
-   test environment, runs the workflow, and captures its history with
-   `FetchHistoryAsync`. No external server or credentials needed.
+1. **Live service** — `Replay.FromServerAsync` replays recorded histories for a
+   workflow type from a running Temporal service, optionally filtered by
+   execution status and capped by a total count.
 2. **Checked-in golden files** — `Replay.FromJsonAsync` /
    `Replay.FromDirectoryAsync` replay JSON histories exported from the Temporal
    CLI (`temporal workflow show --output json`) or web UI and committed to the
    repo.
-3. **Live service** — `Replay.FromServerAsync` replays recorded histories for a
-   workflow type from a running Temporal service, optionally filtered by
-   execution status and capped by a total count.
+3. **Live, local capture** — `ReplayHarness.VerifyAsync` starts a bundled local
+   test environment, runs the workflow, and captures its history with
+   `FetchHistoryAsync`. No external server or credentials needed.
 
 ### ReplayHarness
 
