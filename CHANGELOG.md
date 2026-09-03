@@ -4,8 +4,14 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.2] - 2026-09-03
+
+- Rework temporal-sharp map: SDK-exact string resolution, queue boxes, contracts, callers, heartbeats, provenance
+- Harden release PR merge (register wait + bot-run approval) and de-flake auto-heartbeat tests
+
 ## [1.0.1] - 2026-09-01
 
+- Prepare v1.0.1 release (#19)
 - Add TMP2148/TMP3220 rules and make docs command internal-only
 - Rework Testing README demos: live service first, then golden files
 
