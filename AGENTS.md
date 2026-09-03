@@ -59,5 +59,5 @@ The `docs` command is internal tooling (used by CI's `docs.yml` and maintainers 
 
 ## Release
 
-`release.yml` (manual, version input) updates `CHANGELOG.md` via `scripts/update-changelog.sh`, then commits+tags `v<version>`; `publish.yml` builds/tests/packs and pushes to NuGet (OIDC) on the tag. The changelog update and tag are one commit to keep MinVer's derived version correct.
+Releases run locally: `scripts/prepare-release.sh <version>` updates `CHANGELOG.md` via `scripts/update-changelog.sh`, then commits+tags `v<version>` and pushes both — the changelog update and tag are one commit to keep MinVer's derived version correct. `publish.yml` builds/tests/packs and pushes to NuGet (OIDC) automatically on the tag push. There is no release workflow: direct pushes to `main` from the owner account bypass the branch ruleset, while the github-actions app cannot (personal repos cannot whitelist it), so release-PR machinery was removed.
 
