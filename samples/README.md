@@ -149,3 +149,30 @@ automatically. The `Raw` demo has no such toggle and always needs a server.
 - **`Temporal.SampleApp`** — intentionally violates the analyzer rules and is
   used as a smoke-test target in CI (its `.editorconfig` downgrades every rule to
   `warning`). Build it with `dotnet build samples/Temporal.SampleApp`.
+
+## Map smoke sample
+
+A generated demo of the map output lives at
+[`Temporal.MapSmoke/topology.md`](Temporal.MapSmoke/topology.md) (regenerate
+with `temporal-sharp map AppA/AppA.sln AppB/AppB.sln`).
+- **`Temporal.MapSmoke`** — two standalone .NET solutions for smoke-testing the
+  `temporal-sharp map` topology grapher. `AppA.sln` holds the workflows (typed
+  + repeated + looped + string-named activity calls, a local activity, a
+  cross-queue routed call into `AppB`, a child workflow, a Nexus call, a
+  dual-queue workflow, an env-config-derived queue) plus a test project for
+  test-exclusion; `AppB.sln` is an activities-only worker on a separate task
+  queue, so cross-solution stitching can be observed. Not part of CI. Run the
+  grapher against it with:
+
+  ```sh
+  temporal-sharp map samples/Temporal.MapSmoke/AppA/AppA.sln
+  ```
+
+  The `AppA.Contracts` project and its scenarios additionally exercise
+  contract/interface features: `[Workflow]`/`[Activity]` interface contracts
+  with an ambiguous two-impl contract (Contract node), heartbeat
+  good/missing call sites (`<-->`/`--x` edges), a standalone activity start
+  (`⚡`), client signal/query/update from `Program.cs` (Caller node), an
+  env-default queue (`orders-fallback`), and a config-driven queue resolved
+  from `appsettings.json`/`appsettings.Production.json` (`config-q-prod`;
+  `appsettings.Development.json` is ignored).

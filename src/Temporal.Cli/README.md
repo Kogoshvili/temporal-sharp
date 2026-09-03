@@ -25,7 +25,7 @@ console.
 | Command | What it does |
 | --- | --- |
 | `analyze` (default) | Runs the Roslyn analyzers over a solution and reports findings. |
-| `map` | Produces a static workflow topology graph (Mermaid/JSON/HTML/DOT). |
+| `map` | Produces a static workflow topology graph (Mermaid/JSON/HTML/DOT/Markdown). |
 | `history` | Downloads recorded workflow histories for later replay. |
 | `preset` | Emits an `.editorconfig` severity block for a named preset. |
 
@@ -175,9 +175,22 @@ symbols, and emit the resulting graph in a form that is both human-readable
 temporal-sharp map <path.sln|path.csproj|dir> [...] [options]
 
 Options:
-  --format <mermaid|json|html|dot>  Output format (default: mermaid).
+  --format <mermaid|json|html|dot|markdown>  Output format (default: mermaid).
   --output <file>                   Write to a file instead of stdout.
+  --include-tests                   Keep test projects in the graph (excluded by default).
+  --no-contracts                    Hide signatures/return types and call options.
 ```
+
+Test projects (by `*.Tests.csproj`/`*.Test.csproj` name or a test-framework
+reference) are excluded by default, since their mock activities and test
+workflows usually just add noise; pass `--include-tests` to keep them. Under
+the default contracts view, workflow/activity nodes carry handler signatures
+(`run: RunAsync(string) → Task<string>`) and edges carry call-site options
+(`#1 [StartToClose=30s; Retry:max3]`).
+
+Projects that have not been NuGet-restored are rejected up front with an
+actionable error (run `dotnet restore`), instead of silently mapping to an
+empty graph.
 
 `map` accepts **multiple** inputs — repeat the path argument, or pass a
 directory containing several solution/project files. Each input is expanded to
@@ -212,6 +225,24 @@ temporal-sharp map ./App.sln ../contracts/Contracts.csproj --format json
 | `nexus`     | `Nexus:`         | A typed nexus operation method                                |
 | `taskQueue` | `TaskQueue:`     | A constant task-queue name (string)                           |
 | `unknown`   | `Unknown:`       | A boundary node for a target that could not be statically resolved |
+| `contract`  | `Contract:`      | An interface/abstract member with ambiguous implementations        |
+| `caller`    | `Caller:`        | A non-workflow class that starts/signals/queries from the client   |
+
+Interface- and abstract-based workflows/activities resolve to their unique
+implementation node (so a contracts library in project A and the worker in
+project B tie together); when two or more implementations exist, the call
+resolves to a dashed `⧉ Contract` boundary node instead. Client-side calls are
+anchored at `🖥 Caller` nodes.
+
+Task-queue nodes are **container metadata**: the emitters render one box per
+queue (green) holding its workflows and activities, an **"Unknown task queue"
+box** for nodes whose queue is config-driven or otherwise undetectable, and an
+**"Orphaned activities" box** (bottom, dashed red) for uncalled activities with
+no detected queue. Nodes associated with *several* queues stay outside all
+boxes with an edge into each of their queue boxes. The JSON keeps the explicit
+`taskQueue` edges (which may now originate from activities — worker
+registration or call-site `ActivityOptions.TaskQueue` routing) plus a shared
+`Unknown:TaskQueue` boundary node, so tooling still gets raw data.
 
 Workflow nodes also carry **handler ports** — the `[WorkflowRun]`,
 `[WorkflowSignal]`, `[WorkflowQuery]`, and `[WorkflowUpdate]` members — as
@@ -230,7 +261,16 @@ nodes.
 | `localActivity` | `-->`         | workflow executes a local activity (`ExecuteLocalActivityAsync`)   |
 | `childWorkflow` | `-.->`        | workflow starts a child workflow (`StartChildWorkflowAsync`/`ExecuteChildWorkflowAsync`) |
 | `nexus`         | `==>`         | workflow starts a nexus operation/service                          |
-| `taskQueue`     | `-->|task queue|` | workflow runs on (is registered to / started on) a task queue   |
+| `signal`        | (teal)        | client or another workflow signals a workflow                      |
+| `query`/`update`| (teal)        | client queries / sends an update to a workflow                     |
+| `startWorkflow` | (teal)        | caller starts a workflow                                           |
+| `standaloneActivity` | `⚡`     | caller starts a standalone activity                                |
+
+Local activities use a circle arrow (`--o`) instead of the plain call arrow.
+Activity edges become bidirectional (`<-->`) when the callee calls
+`Heartbeat(...)`; a red crossed edge (`--x`) flags the misconfiguration where
+the call site sets `HeartbeatTimeout` but the callee never heartbeats.
+| `taskQueue`     | (box)         | workflow/activity runs on / is routed to a task queue (drawn as a container, not an arrow) |
 
 **How each element is detected**
 
@@ -260,17 +300,62 @@ with a Roslyn `SemanticModel`:
 - **Task-queue nodes + edges** — constant strings are extracted from
   `TemporalWorkerOptions("queue")` (constructor argument) or
   `TaskQueue = "queue"` object initializers, from client start options
-  (`StartWorkflowOptions { TaskQueue = "..." }`), and from the hosting starter's
-  `AddTemporalWorker("queue")` call. Workflows are associated via
-  `AddWorkflow<T>()` calls on the worker-options instance (fluent chains and
-  simple local variables are followed), via `.AddWorkflow<T>()` /
+  (`StartWorkflowOptions { TaskQueue = "..." }`), from the hosting starter's
+  `AddTemporalWorker("queue")` call, and from the official
+  `Temporalio.Extensions.Hosting` facade (`AddHostedTemporalWorker(..., "queue")`
+  chained with `AddWorkflow<T>()` / `AddScopedActivities<T>()`). Workflows are
+  associated via `AddWorkflow<T>()` calls on the worker-options instance (fluent
+  chains and simple local variables are followed), via `.AddWorkflow<T>()` /
   `.AddDiscoveredTypes()` chained off `AddTemporalWorker`, and via client
-  `StartWorkflowAsync` / `ExecuteWorkflowAsync` typed lambdas.
+  `StartWorkflowAsync` / `ExecuteWorkflowAsync` typed lambdas. Activities are
+  associated via `AddActivity(lambda)` / `AddAllActivities(typeof(X) | <T>)`
+  on `TemporalWorkerOptions`, via the SDK facade's `AddScopedActivities<T>()`,
+  and via the hosting starter's `AddDiscoveredTypes()`. Call sites can reroute
+  an activity to another queue through `ActivityOptions { TaskQueue = "..." }`.
+  Nodes with no statically resolvable queue get an edge to a shared
+  `Unknown:TaskQueue` boundary node (rendered as the unknown-queue box).
+  Queue names that are not string constants are resolved best-effort from
+  env-var helpers with a constant fallback (`GetEnvVarWithDefault("K", "q")`)
+  and from configuration indexer keys (`config["Temporal:Worker:TaskQueue"]`)
+  against the project's `appsettings.json` + `appsettings.Production.json`
+  (never `appsettings.Development.json`). Activities additionally inherit the
+  calling workflow's queue when they have no explicit evidence.
+- **Client-side calls** — starts, signals, queries, and updates made through
+  `GetWorkflowHandle<T>` / `StartWorkflowAsync` / standalone
+  `StartActivityAsync` / `ExecuteActivityAsync` produce `Caller:` nodes and
+  typed edges; workflow-to-workflow signals via
+  `Workflow.GetExternalWorkflowHandle<T>().SignalAsync(...)` connect the two
+  workflows directly.
+- **Heartbeats** — activities calling `ActivityExecutionContext.Current.Heartbeat(...)`
+  are marked `💓` and their call edges render bidirectional; a heartbeat
+  timeout without heartbeat calls marks the edge as an issue.
+- **String-call resolution** — string-named calls match implementations by the
+  SDK's exact naming rules: activities use the explicit `[Activity("Name")]`
+  or the method name verbatim; workflows use `[Workflow("Name")]` or the type
+  name (with the interface `I`-prefix trimmed); signals/updates trim a
+  trailing `Async`. String signals/queries/updates from clients resolve via
+  the handle's generic type or the handler-name index; matches become real
+  edges (cross-repo included), misses become `❓` boundary nodes. Calls
+  through contracts with no implementation anywhere stay on the contract node
+  marked `❔`.
+- **Provenance** — every node carries its input-solution name and a relative
+  source path (`AppA/src/OrderWorkflow.cs:12`) as a sub-line under the label;
+  `?` when no location is known.
+- **Legend** — raw mermaid/DOT output carries the legend inside the graph;
+  `--format markdown` emits the diagram in a fence with the legend as a
+  regular table in the space outside the schematic, and the HTML output puts
+  it in the page header. Diagrams set a white background via the mermaid init
+  directive (dark-theme viewers render transparent backgrounds poorly).
 - **Boundary (`Unknown:*`) nodes** — whenever a call uses the *string-named*
   overload (the first argument is a string constant), or a typed lambda resolves
   to a method that lacks the expected attribute (e.g. an activity call whose
   target is not `[Activity]`), an `unknown` node is emitted so the cross-repo /
-  unresolved target is still visible in the graph.
+  unresolved target is still visible in the graph. The shared
+  `Unknown:TaskQueue:"unknown"` node is the boundary for undetectable queues.
+- **Call order and loops** — activity edges carry `order` (1-based call ordinals
+  per calling workflow, in document order) and `inLoop` (true when *any* call
+  site is nested in a `for`/`foreach`/`while`/`do`). The mermaid/HTML/DOT
+  emitters render these as edge labels like `#1, #3 🔁`.
 
 #### Multi-repo / multi-input stitching
 
@@ -288,39 +373,45 @@ edge, not a boundary node. Anything that still cannot be resolved to a
 
 **Mermaid**
 
-The Mermaid emitter produces a `flowchart TB` with `classDef` styling per node
+The Mermaid emitter produces a `flowchart LR` with `classDef` styling per node
 kind, handler ports rendered as `<i>kind: name</i>` lines inside each workflow
-node, and distinct arrow styles per edge kind:
+node, one subgraph per task queue, and distinct arrow styles per edge kind:
 
 ```text
-flowchart TB
-    classDef workflow fill:#e3f2fd,stroke:#1565c0;
-    classDef activity fill:#fff3e0,stroke:#ef6c00;
-    classDef nexus fill:#f3e5f5,stroke:#7b1fa2;
-    classDef taskQueue fill:#e8f5e9,stroke:#2e7d32;
-    classDef unknown fill:#fbe9e7,stroke:#c62828,stroke-dasharray: 5 5;
+flowchart LR
+    classDef workflow fill:#e3f2fd,stroke:#1565c0,color:#000;
+    classDef activity fill:#fff3e0,stroke:#ef6c00,color:#000;
+    classDef nexus fill:#f3e5f5,stroke:#7b1fa2,color:#000;
+    classDef unknown fill:#fbe9e7,stroke:#c62828,stroke-dasharray: 5 5,color:#000;
 
-    n14["OrderActivities.ChargeCustomer"]:::activity
-    n17["order-task-queue"]:::taskQueue
     n19["Activity: LegacyPayment"]:::unknown
     n21["NexusOperation: ShipPackage"]:::unknown
     n22["NexusService: shipping-nexus"]:::unknown
-    n29["ChildWorkflow<br/><i>query: Progress</i><br/><i>run: RunAsync</i>"]:::workflow
-    n54["OrderWorkflow<br/><i>query: Status</i><br/><i>run: RunAsync</i><br/><i>signal: ApproveAsync</i>"]:::workflow
 
-    n54 --> n14
-    n54 -->|task queue| n17
+    subgraph q0["📥 order-task-queue"]
+    n14["OrderActivities.ChargeCustomer"]:::activity
+    n54["OrderWorkflow<br/><i>query: Status</i><br/><i>run: RunAsync</i><br/><i>signal: ApproveAsync</i>"]:::workflow
+    end
+    style q0 fill:#e8f5e9,stroke:#2e7d32,color:#000
+
+    subgraph orp["🪤 Orphaned activities (no static caller)"]
+    n31["ReportingActivities.Export"]:::activity
+    end
+    style orp fill:#fbe9e7,stroke:#c62828,stroke-dasharray: 5 5,color:#000
+
+    n54 -->|"#1, #3"| n14
+    n54 -->|"#2 🔁"| n33
     n54 --> n19
     n54 ==> n21
     n54 ==> n22
     n54 -.-> n29
 ```
 
-Reading the styling: solid `-->` is a (local) activity call, dotted `-.->` is a
-child workflow, thick `==>` is a nexus operation/service, and `-->|task queue|`
-links a workflow to the task queue it runs on. Dashed-red `unknown` nodes are
-boundary nodes for string-named / cross-repo targets — the "holes" in the
-statically-known graph.
+Reading the styling: solid `-->` is a (local) activity call (labels show the
+call order, `🔁` marks calls inside a loop), dotted `-.->` is a child workflow,
+and thick `==>` is a nexus operation/service. Queue membership is conveyed by
+the green `subgraph` boxes rather than arrows; dashed-red nodes/boxes are
+boundary content — string-named targets, undetectable queues, and orphans.
 
 **JSON**
 
@@ -355,11 +446,21 @@ piped into other tooling:
       "to": "Workflow:Kogoshvili.Temporal.SampleApp.ChildWorkflow",
       "kind": "childWorkflow" },
     { "from": "Workflow:Kogoshvili.Temporal.SampleApp.OrderWorkflow",
+      "to": "Activity:Kogoshvili.Temporal.SampleApp.OrderActivities.ChargeCustomer",
+      "kind": "activity",
+      "order": [1, 3] },
+    { "from": "Activity:Kogoshvili.Temporal.SampleApp.OrderActivities.ChargeCustomer",
       "to": "TaskQueue:order-task-queue",
       "kind": "taskQueue" }
   ]
 }
 ```
+
+Activity edges may carry `order` (1-based call ordinals per calling workflow)
+and `inLoop: true`; both are omitted when absent. `taskQueue` edges connect
+workflows *and* activities to queue nodes (worker registration, the hosting
+facades, or call-site `ActivityOptions.TaskQueue` routing); nodes with no
+statically resolvable queue point at `Unknown:TaskQueue:"unknown"`.
 
 Workflow/activity/nexus nodes carry `file`/`line` source locations; `unknown`
 and `taskQueue` nodes do not (they have no single source location).
@@ -397,18 +498,23 @@ minimal interactivity on top of the static diagram:
 **DOT**
 
 `--format dot` emits Graphviz DOT with per-kind shapes/colours (workflows = blue
-boxes, activities = orange ellipses, nexus = purple diamonds, task queues =
-green hexagons, unknowns = dashed red boxes) and per-edge styles (child workflow
-= dashed, nexus = bold):
+boxes, activities = orange ellipses, nexus = purple diamonds, unknowns = dashed
+red boxes), one `cluster_` subgraph per task queue, and per-edge styles (child
+workflow = dashed, nexus = bold):
 
 ```dot
 digraph temporal_topology {
-    graph [rankdir=TB, splines=spline];
-    n14 [label="OrderActivities.ChargeCustomer", shape=ellipse, style="filled", fillcolor="#fff3e0"];
-    n17 [label="order-task-queue", shape=hexagon, style="filled", fillcolor="#e8f5e9"];
-    n54 [label="OrderWorkflow\nquery: Status\nrun: RunAsync\nsignal: ApproveAsync", shape=box, style="filled", fillcolor="#e3f2fd"];
-    n54 -> n14 [color="#ef6c00", style=solid];
-    n54 -> n17 [color="#2e7d32", style=solid, label="task queue"];
+    graph [rankdir=LR, splines=spline, compound=true];
+    n19 [label="Activity: LegacyPayment", shape=box, style="filled,dashed", fillcolor="#fbe9e7"];
+    subgraph cluster_q0 {
+        label="📥 order-task-queue";
+        style="rounded,filled";
+        fillcolor="#e8f5e9";
+        color="#2e7d32";
+        n14 [label="OrderActivities.ChargeCustomer", shape=ellipse, style="filled", fillcolor="#fff3e0"];
+        n54 [label="OrderWorkflow\nquery: Status\nrun: RunAsync\nsignal: ApproveAsync", shape=box, style="filled", fillcolor="#e3f2fd"];
+    }
+    n54 -> n14 [color="#ef6c00", style=solid, label="#1, #3"];
 }
 ```
 
@@ -419,13 +525,22 @@ digraph temporal_topology {
   turn calls an activity is *not* followed transitively (unlike the existing
   solution call graph used by `analyze`).
 - **Best-effort task-queue association.** Worker registration is recognized for
-  the fluent form (`new TemporalWorkerOptions("q").AddWorkflow<W>()`) and for a
-  simple local variable holding the options; field/property indirection is not
-  followed. Client association recognizes `TaskQueue = "..."` object
-  initializers on start options. The hosting starter's
-  `AddTemporalWorker("q").AddDiscoveredTypes()` associates the workflows declared
-  in the *same compilation* as the call (a proxy for the scanned assembly); a
-  discovery call in one project does not reach workflows in a sibling project.
+  the fluent form (`new TemporalWorkerOptions("q").AddWorkflow<W>()` /
+  `.AddActivity(...)` / `.AddAllActivities(...)`), for a simple local variable
+  holding the options, for `AddHostedTemporalWorker(..., "q")` chains, and for
+  the hosting starter's `AddTemporalWorker("q").AddDiscoveredTypes()`;
+  field/property indirection is not followed. Client association recognizes
+  `TaskQueue = "..."` object initializers on start options, and call sites can
+  reroute activities via `ActivityOptions { TaskQueue = "..." }`. Anything
+  config-driven (a queue name read from a variable/env var) falls into the
+  "Unknown task queue" box. The hosting starter's `AddDiscoveredTypes()`
+  associates the workflows and activities declared in the *same compilation*
+  as the call (a proxy for the scanned assembly); a discovery call in one
+  project does not reach workflows in a sibling project.
+- **Call order is per workflow, document order.** Ordinals count activity
+  commands in source order within each workflow; they are not execution-order
+  guarantees across branches, and unresolved calls still consume an ordinal
+  (a gap in the labels signals a call the analyzer could not resolve).
 - **Nexus services are not first-class nodes.** Typed nexus *operations* get a
   `nexus` node; string-named services/operations become `Unknown:` boundaries.
   The service → operation relationship is not linked.

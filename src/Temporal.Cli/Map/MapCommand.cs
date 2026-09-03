@@ -1,4 +1,5 @@
 using Kogoshvili.Temporal.Cli.Analysis;
+using Microsoft.CodeAnalysis;
 
 namespace Kogoshvili.Temporal.Cli.Map;
 
@@ -27,15 +28,21 @@ internal static class MapCommand
         {
             var paths = MapOptions.ResolvePaths(options.Paths);
             var solutions = await ProjectLoader.LoadAsync(paths, CancellationToken.None).ConfigureAwait(false);
+            if (!options.IncludeTests)
+            {
+                solutions = solutions.Select(RemoveTestProjects).ToArray();
+            }
+
             var graph = await WorkflowTopologyBuilder.BuildAsync(solutions, CancellationToken.None).ConfigureAwait(false);
 
             var title = string.Join(", ", paths);
             var content = options.Format switch
             {
                 MapOutputFormat.Json => TopologyEmitter.ToJson(graph),
-                MapOutputFormat.Html => TopologyEmitter.ToHtml(graph, title),
-                MapOutputFormat.Dot => TopologyEmitter.ToDot(graph),
-                _ => TopologyEmitter.ToMermaid(graph),
+                MapOutputFormat.Html => TopologyEmitter.ToHtml(graph, title, options.Contracts),
+                MapOutputFormat.Dot => TopologyEmitter.ToDot(graph, options.Contracts),
+                MapOutputFormat.Markdown => RenderMarkdown(graph, options.Contracts),
+                _ => TopologyEmitter.ToMermaid(graph, options.Contracts),
             };
 
             if (options.Output is not null)
@@ -55,5 +62,35 @@ internal static class MapCommand
             Console.Error.WriteLine($"Error: {ex.Message}");
             return 2;
         }
+    }
+
+    /// <summary>
+    /// Markdown output: the diagram in a mermaid fence (without the in-graph
+    /// legend) plus the legend as regular text in the space outside the
+    /// schematic.
+    /// </summary>
+    internal static string RenderMarkdownForTests(TopologyGraph graph, bool contracts) => RenderMarkdown(graph, contracts);
+
+    private static string RenderMarkdown(TopologyGraph graph, bool contracts)
+    {
+        return "```mermaid\n"
+            + TopologyEmitter.ToMermaid(graph, contracts, includeLegend: false).TrimEnd()
+            + "\n```\n\n## Legend\n\n"
+            + TopologyEmitter.MarkdownLegend;
+    }
+
+    /// <summary>
+    /// Drops every project recognized as a test project (by name convention or
+    /// test-framework reference) from the solution, so its mock activities and
+    /// test workflows never enter the graph.
+    /// </summary>
+    private static Solution RemoveTestProjects(Solution solution)
+    {
+        foreach (var project in solution.Projects.Where(TestProjectFilter.IsTestProject).ToList())
+        {
+            solution = solution.RemoveProject(project.Id);
+        }
+
+        return solution;
     }
 }

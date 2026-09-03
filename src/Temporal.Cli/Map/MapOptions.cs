@@ -6,6 +6,7 @@ internal enum MapOutputFormat
     Json,
     Html,
     Dot,
+    Markdown,
 }
 
 internal sealed class MapOptions
@@ -16,11 +17,24 @@ internal sealed class MapOptions
 
     public string? Output { get; init; }
 
+    /// <summary>
+    /// When false (the default), test projects are excluded from the graph.
+    /// </summary>
+    public bool IncludeTests { get; init; }
+
+    /// <summary>
+    /// Renders handler signatures, return types, and call-site options
+    /// (timeouts, retry). Default on; disabled with --no-contracts.
+    /// </summary>
+    public bool Contracts { get; init; } = true;
+
     public static MapOptions Parse(string[] args)
     {
         var paths = new List<string>();
         var format = MapOutputFormat.Mermaid;
         string? output = null;
+        var includeTests = false;
+        var includeContracts = true;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -35,6 +49,14 @@ internal sealed class MapOptions
 
                 case "--output":
                     output = RequireValue(args, ref i, "--output");
+                    break;
+
+                case "--include-tests":
+                    includeTests = true;
+                    break;
+
+                case "--no-contracts":
+                    includeContracts = false;
                     break;
 
                 default:
@@ -58,6 +80,8 @@ internal sealed class MapOptions
             Paths = paths,
             Format = format,
             Output = output,
+            IncludeTests = includeTests,
+            Contracts = includeContracts,
         };
     }
 
@@ -66,8 +90,10 @@ internal sealed class MapOptions
         writer.WriteLine("Usage: temporal-sharp map <path.sln|path.csproj|dir> [...] [options]");
         writer.WriteLine();
         writer.WriteLine("Options:");
-        writer.WriteLine("  --format <mermaid|json|html|dot>  Output format (default: mermaid).");
+        writer.WriteLine("  --format <mermaid|json|html|dot|markdown>  Output format (default: mermaid).");
         writer.WriteLine("  --output <file>                   Write to a file instead of stdout.");
+        writer.WriteLine("  --include-tests                   Keep test projects in the graph (excluded by default).");
+        writer.WriteLine("  --no-contracts                    Hide signatures/return types and call options.");
     }
 
     /// <summary>
@@ -126,6 +152,7 @@ internal sealed class MapOptions
         "json" => MapOutputFormat.Json,
         "html" => MapOutputFormat.Html,
         "dot" => MapOutputFormat.Dot,
+        "markdown" or "md" => MapOutputFormat.Markdown,
         _ => throw new ArgumentException($"Unknown format '{value}'."),
     };
 }

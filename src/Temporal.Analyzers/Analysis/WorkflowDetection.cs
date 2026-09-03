@@ -47,6 +47,42 @@ internal static class WorkflowDetection
     public static bool IsWorkflowInit(IMethodSymbol method)
         => HasAttribute(method, WorkflowInitAttributeName);
 
+    /// <summary>
+    /// Returns the name the SDK derives from the attributed symbol: the
+    /// attribute's explicit name (constructor or <c>Name</c> property) when
+    /// present, otherwise null (callers apply their own default, e.g. method
+    /// or type name).
+    /// </summary>
+    public static string? GetAttributeName(ISymbol symbol, string attributeFullName)
+    {
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            if (attribute.AttributeClass is not { } attributeClass ||
+                attributeClass.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) != attributeFullName)
+            {
+                continue;
+            }
+
+            if (attribute.ConstructorArguments.Length > 0 &&
+                attribute.ConstructorArguments[0].Value is string constructorName)
+            {
+                return constructorName;
+            }
+
+            foreach (var namedArgument in attribute.NamedArguments)
+            {
+                if (namedArgument.Key == "Name" && namedArgument.Value.Value is string namedName)
+                {
+                    return namedName;
+                }
+            }
+
+            return null;
+        }
+
+        return null;
+    }
+
     private static bool HasAttribute(ISymbol symbol, string attributeFullName)
     {
         foreach (var attribute in symbol.GetAttributes())

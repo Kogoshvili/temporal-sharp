@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Kogoshvili.Temporal.MapSmoke.AppA.Worker</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Temporalio" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <!-- Direct reference pins the vulnerable transitive (via Configuration.Json) to 8.0.5. -->
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Scenario 11: [Workflow]/[Activity] interface contracts shared with the worker. -->
+    <ProjectReference Include="..\AppA.Contracts\AppA.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Cross-solution reference: AppB.Worker is built via AppB.sln, not part of AppA.sln. -->
+    <ProjectReference Include="..\..\AppB\AppB.Worker\AppB.Worker.csproj" />
+  </ItemGroup>
+
+</Project>
