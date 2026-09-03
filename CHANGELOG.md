@@ -6,6 +6,7 @@ automatically when a release is prepared.
 
 ## [1.0.2] - 2026-09-03
 
+- Prepare v1.0.2 release (#20)
 - Rework temporal-sharp map: SDK-exact string resolution, queue boxes, contracts, callers, heartbeats, provenance
 - Harden release PR merge (register wait + bot-run approval) and de-flake auto-heartbeat tests
 
