@@ -4,8 +4,15 @@ All notable changes to this project are documented in this file. Each section
 summarizes the commits since the previous release, and is generated
 automatically when a release is prepared.
 
+## [1.0.3] - 2026-09-04
+
+- map: recursive directory scan with solution-wins dedupe and --max-depth
+- Add plan for map --source cloud (runtime topology from server history)
+- Replace release workflow with local prepare-release.sh
+
 ## [1.0.2] - 2026-09-03
 
+- Prepare v1.0.2 release (#21)
 - Prepare v1.0.2 release (#20)
 - Rework temporal-sharp map: SDK-exact string resolution, queue boxes, contracts, callers, heartbeats, provenance
 - Harden release PR merge (register wait + bot-run approval) and de-flake auto-heartbeat tests
