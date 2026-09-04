@@ -179,6 +179,7 @@ Options:
   --output <file>                   Write to a file instead of stdout.
   --include-tests                   Keep test projects in the graph (excluded by default).
   --no-contracts                    Hide signatures/return types and call options.
+  --max-depth <n>                   Directory scan depth (default: 5).
 ```
 
 Test projects (by `*.Tests.csproj`/`*.Test.csproj` name or a test-framework
@@ -193,9 +194,15 @@ actionable error (run `dotnet restore`), instead of silently mapping to an
 empty graph.
 
 `map` accepts **multiple** inputs — repeat the path argument, or pass a
-directory containing several solution/project files. Each input is expanded to
-a concrete `.sln`/`.csproj` (a directory resolves to its solution, or to all of
-its projects when it has none) and all of them are stitched into a single graph.
+directory containing several solution/project files. A directory is scanned
+**recursively** (default 5 levels, tunable with `--max-depth`), so you can
+drop several repositories into one folder and map them all at once. Duplicate
+inputs are collapsed, and projects referenced by a discovered solution are
+skipped (the solution represents them), so a `.csproj` that is both on disk
+and inside a `.sln` is never loaded twice; projects outside any solution
+(orphan projects) are mapped individually. Hidden directories and build-output
+folders (`bin`, `obj`, `artifacts`, `packages`, `node_modules`) are not
+scanned. Explicitly listed files are always kept as given.
 
 ```sh
 # Mermaid flowchart, printed to stdout

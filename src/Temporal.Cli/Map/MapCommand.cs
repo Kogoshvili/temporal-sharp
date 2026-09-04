@@ -26,7 +26,7 @@ internal static class MapCommand
 
         try
         {
-            var paths = MapOptions.ResolvePaths(options.Paths);
+            var paths = MapOptions.ResolvePaths(options.Paths, options.MaxDepth);
             var solutions = await ProjectLoader.LoadAsync(paths, CancellationToken.None).ConfigureAwait(false);
             if (!options.IncludeTests)
             {
