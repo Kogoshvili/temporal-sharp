@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Protobuf" VersionOverride="3.36.2" />
     <PackageReference Include="Temporalio" />
   </ItemGroup>
 
